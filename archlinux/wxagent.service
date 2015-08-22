@@ -1,0 +1,14 @@
+[Unit]
+Description=A weixin agent daemon
+After=network.target,dbus.service
+Requires=dbus.socket
+
+[Service]
+Type=simple
+#User=nobody
+User=gzleo
+Environment="DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-XXBRdFQxlY,guid=adc3d044b0c8e6fb961e747a55d7ef59"
+ExecStart=/usr/bin/wxagent
+
+[Install]
+WantedBy=multi-user.target

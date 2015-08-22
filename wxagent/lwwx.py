@@ -13,6 +13,8 @@ from PyQt5.QtDBus import *
 SERVICE_NAME = 'io.qtc.wxagent'
 # QDBUS_DEBUG
 
+from wxagent.wxsession import *
+
 from wxagent.ui_mainwindow import *
 class QRWin(QMainWindow):
     def __init__(self, parent = None):
@@ -22,6 +24,8 @@ class QRWin(QMainWindow):
 
         self.sesbus = QDBusConnection.sessionBus()
         self.iface = QDBusInterface(SERVICE_NAME, '/', '', self.sesbus)
+
+        self.wxses = None
 
         #                                   path   iface    name
         # sigmsg = QDBusMessage.createSignal("/", 'signals', "logined")
@@ -38,6 +42,7 @@ class QRWin(QMainWindow):
         self.uiw.pushButton_4.clicked.connect(self.onSyncCheck, Qt.QueuedConnection)
         self.uiw.pushButton_5.clicked.connect(self.onWebSync, Qt.QueuedConnection)
         self.uiw.pushButton_6.clicked.connect(self.onRefresh, Qt.QueuedConnection)
+        self.uiw.pushButton_7.clicked.connect(self.createWXSession, Qt.QueuedConnection)
         return
 
     @pyqtSlot(QDBusMessage)
@@ -56,6 +61,9 @@ class QRWin(QMainWindow):
         args = message.arguments()
         msglen = args[0]
         msghcc = args[1]
+
+        if self.wxses is None: self.createWXSession()
+        
         
         for arg in args:
             if type(arg) == int:
@@ -69,6 +77,10 @@ class QRWin(QMainWindow):
 
         self.saveContent('msgfromdbus.json', hcc)
 
+        wxmsgvec = WXMessageList()
+        wxmsgvec.setMessage(hcc)
+        
+
         strhcc = hcc.data().decode('utf8')
         qDebug(strhcc[0:120].replace("\n", "\\n"))
         jsobj = json.JSONDecoder().decode(strhcc)
@@ -76,18 +88,61 @@ class QRWin(QMainWindow):
         AddMsgCount = jsobj['AddMsgCount']
         ModContactCount = jsobj['ModContactCount']
 
-        for um in jsobj['AddMsgList']:
-            tm = 'MT:%s,' % (um['MsgType'])   # , um['Content'])
-            try:
-                tm = ':::,MT:%s,%s' % (um['MsgType'], um['Content'])
-                qDebug(str(tm))
-            except Exception as ex:
-                # qDebug('can not show here')
-                rct = um['Content']
-                print('::::::::::,MT', um['MsgType'], str(type(rct)), rct)
-            self.uiw.plainTextEdit.appendPlainText(um['Content'])
+        # for um in jsobj['AddMsgList']:
+        #     tm = 'MT:%s,' % (um['MsgType'])   # , um['Content'])
+        #     try:
+        #         tm = ':::,MT:%s,%s' % (um['MsgType'], um['Content'])
+        #         qDebug(str(tm))
+        #     except Exception as ex:
+        #         # qDebug('can not show here')
+        #         rct = um['Content']
+        #         print('::::::::::,MT', um['MsgType'], str(type(rct)), rct)
+        #     self.uiw.plainTextEdit.appendPlainText(um['Content'])
+
+        msgs = wxmsgvec.getContent()
+        for msg in msgs:
+            fromUser = self.wxses.getUserByName(msg.FromUserName)
+            toUser = self.wxses.getUserByName(msg.ToUserName)
+            qDebug(str(fromUser))
+            qDebug(str(toUser))
+            fromUser_NickName = ''
+            if fromUser is not None: fromUser_NickName = fromUser.NickName
+            toUser_NickName = ''
+            if toUser is not None: toUser_NickName = toUser.NickName
+            
+            logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::%s' % \
+                     (msg.CreateTime, msg.MsgType, msg.FromUserName, fromUser_NickName,
+                      msg.ToUserName, toUser_NickName, msg.MsgId, msg.Content)
+            self.uiw.plainTextEdit.appendPlainText(logstr)
+            
+            
         return
 
+    def createWXSession(self):
+        if self.wxses is not None:
+            return
+
+        self.wxses = WXSession()
+
+        reply = self.iface.call('getinitdata', 123, 'a1', 456)
+        rr = QDBusReply(reply)
+        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
+        data64 = rr.value().encode('utf8')   # to bytes
+        data = QByteArray.fromBase64(data64)
+        self.wxses.setInitData(data)
+        self.saveContent('initdata.json', data)
+        
+        reply = self.iface.call('getcontact', 123, 'a1', 456)
+        rr = QDBusReply(reply)
+        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
+        data64 = rr.value().encode('utf8')   # to bytes
+        data = QByteArray.fromBase64(data64)
+        self.wxses.setContact(data)
+        self.saveContent('contact.json', data)
+        
+        return
+    
+    
     def onQRPicGotten(self, qrpic):
         qDebug(str(len(qrpic)))
         fp = QFile("qrpic.jpg")

@@ -23,6 +23,7 @@ class WXMsgType(enum.IntEnum):
     MT_X47 = 47  # 像是群内动画表情
     MT_X49 = 49  # 像是服务号消息,像是群内分享，像xml格式
     MT_X51 = 51
+    MT_X10000 = 10000  # 系统通知？
     
 ######
 class WXAgent(QObject):
@@ -145,10 +146,11 @@ class WXAgent(QObject):
             elif scan_code == '201':
                 self.pollLogin()
                 pass
-            elif scan_code == '200':  # 扫描确认完成，登陆成功
+            elif scan_code == '200':  # 扫描确认完成，登陆成功                
+                # emit logined
                 self.logined = True
                 self.emitDBusLogined()
-                
+
                 # parser redirect url:
                 redir_url = hcc.data().decode('utf8').split('"')[1]
                 self.redirect_url = redir_url
@@ -171,7 +173,7 @@ class WXAgent(QObject):
             self.wxuin = self.getCookie3('wxuin')
             self.wxsid = self.getCookie3('wxsid')
             qDebug(str(self.wxuin) + ',' + str(self.wxsid))
-
+            
             # parse content: SKey,pass_ticket
             # <error><ret>0</ret><message>OK</message><skey>@crypt_3ea2fe08_723d1e1bd7b4171657b58c6d2849b367</skey><wxsid>9qxNHGgi9VP4/Tx6</wxsid><wxuin>979270107</wxuin><pass_ticket>%2BEdqKi12tfvM8ZZTdNeh4GLO9LFfwKLQRpqWk8LRYVWFkDE6%2FZJJXurz79ARX%2FIT</pass_ticket><isgrayscale>1</isgrayscale></error>
             qDebug('parsing: ' + str(hcc))
@@ -184,7 +186,8 @@ class WXAgent(QObject):
             qDebug(pass_ticket)
 
             self.getBaseInfo()
-            
+
+        #############
         elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?'):
             qDebug('wxinited.:' + str(type(hcc)))
             self.wxinitRawData = hcc
@@ -239,6 +242,9 @@ class WXAgent(QObject):
                     self.syncCheck()
                     pass
                 elif selector == '2':
+                    self.webSync()
+                    pass
+                elif selector == '4':  ### TODO,confirm this
                     self.webSync()
                     pass
                 elif selector == '7':
@@ -632,6 +638,22 @@ class WXAgentService(QObject):
         self.wxa.logout()
         return True
 
+    
+    # assert logined
+    @pyqtSlot(QDBusMessage, result='QString')
+    def getinitdata(self, message):
+        data64 = self.wxa.wxinitRawData.toBase64()
+        rstr = data64.data().decode('utf8')
+        return rstr
+
+
+    @pyqtSlot(QDBusMessage, result='QString')
+    def getcontact(self, message):
+        data64 = self.wxa.wxFriendRawData.toBase64()
+        rstr = data64.data().decode('utf8')
+        return rstr
+
+    
     # @pyqtSlot(QDBusMessage, result=bool)
     # def hasmessage(self, message):
     #     # qDebug(str(message))

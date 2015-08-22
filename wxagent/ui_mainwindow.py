@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '../mainwindow.ui'
+# Form implementation generated from reading ui file 'mainwindow.ui'
 #
 # Created by: PyQt5 UI code generator 5.5
 #
@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(598, 390)
+        MainWindow.resize(684, 390)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.pushButton = QtWidgets.QPushButton(self.centralwidget)
@@ -33,16 +33,16 @@ class Ui_MainWindow(object):
         self.label_5.setGeometry(QtCore.QRect(340, 120, 141, 17))
         self.label_5.setObjectName("label_5")
         self.label_6 = QtWidgets.QLabel(self.centralwidget)
-        self.label_6.setGeometry(QtCore.QRect(270, 150, 54, 17))
+        self.label_6.setGeometry(QtCore.QRect(420, 90, 54, 17))
         self.label_6.setObjectName("label_6")
         self.label_7 = QtWidgets.QLabel(self.centralwidget)
-        self.label_7.setGeometry(QtCore.QRect(340, 150, 141, 17))
+        self.label_7.setGeometry(QtCore.QRect(490, 90, 141, 17))
         self.label_7.setObjectName("label_7")
         self.label_8 = QtWidgets.QLabel(self.centralwidget)
-        self.label_8.setGeometry(QtCore.QRect(270, 180, 54, 17))
+        self.label_8.setGeometry(QtCore.QRect(420, 120, 54, 17))
         self.label_8.setObjectName("label_8")
         self.label_9 = QtWidgets.QLabel(self.centralwidget)
-        self.label_9.setGeometry(QtCore.QRect(340, 180, 141, 17))
+        self.label_9.setGeometry(QtCore.QRect(490, 120, 141, 17))
         self.label_9.setObjectName("label_9")
         self.pushButton_2 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_2.setGeometry(QtCore.QRect(120, 10, 84, 33))
@@ -60,11 +60,14 @@ class Ui_MainWindow(object):
         self.pushButton_6.setGeometry(QtCore.QRect(20, 50, 84, 33))
         self.pushButton_6.setObjectName("pushButton_6")
         self.plainTextEdit = QtWidgets.QPlainTextEdit(self.centralwidget)
-        self.plainTextEdit.setGeometry(QtCore.QRect(230, 210, 351, 121))
+        self.plainTextEdit.setGeometry(QtCore.QRect(230, 150, 441, 181))
         self.plainTextEdit.setObjectName("plainTextEdit")
+        self.pushButton_7 = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_7.setGeometry(QtCore.QRect(413, 50, 101, 33))
+        self.pushButton_7.setObjectName("pushButton_7")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 598, 29))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 684, 29))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -92,4 +95,5 @@ class Ui_MainWindow(object):
         self.pushButton_4.setText(_translate("MainWindow", "sync check"))
         self.pushButton_5.setText(_translate("MainWindow", "web sync"))
         self.pushButton_6.setText(_translate("MainWindow", "refresh"))
+        self.pushButton_7.setText(_translate("MainWindow", "create session"))
 

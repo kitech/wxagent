@@ -1,0 +1,55 @@
+# $Id: pkgbuild-mode.el,v 1.23 2007/10/20 16:02:14 juergen Exp $
+# Maintainer: liuguangzhao <liuguangzhao@users.sf.net>
+
+_pkgname=wxagent
+pkgname=wxagent-git
+pkgver=r1.ae7f073
+pkgrel=1
+pkgdesc="A weixin agent daemon and client"
+license=('Apache')
+url="http://contrix.tk/"
+arch=('any')
+depends=('python' 'python-pyqt5')
+optdepends=()
+makedepends=('git')
+checkdepends=()
+#install=${pkgname}.install
+source=("$_pkgname::git+https://kitech@git.oschina.net/kitech/mkuse.git"
+       "wxagent.service")
+sha512sums=('SKIP'
+            'f7546d9bdaee489493708d26f6b146cb591a5d3aa85e32dd409a8e5bcde583ebad9c1b32223b071f6fad06e28ff1e8a2fefc4bad8276aec4d5d5d8b4c5efdcb4')
+
+# set -x
+prepare()
+{
+  true
+  # cd wxagent/lwwx/
+  pwd
+  ls
+  tree wxagent/lwwx/
+  cp -va /home/gzleo/opensource/mkuse/lwwx/setup.py wxagent/lwwx/
+  cp -va /home/gzleo/opensource/mkuse/lwwx/wxagent/*.py wxagent/lwwx/wxagent/
+}
+
+build()
+{
+  pwd
+  ls
+  
+}
+
+package()
+{
+  pwd
+  cd wxagent/lwwx
+  pwd
+  ls
+  echo "aaaa:$pkgdir"
+  python setup.py install -O1 --root "$pkgdir"
+
+  install -Dm644 "$srcdir/wxagent.service" "$pkgdir/usr/lib/systemd/system/wxagent.service"
+  tree "$pkgdir"
+  true
+}
+
+# vim:set ts=2 sw=2 et:

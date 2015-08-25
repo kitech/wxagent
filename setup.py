@@ -20,6 +20,7 @@ setup(
     [console_scripts]
     wxagent = wxagent.wxagent:main
     wxaui = wxagent.lwwx:main
+    wx2tox = wxagent.wx2tox:main
     """,
     include_package_data=True,
     zip_safe=False,

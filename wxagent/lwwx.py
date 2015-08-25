@@ -3,6 +3,7 @@
 import os, sys
 import json, re
 import enum
+import html
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -22,10 +23,10 @@ class QRWin(QMainWindow):
         self.uiw = Ui_MainWindow()
         self.uiw.setupUi(self)
 
+        self.wxses = None
+
         self.sesbus = QDBusConnection.sessionBus()
         self.iface = QDBusInterface(SERVICE_NAME, '/', '', self.sesbus)
-
-        self.wxses = None
 
         #                                   path   iface    name
         # sigmsg = QDBusMessage.createSignal("/", 'signals', "logined")
@@ -109,10 +110,11 @@ class QRWin(QMainWindow):
             if fromUser is not None: fromUser_NickName = fromUser.NickName
             toUser_NickName = ''
             if toUser is not None: toUser_NickName = toUser.NickName
-            
+
+            content = msg.UnescapedContent
             logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::%s' % \
                      (msg.CreateTime, msg.MsgType, msg.FromUserName, fromUser_NickName,
-                      msg.ToUserName, toUser_NickName, msg.MsgId, msg.Content)
+                      msg.ToUserName, toUser_NickName, msg.MsgId, content)
             self.uiw.plainTextEdit.appendPlainText(logstr)
             
             

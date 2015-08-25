@@ -2,6 +2,7 @@
 import os, sys
 import json, re
 import enum
+import html
 
 from PyQt5.QtCore import *
 
@@ -35,6 +36,7 @@ class WXMessage():
         self.ToUserName = ''
         self.CreateTime = 0
         self.Content = ''
+        self.UnescapedContent = ''
 
         self.FromUser = None
         self.ToUser = None
@@ -97,13 +99,14 @@ class WXMessageList():
         
         msg.MsgType = um['MsgType']
         msg.Content = um['Content']
+        msg.UnescapedContent = html.unescape(msg.Content)
         msg.MsgId = um['MsgId']
         msg.CreateTime = um['CreateTime']
         msg.ToUserName = um['ToUserName']
         msg.FromUserName = um['FromUserName']
 
         logstr = '[%s][%s] %s => %s @%s:::%s' % \
-                 (msg.CreateTime, msg.MsgType, msg.FromUserName, msg.ToUserName, msg.MsgId, msg.Content)
+                 (msg.CreateTime, msg.MsgType, msg.FromUserName, msg.ToUserName, msg.MsgId, msg.UnescapedContent)
         print(logstr)
         
         return msg

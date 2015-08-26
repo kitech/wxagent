@@ -29,42 +29,36 @@ def qt_debug_handler(tp, ctx, msg):
 
     tid = QThread.currentThreadId()  ### voidstr type
     tid = mygettid()
-    tid = str(tid).encode('utf8')
+    tid = str(tid)
     
     now = QDateTime.currentDateTime()
     tmstr = now.toString("yyyy-MM-dd hh:mm:ss")
-    tmstr = tmstr.encode('utf8')
 
-    fn = b''
+    fn = ''
     try:
         if ctx.file is None: # for qt internal msg
-            fn = b'qtinternal'
+            fn = 'qtinternal'
         else:
             fn = ctx.file.encode('utf-8')
             fnl = ctx.file.split('/')
-            fn = fnl[len(fnl)-1].encode('utf8')
+            fn = fnl[len(fnl)-1]
     except:
-        fn = b'errfh'
+        fn = 'errfh'
 
-    line = str(ctx.line).encode('utf8')
-    function = b''
+    line = ctx.line
+    function = None
     try:
-        if type(ctx.function) == str:
-            function = ctx.function.encode('utf8')
-        elif type(ctx.function) == bytes:
-            # function = ctx.function.decode('utf8')
-            function = ctx.function
-        else: function = str(ctx.function).encode('utf8')
-    except Exception as ex:
-        # print(b'EEE:' + bytes(ctx.function, 'utf8'))
-        print('EEE: ctx.function: %s' % str(ctx))
+        if type(ctx.function) == str: function = ctx.function
+        elif type(ctx.function) == bytes: function = ctx.function.decode('utf8')
+        else: function = ctx.function
+    except:
+        print(b'EEE:' + bytes(ctx.function, 'utf8'))
 
-    if function == b'': function = b'qtinternal'
-    # if ctx.function == None: function = b'qtinternal'   # maybe UnicodeDecodeError:
+    if ctx.function == None: function = 'qtinternal'
     
-    flog = b"[" + tmstr  + b"] T(" + tid + b") " + fn + b":" + line + b" " + function \
-           + b" -- " + msg.encode('utf8')
-    print(flog.decode('utf8'))
+    flog = "[" + tmstr + "] T(" + tid + ") " + fn + ":" + str(line) + " " + function \
+        + " -- " + msg
+    print(flog)
 
 #usage
 # qInstallMessageHandler(qt_debug_handler)

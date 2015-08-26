@@ -92,8 +92,7 @@ class WXAgent(QObject):
         req = QNetworkRequest(QUrl(url))
         req = self.mkreq(url)
         req.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-
-        qDebug('requesting: ' + url)
+        
         reply = self.nam.get(req)
 
         return
@@ -101,61 +100,41 @@ class WXAgent(QObject):
     def onReply(self, reply):
         self.dumpReply(reply)
 
-        status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
-        error_no = reply.error()
-        
         url = reply.url().toString()
         hcc = reply.readAll()
-        qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
+        qDebug('content-length:' + str(len(hcc)))
         
         # statemachine by url and response content
         if url.startswith('https://login.weixin.qq.com/jslogin?'):
             qDebug("qr login code/uuic:" + str(hcc))
-
-            if status_code is None and error_no == QNetworkReply.TimeoutError:
-                qDebug('timeout:')
-                self.doboot()
-                return
-            
-            self.saveContent('jslogin.html', hcc)
-            
             # parse hcc: window.QRLogin.code = 200; window.QRLogin.uuid = "gYmgd1grLg==";
             qrcode = 200
             qruuid = ''
             qruuid = hcc.data().decode('utf8').split('"')[1]
             # qDebug(str(qruuid))
             self.qruuid = qruuid
+            
+            nsurl = 'https://login.weixin.qq.com/qrcode/4ZYgra8RHw=='
+            nsurl = 'https://login.weixin.qq.com/qrcode/%s' % qruuid
+            qDebug(str(nsurl))
 
-            self.requestQRCode()
-            # nsurl = 'https://login.weixin.qq.com/qrcode/4ZYgra8RHw=='
-            # nsurl = 'https://login.weixin.qq.com/qrcode/%s' % qruuid
-            # qDebug(str(nsurl))
-
-            # nsreq = QNetworkRequest(QUrl(nsurl))
-            # nsreq = self.mkreq(nsurl)
-            # nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-            # nsreply = self.nam.get(nsreq)
-
-        #####
+            nsreq = QNetworkRequest(QUrl(nsurl))
+            nsreq = self.mkreq(nsurl)
+            nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
+            nsreply = self.nam.get(nsreq)
+            
         elif url.startswith('https://login.weixin.qq.com/qrcode/'):
             qDebug("qr pic:" + str(len(hcc)))
-
-            if status_code is None and error_no == QNetworkReply.TimeoutError:
-                qDebug('timeout:')
-                self.requestQRCode()
-                return
-            
             self.qrpic = hcc;
             self.qrpicGotten.emit(hcc)
 
             self.pollLogin()
-
-        ######
+            
         elif url.startswith('https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?'):
             qDebug("app scaned qrpic:" + str(hcc))
             
             # window.code=408;  # 像是超时
-            # window.code=400;  # ??? 难道是会话过期???需要重新获取QR图（已确认，在浏览器中，收到400后刷新了https://wx2.qq.com/
+            # window.code=400;  # ??? 难道是会话过期???需要重新获取QR图
             # window.code=201;  # 已扫描，未确认
             # window.code=200;  # 已扫描，已确认登陆
             # parse hcc, format: window.code=201;
@@ -163,7 +142,7 @@ class WXAgent(QObject):
 
             if scan_code == '408': self.pollLogin()
             elif scan_code == '400':
-                qDebug("maybe need rerun refresh()...")
+                qDebug("maybe need rerun doboot()...")
             elif scan_code == '201':
                 self.pollLogin()
                 pass
@@ -255,7 +234,7 @@ class WXAgent(QObject):
             selector = mats[0][1]
 
             if retcode == '1101':
-                qDebug("maybe need rerun refresh()...")
+                qDebug("maybe need rerun doboot()...")
             elif retcode != '0':
                 qDebug('error sync check ret code:')
             else:
@@ -278,12 +257,7 @@ class WXAgent(QObject):
 
         ##############
         elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?'):
-            qDebug('web sync result:' + str(len(hcc)) + str(status_code))
-
-            # TODO check no reply case and rerun synccheck.
-            if status_code == '' and len(hcc) == 0:
-                qDebug('maybe need rerun synccheck')
-            
+            qDebug('web sync result:' + str(len(hcc)))
             self.wxWebSyncRawData = hcc
             self.saveContent('websync.json', hcc)
             self.emitDBusNewMessage(hcc)
@@ -319,21 +293,8 @@ class WXAgent(QObject):
         else:
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc)
-            
-        return
-    
 
-    def requestQRCode(self):
-        nsurl = 'https://login.weixin.qq.com/qrcode/4ZYgra8RHw=='
-        nsurl = 'https://login.weixin.qq.com/qrcode/%s' % self.qruuid
-        qDebug(str(nsurl))
 
-        nsreq = QNetworkRequest(QUrl(nsurl))
-        nsreq = self.mkreq(nsurl)
-        nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-        nsreply = self.nam.get(nsreq)
-        return
-        
     def pollLogin(self):
         ###
         nsurl = 'https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=4eDUw9zdPg==&tip=0&r=-1166218796'

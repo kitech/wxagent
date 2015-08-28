@@ -229,6 +229,10 @@ class QToxKit(QThread):
         self.tox = Tox(self.opts)
         self.tox = None
 
+        # TODO
+        self.bootstrapTimeout = 30000  #
+        self.bootstrapTimer = None
+
         self.start()
         return
 
@@ -352,6 +356,11 @@ class QToxKit(QThread):
            
         return
 
+    # TODO
+    def bootstrapTimeout(self):
+        
+        return
+
     def isConnected(self):
         if self.tox is None: return False
         conned = self.tox.self_get_connection_status()
@@ -402,6 +411,8 @@ class QToxKit(QThread):
             # print(len(newdata), newdata[0:32])
             self.sets.saveData(newdata)
 
+        # 如果掉线了，则尝试再找几个nodes，添加到bootstrap地址。
+        
         return
 
     def selfSetStatusMessage(self, status_message):
@@ -508,9 +519,43 @@ class QToxKit(QThread):
         status = self.tox.friend_get_connection_status(friend_number)
         return status
 
+    # @param msg str
     def sendMessage(self, fid, msg):
         fno = self.tox.friend_by_public_key(fid)
-        mlen = 1371 - 1
+        mlen = 1371 - 1  # TODO 这应该是bytes，现在是以字符串方式处理，对于宽字符串可能能转为bytes后长度就超过了。
+
+        msg_inbytes = msg.encode()
+        for msgn in self._splitmessage(msg_inbytes, mlen):
+            msgn_instr = msgn.decode()
+            mid = self.tox.friend_send_message(fno, Tox.MESSAGE_TYPE_NORMAL, msgn_instr)
+            
+        return
+
+    # 中文字符串分割
+    # @param s bytes
+    def _splitmessage(self, s, n):
+        while len(s) > n:
+            i = n
+            while (s[i] & 0xc0) == 0x80:
+                i = i - 1
+            # print(i)
+            yield s[:i]
+            s = s[i:]
+        yield s
+        return
+
+    def _wideStringSplit(self, s, n):
+        # "中华人民共和国".encode()[:8].decode(errors="ignore")
+        while len(s) > 0:
+            sub = s.encode()[:n].decode(errors='ignore')
+            s = s[len(sub):]
+            yield sub
+        
+        return
+    
+    def sendMessage_dep(self, fid, msg):
+        fno = self.tox.friend_by_public_key(fid)
+        mlen = 1371 - 1  # TODO 这应该是bytes，现在是以字符串方式处理，对于宽字符串可能能转为bytes后长度就超过了。
         pos = 0
         while pos < len(msg):
             msgn = msg[pos:(pos + mlen)]
@@ -594,16 +639,21 @@ class QToxKit(QThread):
         return rc
         
     def groupchatSendMessage(self, group_number, msg):
-        rc = self.tox.group_message_send(group_number, msg)
+        # MAX_GROUP_MESSAGE_DATA_LEN
+        mlen = 1371 - 10  # TODO 这应该是bytes，现在是以字符串方式处理，对于宽字符串可能能转为bytes后长度就超过了。
+
+        msg_inbytes = msg.encode()
+        for msgn in self._splitmessage(msg_inbytes, mlen):
+            msgn_instr = msgn.decode()
+            rc = self.tox.group_message_send(group_number, msgn_instr)
         return rc
 
-    #  *  Function(Tox *tox, int32_t friendnumber, uint8_t type, const uint8_t *data, uint16_t length, void *userdata)
-
+    
     def onGroupInvite(self, friend_number, group_type, invite_msg):
-        qDebug('not impled.')
+        self.groupInvite.emit(friend_number, group_type, invite_msg)
         return
     
-    #  *  Function(Tox *tox, int groupnumber, int peernumber, const uint8_t * message, uint16_t length, void *userdata)
+
     def onGroupMessage(self, group_number, peer_number, msg):
         qDebug('stacked.')
         self.newGroupMessage.emit(group_number, peer_number, msg)
@@ -624,4 +674,6 @@ class QToxKit(QThread):
         self.groupNamelistChanged.emit(group_number, peer_number, change)
         return
 
-    
+    def groupNumberPeers(self, group_number):
+        rc = self.tox.group_number_peers(group_number)
+        return rc

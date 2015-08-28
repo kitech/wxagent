@@ -3,7 +3,7 @@
 
 _pkgname=wxagent
 pkgname=wxagent-git
-pkgver=r1.ae7f073
+pkgver=r39.fa04ca3
 pkgrel=1
 pkgdesc="A weixin agent daemon and client"
 license=('Apache')
@@ -17,9 +17,16 @@ checkdepends=()
 source=("$_pkgname::git+https://kitech@git.oschina.net/kitech/mkuse.git"
        "wxagent.service")
 sha512sums=('SKIP'
-            'f7546d9bdaee489493708d26f6b146cb591a5d3aa85e32dd409a8e5bcde583ebad9c1b32223b071f6fad06e28ff1e8a2fefc4bad8276aec4d5d5d8b4c5efdcb4')
+            '862ca81608ac87a6f522e36dea6827bd0fd83afe02a90683bbca5f6c86c73566ddf20e20626dca107b73a908927731510745cd0ad03386a45d761a9de1eac113')
 
 # set -x
+
+pkgver() {
+  cd $_pkgname
+  printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+
 prepare()
 {
   true
@@ -27,8 +34,8 @@ prepare()
   pwd
   ls
   tree wxagent/lwwx/
-  cp -va /home/gzleo/opensource/mkuse/lwwx/setup.py wxagent/lwwx/
-  cp -va /home/gzleo/opensource/mkuse/lwwx/wxagent/*.py wxagent/lwwx/wxagent/
+  cp -va $HOME/opensource/mkuse/lwwx/setup.py wxagent/lwwx/
+  cp -va $HOME/opensource/mkuse/lwwx/wxagent/*.py wxagent/lwwx/wxagent/
 }
 
 build()

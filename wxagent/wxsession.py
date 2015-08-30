@@ -21,9 +21,22 @@ class WXUser():
 class WXGroup():
     def __init__(self):
         "docstring"
+        self.me = None  # WXUser
 
+        self.members = {}  # user name -> WXUser
+        
         return
 
+    # @param member json's member node
+    def addMember(self, member):
+        user = WXUser()
+        user.Uin = member['Uin']
+        user.UserName = member['UserName']
+        user.NickName = member['NickName']
+
+        self.members[user.UserName] = user
+        return
+    
     
 class WXMessage():
 
@@ -123,6 +136,9 @@ class WXSession():
         self.ContactRawData = b''  # QByteArray
         self.ContactData = {}
 
+        self.Groups = {}  # group name => WXGroup
+        self.Members = {}  # user name => WXUser
+        
         return
 
     # @param initData QByteArray
@@ -211,4 +227,73 @@ class WXSession():
         qDebug("can not find user:" + str(uin))
         return None
 
-        
+
+    # 返回InitData中以@@开关的项
+    def getGroups(self):
+        mc = self.InitData['Count']
+        qDebug(str(mc))
+
+        grnames = []
+        for member in self.InitData['ContactList']:
+            tname = member['UserName']
+            if tname.startswith('@@'):
+                user = WXUser()
+                user.Uin = member['Uin']
+                user.UserName = member['UserName']
+                user.NickName = member['NickName']
+                user.HeadImgUrl = member['HeadImgUrl']
+                group = WXGroup()
+                group.me = user
+                self.Groups[user.UserName] = group
+                grnames.append(user.UserName)
+                
+        return grnames
+    
+    def getGroupMembers(self, GroupName):
+        if GroupName not in self.Groups:
+            qDebug('wtf???' + str(GroupName))
+            return None
+
+        members = []
+        for contact in self.InitData['ContactList']:
+            tname = contact['UserName']
+            if tname == GroupName:
+                mc = contact['MemberCount']
+                qDebug(str(mc))
+                for member in contact['MemberList']:
+                    members.append(member['UserName'])
+                break
+
+        return members
+
+    def getGroupByName(self, GroupName):
+        if GroupName not in self.Groups:
+            qDebug('wtf???' + str(GroupName))
+            return None
+        return self.Groups[GroupName]
+    
+
+    # 不一定是好友的情况
+    def getUserInfo(self, UserName):
+        if UserName not in self.Members:
+            qDebug('wtf???' + str(UserName))
+            return None
+        return self.Members[UserName]
+
+    # 不一定是好友的情况
+    def getUserInfo_dep(self, UserName):
+        for group in self.Groups:
+            if UserName in group.members:
+                return group.members[UserName]
+        qDebug('user not found:' + UserName)
+        return None
+
+    # @param member json's member node
+    def addMember(self, member):
+        user = WXUser()
+        user.Uin = member['Uin']
+        user.UserName = member['UserName']
+        user.NickName = member['NickName']
+
+        self.Members[user.UserName] = user
+        return

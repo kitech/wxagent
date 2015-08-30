@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(684, 390)
+        MainWindow.resize(684, 469)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.pushButton = QtWidgets.QPushButton(self.centralwidget)
@@ -63,8 +63,14 @@ class Ui_MainWindow(object):
         self.plainTextEdit.setGeometry(QtCore.QRect(230, 150, 441, 181))
         self.plainTextEdit.setObjectName("plainTextEdit")
         self.pushButton_7 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_7.setGeometry(QtCore.QRect(413, 50, 101, 33))
+        self.pushButton_7.setGeometry(QtCore.QRect(120, 50, 101, 33))
         self.pushButton_7.setObjectName("pushButton_7")
+        self.pushButton_8 = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_8.setGeometry(QtCore.QRect(230, 50, 81, 33))
+        self.pushButton_8.setObjectName("pushButton_8")
+        self.lineEdit = QtWidgets.QLineEdit(self.centralwidget)
+        self.lineEdit.setGeometry(QtCore.QRect(310, 50, 361, 31))
+        self.lineEdit.setObjectName("lineEdit")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 684, 29))
@@ -96,4 +102,5 @@ class Ui_MainWindow(object):
         self.pushButton_5.setText(_translate("MainWindow", "web sync"))
         self.pushButton_6.setText(_translate("MainWindow", "refresh"))
         self.pushButton_7.setText(_translate("MainWindow", "create session"))
+        self.pushButton_8.setText(_translate("MainWindow", "geturl"))
 

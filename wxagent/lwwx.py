@@ -44,6 +44,7 @@ class QRWin(QMainWindow):
         self.uiw.pushButton_5.clicked.connect(self.onWebSync, Qt.QueuedConnection)
         self.uiw.pushButton_6.clicked.connect(self.onRefresh, Qt.QueuedConnection)
         self.uiw.pushButton_7.clicked.connect(self.createWXSession, Qt.QueuedConnection)
+        self.uiw.pushButton_8.clicked.connect(self.onGetUrl, Qt.QueuedConnection)
         return
 
     @pyqtSlot(QDBusMessage)
@@ -198,6 +199,14 @@ class QRWin(QMainWindow):
         self.wx.webSync()
         return
 
+    def onGetUrl(self):
+        url = self.uiw.lineEdit.text()
+        reply = self.iface.call('geturl', url, 'a0', 123, 'a1')
+        qDebug(str(reply))
+        rr = QDBusReply(reply)
+        qDebug(str(rr.value()) + ',' + str(type(rr.value())))
+        return
+    
     # @param hcc QByteArray
     # @return str
     def hcc2str(self, hcc):

@@ -31,4 +31,9 @@ newmessage
 
 lwwx.py 负责wx应用协议，消息解析，消息转发，需要一个UI，显示登陆二维码(可临时使用，完成销毁)。
 wx2tox.py 负责wx消息与tox好友之间转发。
-wxprotocol.py
+wxprotocol.py 从代理中抽取出来的部分，可与wxagent.py的大循环无关，随时调用的方法
+有可能wxagent.py能更精简一些，而在该处做到更丰富的功能。
+
+
+
+

@@ -28,7 +28,8 @@ class WXMsgType(enum.IntEnum):
 ######
 class WXAgent(QObject):
     qrpicGotten = pyqtSignal('QByteArray')
-
+    asyncRequestDone = pyqtSignal(int, 'QByteArray')
+    
     
     def __init__(self, asvc, parent = None):
         super(WXAgent, self).__init__(parent)
@@ -55,6 +56,9 @@ class WXAgent(QObject):
         self.wxSyncKey = None  # {[]}
         self.syncTimer = None  # QTimer
         self.clientMsgIdBase = qrand()
+
+        self.asyncQueueIdBase = qrand()
+        self.asyncQueue = {} # {reply => id}
         return
 
     def refresh(self):
@@ -84,6 +88,9 @@ class WXAgent(QObject):
         self.wxSyncKey = None  # {[]}
         self.syncTimer = None  # QTimer
 
+        self.asyncQueueIdBase = qrand()
+        self.asyncQueue = {} # {reply => id}
+        
         self.doboot()
         return
     
@@ -316,6 +323,14 @@ class WXAgent(QObject):
             self.saveContent('sendmsg.json', hcc)
             
             ########
+        elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
+            qDebug('getbatchcontact done...')
+            self.saveContent('getbatchcontact.json', hcc)
+
+            if reply in self.asyncQueue:
+                reqno = self.asyncQueue.pop(reply)
+                self.asyncRequestDone.emit(reqno, hcc)
+            ########
         else:
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc)
@@ -528,10 +543,59 @@ class WXAgent(QObject):
         return
     
     #
-    def requrl(self, url, method, data):
+    def requrl(self, url, method = 'GET', data = ''):
+        nsurl = url
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+        nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
+            
+        nsreply = self.nam.get(nsreq)
+        return nsreply
+
+    ####
+    def geticon(self, username):
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=@3d9f8af0b17ab22745f776b94fe3530f'
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=wxid_xx3mtgeux5511'
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=kitech'
         
         return
 
+    
+    ####
+    # @param members List json format in string
+    def getbatchcontact(self, members):
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?type=ex&r=1440473919872&lang=en_US&pass_ticket=kKWVrvi2aw98Z8sXfzwncDWxWZZQgVZERel61bswt0bLI5z3Xo3Vz8l5UmrLWOXq'
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?type=ex&r=%s&lang=en_US&pass_ticket=%s' % \
+                (self.nowTime(), self.wxPassTicket)
+
+
+        members_list = json.JSONDecoder().decode(members)
+        post_data_obj = {
+            "BaseRequest": {
+                "Uin": self.wxuin,
+                "Sid": self.wxsid,
+                "Skey": self.wxinitData['SKey'],
+                "DeviceID": self.devid,
+            },
+            "Count":len(members_list),
+            "List":members_list,
+        }
+        post_data = json.JSONEncoder(ensure_ascii=False).encode(post_data_obj)
+        qDebug(bytes(post_data, 'utf8'))
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+        nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
+        nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
+        
+        nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
+        self.asyncQueueIdBase = self.asyncQueueIdBase + 1
+        reqno = self.asyncQueueIdBase
+        self.asyncQueue[nsreply] = reqno
+        return reqno
+
+    
     def nextClientMsgId(self):
         now = QDateTime.currentDateTime()
         self.clientMsgIdBase = self.clientMsgIdBase + 1
@@ -702,19 +766,21 @@ class DelayReplySession():
     def __init__(self):
         self.message = None
         self.netreply = None
+        self.busreply = None
         return
     
 class WXAgentService(QObject):
     def __init__(self, parent = None):
         super(WXAgentService, self).__init__(parent)
 
-        self.dses = {}  # QNetworkReply => DelayReplySession
+        self.dses = {}  # reqno => DelayReplySession
         
         self._reply = None
         self.sesbus = QDBusConnection.sessionBus()
 
         self.wxa = WXAgent(self)
         # self.wxa.reqfinished.connect(self.onNetReply, Qt.QueuedConnection)
+        self.wxa.asyncRequestDone.connect(self.onDelayedReply, Qt.QueuedConnection)
         self.wxa.doboot()
         
         return
@@ -777,7 +843,48 @@ class WXAgentService(QObject):
         
         self.wxa.sendmessage(from_username, to_username, content, msg_type)
         return True
+
+    # @calltype: async
+    @pyqtSlot(QDBusMessage, result='QString')
+    def getbatchcontact(self, message):
+        args = message.arguments()
+        members = args[0]
+
+        s = DelayReplySession()
+        s.message = message
+        s.message.setDelayedReply(True);
+        s.busreply = s.message.createReply()
+        
+        reqno = self.wxa.getbatchcontact(members)
+        s.netreply = reqno
+        
+        self.dses[reqno] = s
+        return 'can not see this.'
+
     
+    # @calltype: async    
+    @pyqtSlot(QDBusMessage, result=bool)
+    def geturl(self, message):
+        args = message.arguments()
+        url = args[0]
+        
+        r = self.wxa.requrl(url)
+
+        return True
+
+
+    def onDelayedReply(self, reqno, hcc):
+        qDebug(str(reqno))
+
+        if reqno not in self.dses: return
+
+        s = self.dses.pop(reqno)
+        s.busreply.setArguments([hcc])
+        
+        self.sesbus.send(s.busreply)
+
+        return
+
     
     # @pyqtSlot(QDBusMessage, result=bool)
     # def hasmessage(self, message):
@@ -800,13 +907,13 @@ class WXAgentService(QObject):
     #     return "not impossible see this."
 
     
-    @pyqtSlot(QDBusMessage, result=int)
+    # @pyqtSlot(QDBusMessage, result=int)
     def login(self, message):
         # qDebug(str(message))
         qDebug(str(message.arguments()))
         return 456
 
-    @pyqtSlot(QDBusMessage, result=str)
+    # @pyqtSlot(QDBusMessage, result=str)
     def islogined_t(self, message):
         # qDebug(str(message))
         qDebug(str(message.arguments()))
@@ -827,10 +934,6 @@ class WXAgentService(QObject):
         bret = self.sesbus.send(self._reply)
         qDebug(str(bret))
 
-    def onNetReply(self, netreply):
-        qDebug(str(netreply))
-        
-        return
         
 ##########    
 def init_dbus_service(wxasvc):

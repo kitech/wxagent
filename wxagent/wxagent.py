@@ -59,9 +59,11 @@ class WXAgent(QObject):
 
         self.asyncQueueIdBase = qrand()
         self.asyncQueue = {} # {reply => id}
+        self.refresh_count = 0
+        
         return
 
-    def refresh(self):
+    def refresh(self):        
         oldname = self.nam
         oldname.finished.disconnect()
         self.nam = None
@@ -90,11 +92,16 @@ class WXAgent(QObject):
 
         self.asyncQueueIdBase = qrand()
         self.asyncQueue = {} # {reply => id}
-        
+
         self.doboot()
+        
+        self.refresh_count += 1
         return
     
     def doboot(self):
+
+        self.emitDBusBeginLogin()
+        
         url = "https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx2.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=en_US"
         req = QNetworkRequest(QUrl(url))
         req = self.mkreq(url)
@@ -155,6 +162,8 @@ class WXAgent(QObject):
             self.qrpic = hcc;
             self.qrpicGotten.emit(hcc)
 
+            self.emitDBusGotQRCode()
+
             self.pollLogin()
 
         ######
@@ -171,6 +180,7 @@ class WXAgent(QObject):
             if scan_code == '408': self.pollLogin()
             elif scan_code == '400':
                 qDebug("maybe need rerun refresh()...")
+                self.refresh()
             elif scan_code == '201':
                 self.pollLogin()
                 pass
@@ -229,9 +239,13 @@ class WXAgent(QObject):
                 jsobj = json.JSONDecoder().decode(strhcc)
                 self.wxinitData = jsobj
                 self.wxSyncKey = jsobj['SyncKey']
+
+                retcode = jsobj['BaseResponse']['Ret']
+                # retcode: 1205: ???
             else:
                 qDebug('can not decode hcc base info')
 
+            self.emitDBusLoginSuccess()
 
             self.getContact()
             self.syncCheck()
@@ -251,18 +265,26 @@ class WXAgent(QObject):
             # selector: 4: ??? 
             # retcode: 1100:???
             # retcode: 1101:??? 会话已退出/结束
+            # retcode: 1205: ???
             # retcode: 0: 成功
 
             # parser result:
             
-            reg = r'window.synccheck={retcode:"(\d+)",selector:"(\d)"}'
+            reg = r'window.synccheck={retcode:"(-?\d+)",selector:"(\d)"}'
             mats = re.findall(reg, hcc.data().decode('utf8'))
             qDebug(str(mats) + '---' + hcc.data().decode('utf8'))
             retcode = mats[0][0]
             selector = mats[0][1]
 
-            if retcode == '1101':
-                qDebug("maybe need rerun refresh()...")
+            if retcode == '-1':
+                qDebug('wtf???...')
+                QTimer.singleShot(3000, self.logout)
+            elif retcode == '1100':
+                qDebug("maybe need reget SyncKey, rerun getBaseInfo() ..." + str(retcode))
+            elif retcode == '1101':
+                qDebug("maybe need rerun refresh()..." + str(retcode))
+                qDebug("\n\n\n\n\n\n\n")
+                QTimer.singleShot(5000, self.refresh())
             elif retcode != '0':
                 qDebug('error sync check ret code:')
             else:
@@ -272,7 +294,7 @@ class WXAgent(QObject):
                 elif selector == '2':
                     self.webSync()
                     pass
-                elif selector == '4':  ### TODO,confirm this
+                elif selector == '4':  ### TODO,confirm this，像是群成员列表有变化
                     self.webSync()
                     pass
                 elif selector == '6':  ### TODO,confirm this
@@ -582,7 +604,7 @@ class WXAgent(QObject):
             "List":members_list,
         }
         post_data = json.JSONEncoder(ensure_ascii=False).encode(post_data_obj)
-        qDebug(bytes(post_data, 'utf8'))
+        qDebug(bytes(post_data, 'utf8')[0:120])
 
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
@@ -724,6 +746,40 @@ class WXAgent(QObject):
         return
 
 
+    def emitDBusBeginLogin(self):
+        # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
+        sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "beginlogin")
+        sigmsg.setArguments([123])
+
+        sesbus = QDBusConnection.sessionBus()
+        bret = sesbus.send(sigmsg)
+        qDebug(str(bret))
+        return
+
+    def emitDBusGotQRCode(self):
+        # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
+        sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "gotqrcode")
+
+        qrpic64 = self.qrpic.toBase64()
+        qrpic64str = qrpic64.data().decode()
+        sigmsg.setArguments([123, qrpic64str])
+
+        sesbus = QDBusConnection.sessionBus()
+        bret = sesbus.send(sigmsg)
+        qDebug(str(bret))
+        return
+
+    def emitDBusLoginSuccess(self):
+        # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
+        sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "loginsuccess")
+
+        sigmsg.setArguments([123])
+
+        sesbus = QDBusConnection.sessionBus()
+        bret = sesbus.send(sigmsg)
+        qDebug(str(bret))
+        return
+    
     def emitDBusLogined(self):
         # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "logined")
@@ -813,6 +869,10 @@ class WXAgentService(QObject):
     # assert logined
     @pyqtSlot(QDBusMessage, result='QString')
     def getinitdata(self, message):
+        if type(self.wxa.wxinitRawData) == bytes: # we need QByteArray
+            qDebug('maybe not inited.')
+            return ''
+
         data64 = self.wxa.wxinitRawData.toBase64()
         rstr = data64.data().decode('utf8')
         return rstr
@@ -820,6 +880,10 @@ class WXAgentService(QObject):
 
     @pyqtSlot(QDBusMessage, result='QString')
     def getcontact(self, message):
+        if type(self.wxa.wxFriendRawData) == bytes: # we need QByteArray
+            qDebug('maybe not inited.')
+            return ''
+        
         data64 = self.wxa.wxFriendRawData.toBase64()
         rstr = data64.data().decode('utf8')
         return rstr
@@ -936,12 +1000,17 @@ class WXAgentService(QObject):
 
         
 ##########    
-def init_dbus_service(wxasvc):
+def init_dbus_service():
     sesbus = QDBusConnection.sessionBus()
 
     bret = sesbus.registerService(SERVICE_NAME)
     qDebug(str(bret))
 
+    return
+
+def register_dbus_service(wxasvc):
+    sesbus = QDBusConnection.sessionBus()
+    
     bret = sesbus.registerObject("/", wxasvc, QDBusConnection.ExportAllSlots)
     qDebug(str(bret))
 
@@ -952,8 +1021,9 @@ def main():
     import wxagent.qtutil as qtutil
     qtutil.pyctrl()
 
+    init_dbus_service()
     wxasvc = WXAgentService()
-    init_dbus_service(wxasvc)
+    register_dbus_service(wxasvc)
 
     app.exec_()
     return

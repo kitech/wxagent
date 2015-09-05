@@ -84,6 +84,10 @@ class WX2Tox(QObject):
         self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logouted', self.onDBusLogouted)
         self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'newmessage', self.onDBusNewMessage)
 
+        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'beginlogin', self.onDBusBeginLogin)
+        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'gotqrcode', self.onDBusGotQRCode)
+        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'loginsuccess', self.onDBusLoginSuccess)
+        
         self.initToxnet()
         self.startWXBot()
         return
@@ -158,7 +162,9 @@ class WX2Tox(QObject):
         return
 
     def onToxnetFileChunkReuqest(self, friendId, file_number, position, length):
-        qDebug('fn=%s,pos=%s,len=%s' % (file_number, position, length))
+        if qrand() % 7 == 1:
+            qDebug('fn=%s,pos=%s,len=%s' % (file_number, position, length))
+            
         if position >= len(self.qrpic):
             qDebug('warning exceed file size: finished.')
             # self.toxkit.fileControl(friendId, file_number, 2)  # CANCEL
@@ -242,15 +248,57 @@ class WX2Tox(QObject):
     
     
     def startWXBot(self):
+        logined = False
         if not self.checkWXLogin():
             qDebug('wxagent not logined.')
         else:
+            logined = True
             qDebug('wxagent already logined.')
             
         ### 无论是否登陆，启动的都发送一次qrcode文件
         qrpic = self.getQRCode()
+        if qrpic is None:
+            qDebug('maybe wxagent not run...')
+            pass
+        else:
+            fname = self.genQRCodeSaveFileName()
+            self.saveContent(fname, qrpic)
+
+            self.qrpic = qrpic
+            self.qrfile = fname
+        
+            tkc = False
+            if self.toxkit is not None:  tkc = self.toxkit.isConnected()
+            if tkc is True:
+                friendId = self.peerToxId
+                fsize = len(qrpic)
+                self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
+            else:
+                self.need_send_qrfile = True
+
+        if logined is True: self.createWXSession()
+        return
+
+    
+    @pyqtSlot(QDBusMessage)
+    def onDBusBeginLogin(self, message):
+        qDebug(str(message.arguments()))
+        # clear smth.
+        return
+
+
+    @pyqtSlot(QDBusMessage)
+    def onDBusGotQRCode(self, message):
+        args = message.arguments()
+        # qDebug(str(message.arguments()))
+        qrpic64str = args[1]
+        qrpic = QByteArray.fromBase64(qrpic64str.encode())
+
+        self.qrpic = qrpic
         fname = self.genQRCodeSaveFileName()
         self.saveContent(fname, qrpic)
+        self.qrfile = fname
+
         tkc = False
         if self.toxkit is not None:  tkc = self.toxkit.isConnected()
         if tkc is True:
@@ -258,13 +306,16 @@ class WX2Tox(QObject):
             fsize = len(qrpic)
             self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
         else:
-            self.qrpic = qrpic
-            self.qrfile = fname
             self.need_send_qrfile = True
 
-        self.createWXSession()
         return
-    
+
+    @pyqtSlot(QDBusMessage)
+    def onDBusLoginSuccess(self, message):
+        qDebug(str(message.arguments()))
+
+        self.startWXBot()        
+        return
     
     @pyqtSlot(QDBusMessage)
     def onDBusLogined(self, message):
@@ -343,16 +394,20 @@ class WX2Tox(QObject):
                 UserName = mats[0]
                 UserInfo = self.wxses.getUserInfo(UserName)
                 if UserInfo is not None:
-                    content = UserInfo.NickName + content
+                    dispRealName = UserInfo.NickName + UserName[0:7]
+                    content = content.replace(UserName, dispRealName, 1)
 
+            # for eyes
+            dispFromUserName = msg.FromUserName[0:7]
+            dispToUserName = msg.ToUserName[0:7]
             
             logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                     (msg.CreateTime, msg.MsgType, msg.FromUserName, fromUser_NickName,
-                      msg.ToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
+                     (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
+                      dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
 
             logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                     (msg.CreateTime, msg.MsgType, msg.FromUserName, fromUser_NickName,
-                      msg.ToUserName, toUser_NickName, msg.MsgId, content)
+                     (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
+                      dispToUserName, toUser_NickName, msg.MsgId, content)
             
             self.sendMessageToTox(msg, logstr)
             
@@ -726,9 +781,9 @@ class WX2Tox(QObject):
         reply = self.iface.call('islogined', 'a0', 123, 'a1')
         qDebug(str(reply))
         rr = QDBusReply(reply)
-        # TODO check rr.isValid()
-        qDebug(str(rr.value()) + ',' + str(type(rr.value())))
 
+        if not rr.isValid(): return False
+        qDebug(str(rr.value()) + ',' + str(type(rr.value())))
         if rr.value() is False:
             return False
         
@@ -737,6 +792,9 @@ class WX2Tox(QObject):
     def getQRCode(self):
         reply = self.iface.call('getqrpic', 123, 'a1', 456)
         rr = QDBusReply(reply)
+
+        if not rr.isValid(): return None
+        
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
         qrpic64 = rr.value().encode('utf8')   # to bytes
         qrpic = QByteArray.fromBase64(qrpic64)

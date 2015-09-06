@@ -9,6 +9,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
 from PyQt5.QtDBus import *
 
+from wxagent.wxprotocol import *
+
 # from dbus.mainloop.pyqt5 import DBusQtMainLoop
 # DBusQtMainLoop(set_as_default = True)
 
@@ -57,6 +59,9 @@ class WXAgent(QObject):
         self.syncTimer = None  # QTimer
         self.clientMsgIdBase = qrand()
 
+        self.wxproto = WXProtocol()
+        self.wxGroupUserNames = {}  # 来自websync:AddMsgList:StatusNotifyUserName，以@@开头的
+        
         self.asyncQueueIdBase = qrand()
         self.asyncQueue = {} # {reply => id}
         self.refresh_count = 0
@@ -284,7 +289,7 @@ class WXAgent(QObject):
             elif retcode == '1101':
                 qDebug("maybe need rerun refresh()..." + str(retcode))
                 qDebug("\n\n\n\n\n\n\n")
-                QTimer.singleShot(5000, self.refresh())
+                QTimer.singleShot(5000, self.refresh)
             elif retcode != '0':
                 qDebug('error sync check ret code:')
             else:
@@ -326,6 +331,9 @@ class WXAgent(QObject):
                 self.wxSyncKey = jsobj['SyncKey']
 
                 ### other process
+                grnames = self.wxproto.parseWebSyncNotifyGroups(hcc)
+                for grname in grnames: self.wxGroupUserNames[grname] = 1
+                qDebug(str(grnames))
 
                 ### => synccheck()
                 if jsobj['BaseResponse']['Ret'] == 0: self.syncCheck()
@@ -358,7 +366,15 @@ class WXAgent(QObject):
             self.saveContent('wxunknown_requrl.json', hcc)
             
         return
+
     
+    def onReplyError(self, errcode):
+        qDebug('reply error:' + str(errcode))
+        reply = self.sender()
+        url = reply.url().toString()
+        qDebug('url: ' + url)
+        
+        return
 
     def requestQRCode(self):
         nsurl = 'https://login.weixin.qq.com/qrcode/4ZYgra8RHw=='
@@ -383,6 +399,7 @@ class WXAgent(QObject):
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         return
 
     
@@ -390,7 +407,8 @@ class WXAgent(QObject):
         # TODO: pass_ticket参数
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=1377482058764'
         # v2 url:https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=-1222669677&lang=en_US&pass_ticket=%252BEdqKi12tfvM8ZZTdNeh4GLO9LFfwKLQRpqWk8LRYVWFkDE6%252FZJJXurz79ARX%252FIT
-        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r='
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=%s&lang=en_US&pass_ticket=' % \
+                (self.nowTime() - 3600 * 24 * 30)
         qDebug(nsurl)
 
         post_data = '{"BaseRequest":{"Uin":"%s","Sid":"%s","Skey":"","DeviceID":"%s"}}' % \
@@ -452,6 +470,7 @@ class WXAgent(QObject):
         nsreq.setRawHeader(b'Cookie', joined_cookies.encode('utf8'))
         
         nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         
         return
 
@@ -888,6 +907,12 @@ class WXAgentService(QObject):
         rstr = data64.data().decode('utf8')
         return rstr
 
+    @pyqtSlot(QDBusMessage, result='QString')
+    def getgroups(self, message):
+        groups = json.JSONEncoder().encode(self.wxa.wxGroupUserNames)
+        rstr = groups
+        return rstr
+    
     # @param from_username str
     # @param to_username str
     # @param content str, need utf8 encoded(but now seem utf16)

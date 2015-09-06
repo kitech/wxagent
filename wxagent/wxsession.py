@@ -136,8 +136,13 @@ class WXSession():
         self.ContactRawData = b''  # QByteArray
         self.ContactData = {}
 
+        self.me = None   # WXUser
         self.Groups = {}  # group name => WXGroup
         self.Members = {}  # user name => WXUser
+
+        ### maybe temporary
+        self.InitGroups = {}  #
+        self.OtherGroups = {}  # group name => 1
         
         return
 
@@ -155,6 +160,24 @@ class WXSession():
         jsobj = json.JSONDecoder().decode(strhcc)
         self.InitData = jsobj
 
+        self._parseInitGroups()
+        return
+
+    def _parseInitGroups(self):
+        mc = self.InitData['Count']
+        qDebug(str(mc))
+
+        for member in self.InitData['ContactList']:
+            tname = member['UserName']
+            if tname.startswith('@@'):
+                user = WXUser()
+                user.Uin = member['Uin']
+                user.UserName = member['UserName']
+                user.NickName = member['NickName']
+                user.HeadImgUrl = member['HeadImgUrl']
+
+                self.InitGroups[tname] = user
+            
         return
     
     # @param contact QByteArray
@@ -196,8 +219,10 @@ class WXSession():
     def getUserByGroupName(self, name):
         mc = self.InitData['Count']
         qDebug(str(mc))
+        groups = []
         for member in self.InitData['ContactList']:
             tname = member['UserName']
+            groups.append([member['UserName'],member['NickName']])
             if tname == name:
                 user = WXUser()
                 user.Uin = member['Uin']
@@ -207,6 +232,7 @@ class WXSession():
                 return user
 
         qDebug("can not find user:" + str(name))
+        print(str(groups))
         return
 
     # @param uin int
@@ -227,6 +253,25 @@ class WXSession():
         qDebug("can not find user:" + str(uin))
         return None
 
+
+    def addGroupNames(self, GroupNames):
+        for name in GroupNames:
+            self.OtherGroups[name] = 1
+        return
+    
+    def getInitGroups(self):
+        grnames = []
+        for gr in self.InitGroups:
+            user = self.InitGroups[gr]
+            grnames.append(gr)
+        return grnames
+
+    def getAllGroups(self):
+        grnames = self.getInitGroups()
+        for name in self.OtherGroups:
+            if name not in grnames:
+                grnames.append(name)
+        return grnames
 
     # 返回InitData中以@@开关的项
     def getGroups(self):
@@ -271,7 +316,15 @@ class WXSession():
             qDebug('wtf???' + str(GroupName))
             return None
         return self.Groups[GroupName]
-    
+
+    def addGroupUser(self, GroupName, obj):
+        user = WXUser()
+        user.Uin = obj['Uin']
+        user.UserName = obj['UserName']
+        user.NickName = obj['NickName']
+
+        self.Groups[GroupName] = user
+        return
 
     # 不一定是好友的情况
     def getUserInfo(self, UserName):

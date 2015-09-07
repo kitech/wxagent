@@ -1,4 +1,3 @@
-
 # web weixin agent
 
 import os, sys
@@ -9,12 +8,11 @@ from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
 from PyQt5.QtDBus import *
 
-from wxagent.wxprotocol import *
+from .wxcommon import *
+from .wxprotocol import *
 
 # from dbus.mainloop.pyqt5 import DBusQtMainLoop
 # DBusQtMainLoop(set_as_default = True)
-
-SERVICE_NAME = 'io.qtc.wxagent'        
 
 ######
 class WXMsgType(enum.IntEnum):
@@ -114,6 +112,7 @@ class WXAgent(QObject):
 
         qDebug('requesting: ' + url)
         reply = self.nam.get(req)
+        reply.error.connect(self.onReplyError, Qt.QueuedConnection)
 
         return
     
@@ -204,6 +203,7 @@ class WXAgent(QObject):
                 nsreq = self.mkreq(nsurl)
                 nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
                 nsreply = self.nam.get(nsreq)
+                nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
 
                 pass
             else: qDebug('not impled:' + scan_code)
@@ -385,6 +385,8 @@ class WXAgent(QObject):
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        
         return
         
     def pollLogin(self):
@@ -420,7 +422,8 @@ class WXAgent(QObject):
             
         # nsreply = self.nam.get(nsreq)  # TODO POST
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
-
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        
         return
 
     def getContact(self):
@@ -436,6 +439,7 @@ class WXAgent(QObject):
             
         # nsreply = self.nam.get(nsreq)  # TODO POST
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         
         return
 
@@ -510,6 +514,7 @@ class WXAgent(QObject):
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
         
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         
         return nsreply
 
@@ -529,7 +534,8 @@ class WXAgent(QObject):
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
             
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
-    
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        
         return 
 
     # @param from_username str
@@ -580,7 +586,8 @@ class WXAgent(QObject):
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
         
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
-
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        
         return
     
     #
@@ -592,6 +599,8 @@ class WXAgent(QObject):
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
             
         nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        
         return nsreply
 
     ####
@@ -631,6 +640,7 @@ class WXAgent(QObject):
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
         
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
         self.asyncQueue[nsreply] = reqno
@@ -770,9 +780,10 @@ class WXAgent(QObject):
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "beginlogin")
         sigmsg.setArguments([123])
 
-        sesbus = QDBusConnection.sessionBus()
-        bret = sesbus.send(sigmsg)
+        sysbus = QDBusConnection.systemBus()
+        bret = sysbus.send(sigmsg)
         qDebug(str(bret))
+        
         return
 
     def emitDBusGotQRCode(self):
@@ -783,9 +794,10 @@ class WXAgent(QObject):
         qrpic64str = qrpic64.data().decode()
         sigmsg.setArguments([123, qrpic64str])
 
-        sesbus = QDBusConnection.sessionBus()
-        bret = sesbus.send(sigmsg)
+        sysbus = QDBusConnection.systemBus()
+        bret = sysbus.send(sigmsg)
         qDebug(str(bret))
+        
         return
 
     def emitDBusLoginSuccess(self):
@@ -794,9 +806,10 @@ class WXAgent(QObject):
 
         sigmsg.setArguments([123])
 
-        sesbus = QDBusConnection.sessionBus()
-        bret = sesbus.send(sigmsg)
+        sysbus = QDBusConnection.systemBus()
+        bret = sysbus.send(sigmsg)
         qDebug(str(bret))
+        
         return
     
     def emitDBusLogined(self):
@@ -804,8 +817,8 @@ class WXAgent(QObject):
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "logined")
         sigmsg.setArguments([123])
 
-        sesbus = QDBusConnection.sessionBus()
-        bret = sesbus.send(sigmsg)
+        sysbus = QDBusConnection.systemBus()
+        bret = sysbus.send(sigmsg)
         qDebug(str(bret))
         return
 
@@ -814,8 +827,8 @@ class WXAgent(QObject):
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "logouted")
         sigmsg.setArguments([123])
 
-        sesbus = QDBusConnection.sessionBus()
-        bret = sesbus.send(sigmsg)
+        sysbus = QDBusConnection.systemBus()
+        bret = sysbus.send(sigmsg)
         qDebug(str(bret))
         return
 
@@ -830,8 +843,8 @@ class WXAgent(QObject):
         sigmsg.setArguments([len(hcc), hcc64_str, len(hcc)])
         # sigmsg.setArguments([123, 'abcnewmessagessssssssss'])
 
-        sesbus = QDBusConnection.sessionBus()
-        bret = sesbus.send(sigmsg)
+        sysbus = QDBusConnection.systemBus()
+        bret = sysbus.send(sigmsg)
         qDebug(str(bret))
         return
 
@@ -851,7 +864,7 @@ class WXAgentService(QObject):
         self.dses = {}  # reqno => DelayReplySession
         
         self._reply = None
-        self.sesbus = QDBusConnection.sessionBus()
+        self.sysbus = QDBusConnection.systemBus()
 
         self.wxa = WXAgent(self)
         # self.wxa.reqfinished.connect(self.onNetReply, Qt.QueuedConnection)
@@ -970,7 +983,7 @@ class WXAgentService(QObject):
         s = self.dses.pop(reqno)
         s.busreply.setArguments([hcc])
         
-        self.sesbus.send(s.busreply)
+        self.sysbus.send(s.busreply)
 
         return
 
@@ -1020,24 +1033,34 @@ class WXAgentService(QObject):
         return "123"
     
     def tshot(self):
-        bret = self.sesbus.send(self._reply)
+        bret = self.sysbus.send(self._reply)
         qDebug(str(bret))
 
         
 ##########    
 def init_dbus_service():
-    sesbus = QDBusConnection.sessionBus()
-
-    bret = sesbus.registerService(SERVICE_NAME)
-    qDebug(str(bret))
-
+    sysbus = QDBusConnection.systemBus()
+    bret = sysbus.registerService(WXAGENT_SERVICE_NAME)
+    if bret is False:
+        err = sysbus.lastError()
+        print(err.name(), err.message())
+        exit()
+    qDebug(str(sysbus.name()))
+    iface = sysbus.interface()
+    qDebug(str(sysbus.interface()) + str(iface.service()) + str(iface.path()))
+    
     return
 
 def register_dbus_service(wxasvc):
-    sesbus = QDBusConnection.sessionBus()
-    
-    bret = sesbus.registerObject("/", wxasvc, QDBusConnection.ExportAllSlots)
-    qDebug(str(bret))
+
+    sysbus = QDBusConnection.systemBus()
+    # bret = sysbus.registerObject("/io/qtc/wxagent", wxasvc, QDBusConnection.ExportAllSlots)
+    bret = sysbus.registerObject("/io/qtc/wxagent", WXAGENT_IFACE_NAME, wxasvc, QDBusConnection.ExportAllSlots)
+    qDebug(str(sysbus))
+    if bret is False:
+        err = sysbus.lastError()
+        print(err.name(), err.message())
+        exit()
 
     return
 

@@ -64,10 +64,11 @@ def qt_debug_handler(tp, ctx, msg):
     
     flog = b"[" + tmstr  + b"] T(" + tid + b") " + fn + b":" + line + b" " + function \
            + b" -- " + msg.encode('utf8')
-    print(flog.decode('utf8'))
+    print(flog.decode('utf8'), flush=True)
 
 #usage
 # qInstallMessageHandler(qt_debug_handler)
+# qDebug('奇点'.encode()), but not qDebug('奇点')
 
 
 ###

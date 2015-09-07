@@ -633,7 +633,7 @@ class QToxKit(QThread):
         rc = self.tox.group_set_title(group_number, title)
         return rc
 
-    def groupchatIniteFriend(self, group_number, friendId):
+    def groupchatInviteFriend(self, group_number, friendId):
         friend_number = self.tox.friend_by_public_key(friendId)
         rc = self.tox.invite_friend(friend_number, group_number)
         return rc

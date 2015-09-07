@@ -35,9 +35,19 @@ https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=454d958c7f6243&tip=1&
 
 window.code=201;
 
+### 扫描了并确认-返回
+
+window.code=200;
 
 ### 未扫描返回空
 
+window.code=408
+
+###  等待扫描超时，qrpic失效 -返回
+
+window.code=400
+
+这时需要从头开始，重新执行流程。
 
 ## 扫描之后-第一次请求成功
 

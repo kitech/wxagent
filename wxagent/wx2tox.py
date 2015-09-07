@@ -11,12 +11,11 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtDBus import *
 
 
+from .qtoxkit import *
+from .wxcommon import *
+from .wxsession import *
+from .wxprotocol import *
 
-from wxagent.qtoxkit import *
-from wxagent.wxsession import *
-from wxagent.wxprotocol import *
-
-SERVICE_NAME = 'io.qtc.wxagent'
 # QDBUS_DEBUG
 
 class ToxDispatcher(QObject):
@@ -74,22 +73,22 @@ class WX2Tox(QObject):
         self.pendingGroupMessages = {}  # group name => msg
         
         #####
-        self.sesbus = QDBusConnection.sessionBus()
-        self.iface = QDBusInterface(SERVICE_NAME, '/', '', self.sesbus)
-
-        self.asyncWatchers = {}   # watcher => arg0
-
+        self.sysbus = QDBusConnection.systemBus()
+        self.sysiface = QDBusInterface(WXAGENT_SERVICE_NAME, '/io/qtc/wxagent', WXAGENT_IFACE_NAME, self.sysbus)
+        
         #                                   path   iface    name
         # sigmsg = QDBusMessage.createSignal("/", 'signals', "logined")
         # connect(service, path, interface, name, QObject * receiver, const char * slot)
-        # self.sesbus.connect(SERVICE_NAME, "/", 'signals', 'logined', self.onDBusLogined)
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logined', self.onDBusLogined)
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logouted', self.onDBusLogouted)
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'newmessage', self.onDBusNewMessage)
+        # self.sysbus.connect(SERVICE_NAME, "/", 'signals', 'logined', self.onDBusLogined)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logined', self.onDBusLogined)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logouted', self.onDBusLogouted)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'newmessage', self.onDBusNewMessage)
 
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'beginlogin', self.onDBusBeginLogin)
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'gotqrcode', self.onDBusGotQRCode)
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'loginsuccess', self.onDBusLoginSuccess)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'beginlogin', self.onDBusBeginLogin)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'gotqrcode', self.onDBusGotQRCode)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'loginsuccess', self.onDBusLoginSuccess)
+
+        self.asyncWatchers = {}   # watcher => arg0
         
         self.initToxnet()
         self.startWXBot()
@@ -366,6 +365,8 @@ class WX2Tox(QObject):
         grnames = self.wxproto.parseWebSyncNotifyGroups(hcc)
         self.wxses.addGroupNames(grnames)
 
+        self.wxses.parseModContact(jsobj['ModContactList'])
+        
         
         # for um in jsobj['AddMsgList']:
         #     tm = 'MT:%s,' % (um['MsgType'])   # , um['Content'])
@@ -478,7 +479,7 @@ class WX2Tox(QObject):
         #         groupchat.title = '%s@WXU' % msg.FromUser.NickName
                 
         #     rc = self.toxkit.groupchatSetTitle(group_number, groupchat.title)
-        #     rc = self.toxkit.groupchatIniteFriend(group_number, self.peerToxId)
+        #     rc = self.toxkit.groupchatInviteFriend(group_number, self.peerToxId)
         #     if rc != 0: qDebug('invite error')
 
         # # assert groupchat is not None
@@ -503,6 +504,8 @@ class WX2Tox(QObject):
             number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
+                ### reinvite peer into group
+                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)                
             else:
                 rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
                 if rc != 0: qDebug('group chat send msg error')
@@ -531,6 +534,8 @@ class WX2Tox(QObject):
             number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
+                ### reinvite peer into group
+                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)
             else:
                 rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
                 if rc != 0: qDebug('group chat send msg error:%s' % str(rc))
@@ -590,6 +595,8 @@ class WX2Tox(QObject):
             number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
+                ### reinvite peer into group
+                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)                
             else:
                 rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
                 if rc != 0: qDebug('group chat send msg error: %s' % str(rc))
@@ -633,6 +640,8 @@ class WX2Tox(QObject):
             number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
+                ### reinvite peer into group
+                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)                
             else:
                 rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
                 if rc != 0: qDebug('group chat send msg error')
@@ -658,7 +667,7 @@ class WX2Tox(QObject):
         groupchat.title = title
         
         rc = self.toxkit.groupchatSetTitle(group_number, groupchat.title)
-        rc = self.toxkit.groupchatIniteFriend(group_number, self.peerToxId)
+        rc = self.toxkit.groupchatInviteFriend(group_number, self.peerToxId)
         if rc != 0: qDebug('invite error')
 
         return groupchat
@@ -692,7 +701,7 @@ class WX2Tox(QObject):
         from_username = groupchat.FromUser.UserName
         to_username = groupchat.ToUser.UserName
         args = [from_username, to_username, mcc, 1, 'more', 'even more']
-        reply = self.iface.call('sendmessage', *args)  # 注意把args扩展开
+        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
 
         rr = QDBusReply(reply)
         if rr.isValid():
@@ -747,7 +756,7 @@ class WX2Tox(QObject):
             
         # return
         args = [from_username, to_username, mcc, 1, 'more', 'even more']
-        reply = self.iface.call('sendmessage', *args)  # 注意把args扩展开
+        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
 
         rr = QDBusReply(reply)
         if rr.isValid():
@@ -765,7 +774,7 @@ class WX2Tox(QObject):
         to_username = groupchat.ToUser.UserName
         
         args = [to_username, from_username, mcc, 1, 'more', 'even more']
-        reply = self.iface.call('sendmessage', *args)  # 注意把args扩展开
+        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
 
         rr = QDBusReply(reply)
         if rr.isValid():
@@ -783,7 +792,7 @@ class WX2Tox(QObject):
         to_username = groupchat.ToUser.UserName
         
         args = [to_username, from_username, mcc, 1, 'more', 'even more']
-        reply = self.iface.call('sendmessage', *args)  # 注意把args扩展开
+        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
 
         rr = QDBusReply(reply)
         if rr.isValid():
@@ -801,7 +810,7 @@ class WX2Tox(QObject):
 
         self.wxses = WXSession()
 
-        reply = self.iface.call('getinitdata', 123, 'a1', 456)
+        reply = self.sysiface.call('getinitdata', 123, 'a1', 456)
         rr = QDBusReply(reply)
         # TODO check reply valid
         
@@ -811,7 +820,7 @@ class WX2Tox(QObject):
         self.wxses.setInitData(data)
         self.saveContent('initdata.json', data)
         
-        reply = self.iface.call('getcontact', 123, 'a1', 456)
+        reply = self.sysiface.call('getcontact', 123, 'a1', 456)
         rr = QDBusReply(reply)
         
         # TODO check reply valid
@@ -822,12 +831,14 @@ class WX2Tox(QObject):
         self.saveContent('contact.json', data)
 
 
-        reply = self.iface.call('getgroups', 123, 'a1', 456)
+        reply = self.sysiface.call('getgroups', 123, 'a1', 456)
         rr = QDBusReply(reply)
         
         # TODO check reply valid
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
         GroupNames = json.JSONDecoder().decode(rr.value())
+
+        self.wxses.addGroupNames(GroupNames)
         
         # QTimer.singleShot(8, self.getBatchContactAll)
         QTimer.singleShot(8, self.getBatchGroupAll)
@@ -835,7 +846,7 @@ class WX2Tox(QObject):
         return
 
     def checkWXLogin(self):
-        reply = self.iface.call('islogined', 'a0', 123, 'a1')
+        reply = self.sysiface.call('islogined', 'a0', 123, 'a1')
         qDebug(str(reply))
         rr = QDBusReply(reply)
 
@@ -847,7 +858,7 @@ class WX2Tox(QObject):
         return True
 
     def getQRCode(self):
-        reply = self.iface.call('getqrpic', 123, 'a1', 456)
+        reply = self.sysiface.call('getqrpic', 123, 'a1', 456)
         rr = QDBusReply(reply)
 
         if not rr.isValid(): return None
@@ -869,7 +880,7 @@ class WX2Tox(QObject):
 
     def getGroupsFromDBus(self):
 
-        reply = self.iface.call('getgroups', 123, 'a1', 456)
+        reply = self.sysiface.call('getgroups', 123, 'a1', 456)
         rr = QDBusReply(reply)
         
         # TODO check reply valid
@@ -880,12 +891,9 @@ class WX2Tox(QObject):
     
     
     def getBatchGroupAll(self):
-        groups = self.wxses.getInitGroups()
-        groups = self.wxses.getAllGroups()
-        qDebug(str(groups))
         groups2 = self.getGroupsFromDBus()
         self.wxses.addGroupNames(groups2)
-        groups = self.wxses.getAllGroups()
+        groups = self.wxses.getICGroups()
         qDebug(str(groups))
         
         reqcnt = 0
@@ -895,7 +903,7 @@ class WX2Tox(QObject):
              arg0.append(melem)
 
         argjs = json.JSONEncoder().encode(arg0)
-        pcall = self.iface.asyncCall('getbatchcontact', argjs)
+        pcall = self.sysiface.asyncCall('getbatchcontact', argjs)
         watcher = QDBusPendingCallWatcher(pcall)
         # watcher.finished.connect(self.onGetBatchContactDone)
         watcher.finished.connect(self.onGetBatchGroupDone)
@@ -915,6 +923,9 @@ class WX2Tox(QObject):
             hcc = pendReply.argumentAt(0)
             qDebug(str(type(hcc)))
         else:
+            hcc = pendReply.argumentAt(0)
+            qDebug(str(len(hcc)))
+            qDebug(str(hcc))
             return
 
         message = pendReply.reply()
@@ -925,7 +936,6 @@ class WX2Tox(QObject):
         strhcc = self.hcc2str(hcc)
         hccjs = json.JSONDecoder().decode(strhcc)
 
-        # qDebug(str(self.wxses.getGroups()))
         # print(strhcc)
         
         memcnt = 0
@@ -934,53 +944,48 @@ class WX2Tox(QObject):
             # print(contact)
             # self.wxses.addMember(contact)
             grname = contact['UserName']
-            if grname.startswith('@@'):
-                print('uid=%s,un=%s,nn=%s\n' % (contact['Uin'], contact['UserName'], contact['NickName']))
-                self.wxses.addGroupUser(grname, contact)
-                if grname in self.pendingGroupMessages and len(self.pendingGroupMessages[grname]) > 0:
-                    while len(self.pendingGroupMessages[grname]) > 0:
-                        msgobj = self.pendingGroupMessages[grname].pop()
-                        GroupUser = self.wxses.getGroupByName(grname)
-                        self.dispatchWXGroupChatToTox2(msgobj[0], msgobj[1], GroupUser)
-                    
+            if not WXUser.isGroup(grname): continue
 
-        qDebug('--------------')    
-        for grname in self.wxses.InitGroups:
-            user = self.wxses.InitGroups[grname]
-            if grname.startswith('@@'):
-                print('uid=%s,un=%s,nn=%s\n' % (user.Uin, user.UserName, user.NickName))
+            print('uid=%s,un=%s,nn=%s\n' % (contact['Uin'], contact['UserName'], contact['NickName']))
+            self.wxses.addGroupUser(grname, contact)
+            if grname in self.pendingGroupMessages and len(self.pendingGroupMessages[grname]) > 0:
+                while len(self.pendingGroupMessages[grname]) > 0:
+                    msgobj = self.pendingGroupMessages[grname].pop()
+                    GroupUser = self.wxses.getGroupByName(grname)
+                    self.dispatchWXGroupChatToTox2(msgobj[0], msgobj[1], GroupUser)
+                                
+        qDebug('got memcnt: %s/%s' % (memcnt, len(self.wxses.ICGroups)))
 
-            
-        qDebug('got memcnt: %s/%s' % (memcnt, len(self.wxses.Members)))
+        ### flow next
+        # QTimer.singleShot(12, self.getBatchContactAll)
+        
         return
     
     
     def getBatchContactAll(self):
         
-        groups = self.wxses.getGroups()
+        groups = self.wxses.getICGroups()
         qDebug(str(groups))
-        
         reqcnt = 0
         for grname in groups:
-            group = self.wxses.getGroupByName(grname)
-            members = self.wxses.getGroupMembers(group.me.UserName)
+            members = self.wxses.getGroupMembers(grname)
             arg0 = []
             for member in members:
-                melem = {'UserName': member, 'EncryChatRoomId': group.me.UserName}
+                melem = {'UserName': member, 'EncryChatRoomId': group.UserName}
                 arg0.append(melem)
 
             cntpertime = 50
             while len(arg0) > 0:
                 subarg = arg0[0:cntpertime]
                 subargjs = json.JSONEncoder().encode(subarg)
-                pcall = self.iface.asyncCall('getbatchcontact', subargjs)
+                pcall = self.sysiface.asyncCall('getbatchcontact', subargjs)
                 watcher = QDBusPendingCallWatcher(pcall)
                 watcher.finished.connect(self.onGetBatchContactDone)
                 self.asyncWatchers[watcher] = subarg
                 arg0 = arg0[cntpertime:]
                 reqcnt += 1
-                # break
-            # break
+                break
+            break
         
         qDebug('async reqcnt: ' + str(reqcnt))
         
@@ -1014,7 +1019,7 @@ class WX2Tox(QObject):
             # print(contact)
             self.wxses.addMember(contact)
 
-        qDebug('got memcnt: %s/%s' % (memcnt, len(self.wxses.Members)))
+        qDebug('got memcnt: %s/%s' % (memcnt, len(self.wxses.ICUsers)))
         return
     
     

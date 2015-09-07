@@ -11,12 +11,12 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtDBus import *
 
-SERVICE_NAME = 'io.qtc.wxagent'
 # QDBUS_DEBUG
 
-from wxagent.wxsession import *
+from .wxcommon import *
+from .wxsession import *
 
-from wxagent.ui_mainwindow import *
+from .ui_mainwindow import *
 class QRWin(QMainWindow):
     def __init__(self, parent = None):
         super(QRWin, self).__init__(parent)        
@@ -25,16 +25,16 @@ class QRWin(QMainWindow):
 
         self.wxses = None
 
-        self.sesbus = QDBusConnection.sessionBus()
-        self.iface = QDBusInterface(SERVICE_NAME, '/', '', self.sesbus)
-
+        self.sysbus = QDBusConnection.systemBus()
+        self.sysiface = QDBusInterface(WXAGENT_SERVICE_NAME, '/io/qtc/wxagent', WXAGENT_IFACE_NAME, self.sysbus)
+        
         #                                   path   iface    name
         # sigmsg = QDBusMessage.createSignal("/", 'signals', "logined")
         # connect(service, path, interface, name, QObject * receiver, const char * slot)
-        # self.sesbus.connect(SERVICE_NAME, "/", 'signals', 'logined', self.onDBusLogined)
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logined', self.onDBusLogined)
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logouted', self.onDBusLogouted)
-        self.sesbus.connect(SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'newmessage', self.onDBusNewMessage)
+        # self.sysbus.connect(SERVICE_NAME, "/", 'signals', 'logined', self.onDBusLogined)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logined', self.onDBusLogined)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'logouted', self.onDBusLogouted)
+        self.sysbus.connect(WXAGENT_SERVICE_NAME, "/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', 'newmessage', self.onDBusNewMessage)
         
         # self.wx.qrpicGotten.connect(self.onQRPicGotten, Qt.QueuedConnection)
         self.uiw.pushButton.clicked.connect(self.onStart, Qt.QueuedConnection)
@@ -127,7 +127,8 @@ class QRWin(QMainWindow):
 
         self.wxses = WXSession()
 
-        reply = self.iface.call('getinitdata', 123, 'a1', 456)
+        # reply = self.iface.call('getinitdata', 123, 'a1', 456)
+        reply = self.sysiface.call('getinitdata', 123, 'a1', 456)
         rr = QDBusReply(reply)
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
         data64 = rr.value().encode('utf8')   # to bytes
@@ -135,7 +136,8 @@ class QRWin(QMainWindow):
         self.wxses.setInitData(data)
         self.saveContent('initdata.json', data)
         
-        reply = self.iface.call('getcontact', 123, 'a1', 456)
+        # reply = self.iface.call('getcontact', 123, 'a1', 456)
+        reply = self.sysiface.call('getcontact', 123, 'a1', 456)
         rr = QDBusReply(reply)
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
         data64 = rr.value().encode('utf8')   # to bytes
@@ -160,13 +162,18 @@ class QRWin(QMainWindow):
         return
 
     def onStart(self):
-        reply = self.iface.call('islogined', 'a0', 123, 'a1')
+        # reply = self.iface.call('islogined', 'a0', 123, 'a1')
+        reply = self.sysiface.call('islogined', 'a0', 123, 'a1')
         qDebug(str(reply))
         rr = QDBusReply(reply)
+        if not rr.isValid():
+            qDebug(str(rr.error().message()))
+            qDebug(str(rr.error().name()))
         qDebug(str(rr.value()) + ',' + str(type(rr.value())))
 
         if rr.value() is False:
-            reply = self.iface.call('getqrpic', 123, 'a1', 456)
+            #reply = self.iface.call('getqrpic', 123, 'a1', 456)
+            reply = self.sysiface.call('getqrpic', 123, 'a1', 456)
             rr = QDBusReply(reply)
             qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
             qrpic64 = rr.value().encode('utf8')   # to bytes
@@ -176,14 +183,16 @@ class QRWin(QMainWindow):
         
         return
     def onStop(self):
-        reply = self.iface.call('logout', 'a0', 123, 'a1')
+        # reply = self.iface.call('logout', 'a0', 123, 'a1')
+        reply = self.sysiface.call('logout', 'a0', 123, 'a1')
         qDebug(str(reply))
         rr = QDBusReply(reply)
         qDebug(str(rr.value()) + ',' + str(type(rr.value())))
         return
 
     def onRefresh(self):
-        reply = self.iface.call('refresh', 'a0', 123, 'a1')
+        # reply = self.iface.call('refresh', 'a0', 123, 'a1')
+        reply = self.sysiface.call('refresh', 'a0', 123, 'a1')
         qDebug(str(reply))
         rr = QDBusReply(reply)
         qDebug(str(rr.value()) + ',' + str(type(rr.value())))
@@ -201,7 +210,8 @@ class QRWin(QMainWindow):
 
     def onGetUrl(self):
         url = self.uiw.lineEdit.text()
-        reply = self.iface.call('geturl', url, 'a0', 123, 'a1')
+        # reply = self.iface.call('geturl', url, 'a0', 123, 'a1')
+        reply = self.sysiface.call('geturl', url, 'a0', 123, 'a1')
         qDebug(str(reply))
         rr = QDBusReply(reply)
         qDebug(str(rr.value()) + ',' + str(type(rr.value())))

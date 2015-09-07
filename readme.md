@@ -11,6 +11,8 @@
 
 提供后台服务，管理微信登陆会话，负责与服务器通信。
 
+提供双向的接收消息与发送消息功能。
+
 以后台服务的方式运行，占用资源少，并且能够长时间运行，避免了需要经常手机扫描登陆的麻烦。
 
 不过，由于这个代理提供的消息服务不再有认证等安全功能，登陆代理最好安装在安全的机器上，像本机上，或者是内网的私有服务器上。
@@ -27,6 +29,33 @@
 除了以DBus方式提供API，还可以使用socket方式，可以更灵活了。
 
 微信登陆代理实际上非常像ssh-agent的工作模式，长时间保持住会话，而不受UI交互客户端的启动或者退出状态的影响。
+
+因此，把wxagent以后台服务的方式运行，即使Linux桌面偶尔出现崩溃也不用怕了，登陆进桌面后不需要再扫描QR重新登陆。
+
+另外wxagent在启动机制上，使用了systemd --user方式，即把wxagent当作一个用户级服务。
+
+这样有两个好处，启动不再需要root权限，并且能够很好的实现多用户多实例隔离支持。
+
+
+##### 微信登陆代理程序及客户端
+
+wxagent: 使用PyQt5实现的wxagent后台服务程序。
+
+    cd /path/to/wxagent
+    python setup.py install
+    /usr/bin/wxagent
+
+    在有包管理的系统上，可以使用systemd启动服务：
+    systemd --user start wxagent.service
+       
+
+wxaui: 使用PyQt5实现的简易wxagent客户端，显示微信登陆二维码，接收消息（消息未分类）。
+
+      /usr/bin/wxaui
+
+wx2tox: 使用PyQt5实现的wxagent客户端，并将收到的消息分类转发到qTox IM客户端，以qTox(toxcore)群形式表示微信聊天会话。
+
+      /usr/bin/wx2tox
 
 
 
@@ -88,28 +117,10 @@ logouted: 参数，bool
 newmessage: 参数，json string
 
 
-
-##### 微信登陆代理程序及客户端
-
-wxagent: 使用PyQt5实现的wxagent后台服务程序。
-
-    cd /path/to/wxagent
-    python setup.py install
-    /usr/bin/wxagent
-
-wxaui: 使用PyQt5实现的简易wxagent客户端，显示微信登陆二维码，接收消息（消息未分类）。
-
-      /usr/bin/wxaui
-
-wx2tox: 使用PyQt5实现的wxagent客户端，并将收到的消息分类转发到qTox IM客户端，以qTox(toxcore)群形式表示微信聊天会话。
-
-      /usr/bin/wx2tox
-
-
 ##### 微信web版协议
 
-[weixin web protocol.md(v2)](https://github.com/kitech/wxagent/doc/protocolv2.md)
+[weixin web protocol.md(v2)](https://github.com/kitech/wxagent/blob/master/doc/protocolv2.md)
 
-[weixin web protocol.md(v1)](https://github.com/kitech/wxagent/doc/protocol.md)
+[weixin web protocol.md(v1)](https://github.com/kitech/wxagent/blob/master/doc/protocol.md)
 
 

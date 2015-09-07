@@ -15,29 +15,21 @@ class WXUser():
         self.UserName = ''
         self.NickName = ''
         self.HeadImgUrl = ''
-        
-        return
-        
-class WXGroup():
-    def __init__(self):
-        "docstring"
-        self.me = None  # WXUser
 
         self.members = {}  # user name -> WXUser
-        
         return
 
-    # @param member json's member node
-    def addMember(self, member):
-        user = WXUser()
-        user.Uin = member['Uin']
-        user.UserName = member['UserName']
-        user.NickName = member['NickName']
+    # signature1: u.isGroup()
+    # signature1: WXUser.isGroup(name)
+    def isGroup(p0, p1 = None):
+        if type(p0) is WXUser:  # self = p0
+            return p0.UserName.startswith('@@')
+        return p0.startswith('@@')
 
-        self.members[user.UserName] = user
-        return
-    
-    
+    def isMPSub(self):
+        return self.Uin == 0 and self.HeadImgUrl == ''
+
+       
 class WXMessage():
 
     def __init__(self):
@@ -137,12 +129,13 @@ class WXSession():
         self.ContactData = {}
 
         self.me = None   # WXUser
-        self.Groups = {}  # group name => WXGroup
-        self.Members = {}  # user name => WXUser
+        self.Users = {}  # user name => WXUser
+
+        # incomplete information
+        self.ICUsers = {}  # user name => WXUser，信息不完全的的用户
+        self.ICGroups = {}  # user name = > WXUser, 信息不完全的组
 
         ### maybe temporary
-        self.InitGroups = {}  #
-        self.OtherGroups = {}  # group name => 1
         
         return
 
@@ -160,26 +153,70 @@ class WXSession():
         jsobj = json.JSONDecoder().decode(strhcc)
         self.InitData = jsobj
 
+        self._parseInitAboutMe()
         self._parseInitGroups()
+        self._parseInitGroupMembers()
+        return
+    
+    def _parseInitAboutMe(self):
+        mc = self.InitData['Count']
+        qDebug(str(mc))
+
+        uo = self.InitData['User']
+        user = WXUser()
+        user.Uin = uo['Uin']
+        user.UserName = uo['UserName']
+        user.NickName = uo['NickName']
+        user.HeadImgUrl = uo['HeadImgUrl']
+
+        self.me = user
         return
 
+    
     def _parseInitGroups(self):
         mc = self.InitData['Count']
         qDebug(str(mc))
 
-        for member in self.InitData['ContactList']:
-            tname = member['UserName']
-            if tname.startswith('@@'):
-                user = WXUser()
-                user.Uin = member['Uin']
-                user.UserName = member['UserName']
-                user.NickName = member['NickName']
-                user.HeadImgUrl = member['HeadImgUrl']
+        ### InitData中的group都是有info的记录，直接存储在Users中
+        for user in self.parseUsers(self.InitData['ContactList']):
+            self.Users[user.UserName] = user
+            self.Users[user.Uin] = user
 
-                self.InitGroups[tname] = user
+            if not user.isGroup(): continue
             
         return
-    
+
+
+    def _parseInitGroupMembers(self):
+        mc = self.InitData['Count']
+        qDebug(str(mc))
+
+        ### InitData中的group都是有info的记录，直接存储在Users中
+        for uo in self.InitData['ContactList']:
+            user = self.Users[uo['Uin']]
+            for mo in self.parseUsers(uo['MemberList']):
+                self.ICUsers[mo.UserName] = mo
+                self.ICUsers[mo.Uin] = mo
+                
+                user.members[mo.UserName] = mo
+                user.members[mo.Uin] = mo
+
+        return
+        
+    def _parseInitMPSubs(self):
+        mc = self.InitData['Count']
+        qDebug(str(mc))
+
+        ### InitData中的group都是有info的记录，直接存储在Users中
+        for uo in self.InitData['MPSubscribeMsgList']:
+            user = WXUser()
+            user.UserName = uo['UserName']
+            user.NickName = uo['NickName']
+
+            self.Users[user.UserName] = user
+
+        return
+
     # @param contact QByteArray
     def setContact(self, contact):
         self.ContactRawData = contact
@@ -194,24 +231,107 @@ class WXSession():
         jsobj = json.JSONDecoder().decode(strhcc)
         self.ContactData = jsobj
 
+        #######
+        for user in self.parseUsers(jsobj['MemberList']):
+            if user.Uin in self.ICUsers: self.ICUsers.pop(user.Uin)
+            if user.UserName in self.ICUsers: self.ICUsers.pop(user.UserName)
+
+            if user.UserName in self.Users:
+                self._assignUser(self.Users[user.UserName], user)
+                self.Users[user.Uin] = self.Users[user.UserName]
+            else:
+                self.Users[user.UserName] = user
+                self.Users[user.Uin] = user
+            
+        return
+
+    # @param contact  jsobj['ModContactList']
+    def parseModContact(self, modcontact):
+        for contact in modcontact:
+            user = self._contactElemToUser(contact)
+            
+            ### 准备下次获取该群组信息
+            if user.Uin == 0 and user.UserName not in self.Users:
+                self.addGroupNames([user.UserName])
+            
+            if user.UserName in self.ICGroups: self.ICGroups.pop(user.UserName)
+            if user.Uin > 0 and user.Uin in self.ICGroups: self.ICGroups.pop(user.Uin)
+
+            if user.UserName not in self.Users:
+                self.Users[user.UserName] = user
+                self.Users[user.Uin] = user
+            else:
+                self._assignUser(self.Users[user.UserName], user)
+
+            #########
+            guser = self.Users[user.UserName]
+            ### 更新群组成员列表
+            for subuser in self.parseUsers(contact['MemberList']):
+                if subuser.UserName in self.ICUsers: self.ICUsers.pop(subuser.UserName)
+                if subuser.Uin in self.ICUsers: self.ICUsers.pop(subuser.Uin)
+
+                if subuser.UserName not in self.Users:
+                    self.Users[subuser.UserName] = subuser
+                    self.Users[subuser.Uin] = subuser
+                else:
+                    self._assignUser(self.Users[subuser.UserName], subuser)
+
+                # 加入到group的members列表中
+                if subuser.UserName not in guser.members:
+                    guser.members[subuser.UserName] = subuser
+                    guser.members[subuser.Uin] = subuser
+            
+        return
+
+    
+    # TODO
+    # @param contact  jsobj['DelContactList']
+    def parseDelContact(self, delcontact):
+        
+        return
+    
+    # TODO
+    # @param contact  jsobj['ModChatRoomMemberList']
+    def parseModChatRoomMemberList(self, modmembers):
+        
+        return
+    
+    def _assignUser(self, t, f):
+        if f.Uin > 0: t.Uin = f.Uin
+        if len(f.UserName) > 0: t.UserName = f.UserName
+        if len(f.NickName) > 0: t.NickName = f.NickName
+        if len(f.HeadImgUrl) > 0: t.HeadImgUrl = f.HeadImgUrl
+        return
+
+    
+    def _contactElemToUser(self, elem):
+        uo = elem
+        
+        user = WXUser()
+        if 'Uin' in uo: user.Uin = uo['Uin']
+        else: print('warning contact has not Uin: %s:%s' % (uo['UserName'][0:8], uo['NickName']))
+        user.UserName = uo['UserName']
+        user.NickName = uo['NickName']
+        if 'HeadImgUrl' in uo: user.HeadImgUrl = uo['HeadImgUrl']
+
+        return user
+
+    # @param contact, hccjs['ContactList'] or hccjs['MemberList']
+    def parseUsers(self, contact):
+        for uo in contact:
+            user = self._contactElemToUser(uo)
+            yield user
+            
         return
 
     # @param name str  UserName, like @xxx
     def getUserByName(self, name):
-        if name.startswith('@@'): return self.getUserByGroupName(name)
+        if WXUser.isGroup(name): return self.getUserByGroupName(name)
         
         mc = self.ContactData['MemberCount']
         qDebug(str(mc))
-        for member in self.ContactData['MemberList']:
-            tname = member['UserName']
-            if tname == name:
-                user = WXUser()
-                user.Uin = member['Uin']
-                user.UserName = member['UserName']
-                user.NickName = member['NickName']
-                user.HeadImgUrl = member['HeadImgUrl']
-                return user
 
+        if name in self.Users: return self.Users[name]
         qDebug("can not find user:" + str(name))
         return None
 
@@ -219,127 +339,80 @@ class WXSession():
     def getUserByGroupName(self, name):
         mc = self.InitData['Count']
         qDebug(str(mc))
-        groups = []
-        for member in self.InitData['ContactList']:
-            tname = member['UserName']
-            groups.append([member['UserName'],member['NickName']])
-            if tname == name:
-                user = WXUser()
-                user.Uin = member['Uin']
-                user.UserName = member['UserName']
-                user.NickName = member['NickName']
-                user.HeadImgUrl = member['HeadImgUrl']
-                return user
 
+        if name in self.Users: return self.Users[name]
         qDebug("can not find user:" + str(name))
-        print(str(groups))
         return
 
     # @param uin int
     def getUserByUin(self, uin):
-
-        mc = self.ContactData['MemberCount']
-        qDebug(str(mc))
-        for member in self.ContactData['MemberList']:
-            tuin = member['Uin']
-            if tuin == uin:
-                user = WXUser()
-                user.Uin = member['Uin']
-                user.UserName = member['UserName']
-                user.NickName = member['NickName']
-                user.HeadImgUrl = member['HeadImgUrl']
-                return user
-
+        if uin in self.Users: return self.Users[uin]
         qDebug("can not find user:" + str(uin))
         return None
 
 
     def addGroupNames(self, GroupNames):
         for name in GroupNames:
-            self.OtherGroups[name] = 1
+            user = WXUser()
+            user.UserName = name
+            self.ICGroups[name] = user
         return
     
-    def getInitGroups(self):
+    def getICGroups(self):
         grnames = []
-        for gr in self.InitGroups:
-            user = self.InitGroups[gr]
-            grnames.append(gr)
+        gkeys = self.ICGroups.keys()
+        for k in gkeys:
+            if WXUser.isGroup(k):
+                grnames.append(k)
         return grnames
 
-    def getAllGroups(self):
-        grnames = self.getInitGroups()
-        for name in self.OtherGroups:
-            if name not in grnames:
-                grnames.append(name)
-        return grnames
-
-    # 返回InitData中以@@开关的项
-    def getGroups(self):
-        mc = self.InitData['Count']
-        qDebug(str(mc))
-
-        grnames = []
-        for member in self.InitData['ContactList']:
-            tname = member['UserName']
-            if tname.startswith('@@'):
-                user = WXUser()
-                user.Uin = member['Uin']
-                user.UserName = member['UserName']
-                user.NickName = member['NickName']
-                user.HeadImgUrl = member['HeadImgUrl']
-                group = WXGroup()
-                group.me = user
-                self.Groups[user.UserName] = group
-                grnames.append(user.UserName)
-                
-        return grnames
     
     def getGroupMembers(self, GroupName):
-        if GroupName not in self.Groups:
+        if GroupName not in self.Users:
             qDebug('wtf???' + str(GroupName))
-            return None
+            return []
 
         members = []
-        for contact in self.InitData['ContactList']:
-            tname = contact['UserName']
-            if tname == GroupName:
-                mc = contact['MemberCount']
-                qDebug(str(mc))
-                for member in contact['MemberList']:
-                    members.append(member['UserName'])
-                break
+        qDebug(str(self.Users[GroupName]))
+        for mkey in self.Users[GroupName].members:
+            if type(mkey) is int: continue  #
+            user = self.Users[GroupName].members[mkey]
+            members.append(user.UserName)
 
         return members
 
     def getGroupByName(self, GroupName):
-        if GroupName not in self.Groups:
+        if GroupName not in self.Users:
             qDebug('wtf???' + str(GroupName))
             return None
-        return self.Groups[GroupName]
+        return self.Users[GroupName]
 
+    
     def addGroupUser(self, GroupName, obj):
         user = WXUser()
         user.Uin = obj['Uin']
         user.UserName = obj['UserName']
         user.NickName = obj['NickName']
 
-        self.Groups[GroupName] = user
+        if user.Uin not in self.Users:
+            self.Users[user.Uin] = user
+            self.Users[user.UserName] = user
+            
+        if user.UserName in self.ICGroups: self.ICGroups.pop(user.UserName)
+        if user.Uin in self.ICGroups: self.ICGroups.pop(user.Uin)
         return
 
     # 不一定是好友的情况
     def getUserInfo(self, UserName):
-        if UserName not in self.Members:
+        if UserName not in self.Users:
             qDebug('wtf???' + str(UserName))
-            return None
-        return self.Members[UserName]
-
-    # 不一定是好友的情况
-    def getUserInfo_dep(self, UserName):
-        for group in self.Groups:
-            if UserName in group.members:
-                return group.members[UserName]
-        qDebug('user not found:' + UserName)
-        return None
+            if UserName not in self.ICUsers:
+                qDebug('wtf???' + str(UserName))
+                return None
+            else:
+                return self.ICUsers[UserName]
+        else:
+            return self.Users[UserName]
 
     # @param member json's member node
     def addMember(self, member):
@@ -348,5 +421,10 @@ class WXSession():
         user.UserName = member['UserName']
         user.NickName = member['NickName']
 
-        self.Members[user.UserName] = user
+        if user.Uin not in self.Users:
+            self.Users[user.UserName] = user
+            self.Users[user.Uin] = user
+
+        if user.UserName in self.ICUsers: self.ICUsers.pop(user.UserName)
+        if user.Uin in self.ICUsers: self.ICUsers.pop(user.Uin)
         return

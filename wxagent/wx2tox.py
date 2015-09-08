@@ -6,8 +6,8 @@ import enum
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+#from PyQt5.QtGui import *
+#from PyQt5.QtWidgets import *
 from PyQt5.QtDBus import *
 
 
@@ -122,9 +122,11 @@ class WX2Tox(QObject):
             # rc = self.toxkit.friendDelete(friendId)
             # qDebug(str(rc))
             try:
-                friend_number = self.toxkit.friendAddNorequest(friendId)
-                qDebug(str(friend_number))
+                True
+                #friend_number = self.toxkit.friendAddNorequest(friendId)
+                #qDebug(str(friend_number))
             except Exception as ex:
+                qDebug(str(ex))
                 pass
             #self.toxkit.friendAddNorequest(friendId)
             pass
@@ -303,7 +305,13 @@ class WX2Tox(QObject):
 
         tkc = False
         if self.toxkit is not None:  tkc = self.toxkit.isConnected()
-        if tkc is True:
+        tkfe = False
+        tkfc = False
+        tkfe = self.toxkit.friendExists(self.peerToxId)
+        if tkfe is True:
+            tkfc = self.toxkit.friendGetConnectionStatus(self.peerToxId)
+
+        if tkc is True and tkfc is True:
             friendId = self.peerToxId
             fsize = len(qrpic)
             self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
@@ -315,7 +323,6 @@ class WX2Tox(QObject):
     @pyqtSlot(QDBusMessage)
     def onDBusLoginSuccess(self, message):
         qDebug(str(message.arguments()))
-
         self.startWXBot()        
         return
     
@@ -1067,7 +1074,7 @@ class WX2Tox(QObject):
         
     
 def main():
-    app = QApplication(sys.argv)
+    app = QCoreApplication(sys.argv)
     import wxagent.qtutil as qtutil
     qtutil.pyctrl()
 

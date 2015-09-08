@@ -3,11 +3,6 @@ import sys, time
 from PyQt5.QtCore import *
 from pytox import *
 
-SERVER = [
-    "54.199.139.199",
-    33445,
-    "7F9C31FE850E97CEFD4C4591DF93FC757C7C12549DDD55F8EEAECC34FE76C029"
-]
 
 class ToxOptions():
     def __init__(self):
@@ -22,7 +17,8 @@ class ToxOptions():
         self.savedata_type = 0 # 1=toxsave, 2=secretkey
         self.savedata_data = b''
         self.savedata_length = 0
-        
+
+
 class ToxDhtServer():
     def __init__(self):
         self.addr = ''
@@ -43,8 +39,11 @@ class ToxSettings():
 
         self.qsets = QSettings(self.path, QSettings.IniFormat)
         self.data = self.sdir + '/tkdata'
+
+        # TODO 去掉手动维护的friend_list变量和文件
         self.friend_list = QSettings(self.sdir + '/toxkit.friend.lst', QSettings.IniFormat)
 
+        
         if persist is True:
             if not os.path.exists(self.bdir):
                 os.mkdir(self.bdir)
@@ -129,13 +128,15 @@ class ToxSettings():
         qDebug('load friend done: %d' % len(friends))
         
         ###
-        hcfriends = ['398C8161D038FD328A573FFAA0F5FAAF7FFDE5E8B4350E7D15E6AFD0B993FC529FA90C343627',
-                   '4610913CF8D2BC6A37C93A680E468060E10335178CA0D23A33B9EABFCDF81A46DF5DDE32954A',
-                   '2645081363C7E8B5090523098A563D3BE3A6D92227B251E55FE42FBBA277500DC80EF1F7CF4A',
+        hcfriends = [
+            # '398C8161D038FD328A573FFAA0F5FAAF7FFDE5E8B4350E7D15E6AFD0B993FC529FA90C343627',
+            # '4610913CF8D2BC6A37C93A680E468060E10335178CA0D23A33B9EABFCDF81A46DF5DDE32954A',
+            # '2645081363C7E8B5090523098A563D3BE3A6D92227B251E55FE42FBBA277500DC80EF1F7CF4A',
         ]
 
         for f in hcfriends:
-            if f not in friends: friends.append(f)
+            if f not in friends:
+                friends.append(f)
 
         self.friend_list.endGroup()
         return friends
@@ -146,17 +147,18 @@ class ToxSlot(Tox):
         super(ToxSlot, self).__init__(opts)
         self.opts = opts
 
-        #self.fwd_friend_request = None
-        #self.fwd_connection_status = None
-        
+        # self.fwd_friend_request = None
+        # self.fwd_connection_status = None
+
         return
 
     def on_file_recv(self, *args):
         qDebug('hehre')
         print(args)
         self.file_control(args[0], args[1], 0)
-        #self.file_control(args[0], args[1], 2)
+        # self.file_control(args[0], args[1], 2)
         return
+
     # friend_number, file_number, control
     def on_file_recv_control(self, *args):
         qDebug('herhe')
@@ -171,6 +173,7 @@ class ToxSlot(Tox):
         if args[3] is None: qDebug('finished')
         else: qDebug(str(len(args[3])))
         return
+
     # (0, 0, 86373, 1371)
     def on_file_chunk_request(self, *args):
         qDebug(str(args))
@@ -243,7 +246,7 @@ class QToxKit(QThread):
         self.bootDht()
 
         # self.exec_()
-        while self.stopped != True:
+        while self.stopped is not True:
             self.itimeout()
             QThread.msleep(self.tox.iteration_interval() * 1)  # *9???
 
@@ -388,7 +391,7 @@ class QToxKit(QThread):
             for f in flist:
                 s = self.tox.friend_get_status(f)
                 qDebug('%d: status = %d' % (f, s))
-                self.tox.friend_delete(f)
+                # self.tox.friend_delete(f)
 
             #for friend in friends:
             #    self.tox.friend_add_norequest(friend)

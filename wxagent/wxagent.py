@@ -250,8 +250,6 @@ class WXAgent(QObject):
             else:
                 qDebug('can not decode hcc base info')
 
-            self.emitDBusLoginSuccess()
-
             self.getContact()
             self.syncCheck()
             ########
@@ -261,6 +259,9 @@ class WXAgent(QObject):
             self.wxFriendRawData = hcc
             # parser contact data:
 
+            self.emitDBusLoginSuccess()
+
+            #########
         elif url.startswith('https://webpush2.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?'):
             qDebug('sync check result:' + str(hcc))
             # window.synccheck={retcode:”0”,selector:”0”}
@@ -881,7 +882,7 @@ class WXAgentService(QObject):
 
     @pyqtSlot(QDBusMessage, result='QString')
     def getqrpic(self, message):
-        qrpic = self.wxa.qrpic
+        qrpic = QByteArray(self.wxa.qrpic)
         qrpic64 = qrpic.toBase64()
 
         rstr = qrpic64.data().decode('utf8')

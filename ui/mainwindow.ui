@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>684</width>
-    <height>390</height>
+    <height>469</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -222,7 +222,7 @@
    <widget class="QPushButton" name="pushButton_7">
     <property name="geometry">
      <rect>
-      <x>413</x>
+      <x>120</x>
       <y>50</y>
       <width>101</width>
       <height>33</height>
@@ -230,6 +230,29 @@
     </property>
     <property name="text">
      <string>create session</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_8">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>50</y>
+      <width>81</width>
+      <height>33</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>geturl</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit">
+    <property name="geometry">
+     <rect>
+      <x>310</x>
+      <y>50</y>
+      <width>361</width>
+      <height>31</height>
+     </rect>
     </property>
    </widget>
   </widget>

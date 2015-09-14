@@ -633,7 +633,7 @@ class WX2Tox(QObject):
                 mkey = msg.ToUser.Uin
                 title = '%s@WXU' % msg.ToUser.NickName
             if self.wxses.me.Uin == msg.ToUser.Uin:
-                mkey = [msg.FromUser.Uin]
+                mkey = msg.FromUser.Uin
                 title = '%s@WXU' % msg.FromUser.NickName
         else:
             qDebug('wtf???')
@@ -683,7 +683,7 @@ class WX2Tox(QObject):
 
         FromUser = groupchat.FromUser
         ToUser = groupchat.ToUser
-        
+
         if ToUser.UserName == 'filehelper' or FromUser.UserName == 'filehelper':
             qDebug('send special chat: filehelper')
             self.sendFileHelperMessageToWX(groupchat, mcc)
@@ -699,9 +699,8 @@ class WX2Tox(QObject):
             self.sendU2UMessageToWX(groupchat, mcc)
             pass
 
-
         # TODO 把从各群组来的发给WX端的消息，再发送给tox汇总端一份。
-        
+
         if True: return
         from_username = groupchat.FromUser.UserName
         to_username = groupchat.ToUser.UserName
@@ -830,23 +829,22 @@ class WX2Tox(QObject):
         reply = self.sysiface.call('getinitdata', 123, 'a1', 456)
         rr = QDBusReply(reply)
         # TODO check reply valid
-        
+
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
         data64 = rr.value().encode('utf8')   # to bytes
         data = QByteArray.fromBase64(data64)
         self.wxses.setInitData(data)
         self.saveContent('initdata.json', data)
-        
+
         reply = self.sysiface.call('getcontact', 123, 'a1', 456)
         rr = QDBusReply(reply)
-        
+
         # TODO check reply valid
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
         data64 = rr.value().encode('utf8')   # to bytes
         data = QByteArray.fromBase64(data64)
         self.wxses.setContact(data)
         self.saveContent('contact.json', data)
-
 
         reply = self.sysiface.call('getgroups', 123, 'a1', 456)
         rr = QDBusReply(reply)
@@ -984,9 +982,10 @@ class WX2Tox(QObject):
         reqcnt = 0
         for grname in groups:
             members = self.wxses.getGroupMembers(grname)
+            qDebug('prepare get group member info: %s, %s' % (grname, len(members)))
             arg0 = []
             for member in members:
-                melem = {'UserName': member, 'EncryChatRoomId': group.UserName}
+                melem = {'UserName': member, 'EncryChatRoomId': grname}
                 arg0.append(melem)
 
             cntpertime = 50
@@ -1003,7 +1002,6 @@ class WX2Tox(QObject):
             # break
 
         qDebug('async reqcnt: ' + str(reqcnt))
-        
 
         return
 
@@ -1027,7 +1025,8 @@ class WX2Tox(QObject):
         hccjs = json.JSONDecoder().decode(strhcc)
 
         # qDebug(str(self.wxses.getGroups()))
-        print(strhcc)
+        qDebug('next linee...............')
+        # print(strhcc)
 
         memcnt = 0
         for contact in hccjs['ContactList']:
@@ -1035,7 +1034,10 @@ class WX2Tox(QObject):
             # print(contact)
             self.wxses.addMember(contact)
 
-        qDebug('got memcnt: %s/%s' % (memcnt, len(self.wxses.ICUsers)))
+        qDebug('got memcnt: %s/%s(left)' % (memcnt, len(self.wxses.ICUsers)))
+        if len(self.wxses.ICUsers) == 0:
+            self.wxses.checkUncompleteUsers()
+
         return
 
     # @param hcc QByteArray
@@ -1077,10 +1079,10 @@ class WX2Tox(QObject):
         # fp.resize(0)
         fp.write(hcc)
         fp.close()
-        
+
         return
-        
-    
+
+
 def main():
     app = QCoreApplication(sys.argv)
     import wxagent.qtutil as qtutil

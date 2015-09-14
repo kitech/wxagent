@@ -29,12 +29,12 @@ class WXUser():
     def isMPSub(self):
         return self.Uin == 0 and self.HeadImgUrl == ''
 
-       
+
 class WXMessage():
 
     def __init__(self):
         "docstring"
-        
+
         self.MsgType = 0
         self.MsgId = ''
         self.FromUserName = ''
@@ -51,13 +51,13 @@ class WXMessage():
         return
 
 class WXMessageList():
-    
+
     def __init__(self):
         "docstring"
         self.rawMessage = b''  # QByteArray
         self.jsonMessage = {}
         return
-        
+
     # @param message QByteArray
     def setMessage(self, message):
         self.rawMessage = message
@@ -66,12 +66,12 @@ class WXMessageList():
 
     def parseMessageList(self):
         hcc = self.rawMessage
-        
+
         strhcc = hcc.data().decode('utf8')
         qDebug(strhcc[0:120].replace("\n", "\\n"))
         jsobj = json.JSONDecoder().decode(strhcc)
         self.jsonMessage = jsobj
-        
+
         AddMsgCount = jsobj['AddMsgCount']
         ModContactCount = jsobj['ModContactCount']
 
@@ -94,14 +94,13 @@ class WXMessageList():
             #######
             msg = self.parseMessageUnit(um)
             msgs.append(msg)
-                
+
         return msgs
 
-    
     def parseMessageUnit(self, um):
         msg = WXMessage()
         msg.jsonContent = um
-        
+
         msg.MsgType = um['MsgType']
         msg.Content = um['Content']
         msg.UnescapedContent = html.unescape(msg.Content)
@@ -113,10 +112,10 @@ class WXMessageList():
         logstr = '[%s][%s] %s => %s @%s:::%s' % \
                  (msg.CreateTime, msg.MsgType, msg.FromUserName, msg.ToUserName, msg.MsgId, msg.UnescapedContent)
         print(logstr)
-        
+
         return msg
 
-    
+
 class WXSession():
 
     def __init__(self):
@@ -135,8 +134,8 @@ class WXSession():
         self.ICUsers = {}  # user name => WXUser，信息不完全的的用户
         self.ICGroups = {}  # user name = > WXUser, 信息不完全的组
 
-        ### maybe temporary
-        
+        # ## maybe temporary
+
         return
 
     # @param initData QByteArray
@@ -147,7 +146,7 @@ class WXSession():
 
     def parseInitData(self):
         hcc = self.InitRawData
-        
+
         strhcc = hcc.data().decode('utf8')
         qDebug(strhcc[0:120].replace("\n", "\\n"))
         jsobj = json.JSONDecoder().decode(strhcc)
@@ -157,7 +156,7 @@ class WXSession():
         self._parseInitGroups()
         self._parseInitGroupMembers()
         return
-    
+
     def _parseInitAboutMe(self):
         mc = self.InitData['Count']
         qDebug(str(mc))
@@ -172,42 +171,47 @@ class WXSession():
         self.me = user
         return
 
-    
     def _parseInitGroups(self):
         mc = self.InitData['Count']
         qDebug(str(mc))
 
-        ### InitData中的group都是有info的记录，直接存储在Users中
+        # ## InitData中的group都是有info的记录，直接存储在Users中
+        cnt = 0
         for user in self.parseUsers(self.InitData['ContactList']):
             self.Users[user.UserName] = user
             self.Users[user.Uin] = user
 
             if not user.isGroup(): continue
-            
-        return
+            self.ICGroups[user.UserName] = user
+            cnt += 1
 
+        qDebug('got %s groups from init data ' % str(cnt))
+        return
 
     def _parseInitGroupMembers(self):
         mc = self.InitData['Count']
         qDebug(str(mc))
 
-        ### InitData中的group都是有info的记录，直接存储在Users中
+        cnt = 0
+        # ## InitData中的group都是有info的记录，直接存储在Users中
         for uo in self.InitData['ContactList']:
             user = self.Users[uo['Uin']]
             for mo in self.parseUsers(uo['MemberList']):
                 self.ICUsers[mo.UserName] = mo
                 self.ICUsers[mo.Uin] = mo
-                
+
                 user.members[mo.UserName] = mo
                 user.members[mo.Uin] = mo
+                cnt += 1
 
+        qDebug('got %s groups members(not complete) from init data' % str(cnt))
         return
-        
+
     def _parseInitMPSubs(self):
         mc = self.InitData['Count']
         qDebug(str(mc))
 
-        ### InitData中的group都是有info的记录，直接存储在Users中
+        # ## InitData中的group都是有info的记录，直接存储在Users中
         for uo in self.InitData['MPSubscribeMsgList']:
             user = WXUser()
             user.UserName = uo['UserName']
@@ -225,13 +229,16 @@ class WXSession():
 
     def parseContact(self):
         hcc = self.ContactRawData
-        
+
         strhcc = hcc.data().decode('utf8')
         qDebug(strhcc[0:120].replace("\n", "\\n"))
         jsobj = json.JSONDecoder().decode(strhcc)
         self.ContactData = jsobj
 
         #######
+        upcnt = 0
+        newcnt = 0
+        totcnt = 0  # total cnt
         for user in self.parseUsers(jsobj['MemberList']):
             if user.Uin in self.ICUsers: self.ICUsers.pop(user.Uin)
             if user.UserName in self.ICUsers: self.ICUsers.pop(user.UserName)
@@ -239,21 +246,26 @@ class WXSession():
             if user.UserName in self.Users:
                 self._assignUser(self.Users[user.UserName], user)
                 self.Users[user.Uin] = self.Users[user.UserName]
+                upcnt += 1
             else:
                 self.Users[user.UserName] = user
                 self.Users[user.Uin] = user
-            
+                newcnt += 1
+            totcnt += 1
+
+        qDebug('got users, up:%s, new:%s, tot:%s' % (upcnt, newcnt, totcnt))
+
         return
 
     # @param contact  jsobj['ModContactList']
     def parseModContact(self, modcontact):
         for contact in modcontact:
             user = self._contactElemToUser(contact)
-            
-            ### 准备下次获取该群组信息
+
+            # ## 准备下次获取该群组信息
             if user.Uin == 0 and user.UserName not in self.Users:
                 self.addGroupNames([user.UserName])
-            
+
             if user.UserName in self.ICGroups: self.ICGroups.pop(user.UserName)
             if user.Uin > 0 and user.Uin in self.ICGroups: self.ICGroups.pop(user.Uin)
 
@@ -265,7 +277,7 @@ class WXSession():
 
             #########
             guser = self.Users[user.UserName]
-            ### 更新群组成员列表
+            # ## 更新群组成员列表
             for subuser in self.parseUsers(contact['MemberList']):
                 if subuser.UserName in self.ICUsers: self.ICUsers.pop(subuser.UserName)
                 if subuser.Uin in self.ICUsers: self.ICUsers.pop(subuser.Uin)
@@ -280,22 +292,21 @@ class WXSession():
                 if subuser.UserName not in guser.members:
                     guser.members[subuser.UserName] = subuser
                     guser.members[subuser.Uin] = subuser
-            
+
         return
 
-    
     # TODO
     # @param contact  jsobj['DelContactList']
     def parseDelContact(self, delcontact):
-        
+
         return
-    
+
     # TODO
     # @param contact  jsobj['ModChatRoomMemberList']
     def parseModChatRoomMemberList(self, modmembers):
-        
+
         return
-    
+
     def _assignUser(self, t, f):
         if f.Uin > 0: t.Uin = f.Uin
         if len(f.UserName) > 0: t.UserName = f.UserName
@@ -303,10 +314,9 @@ class WXSession():
         if len(f.HeadImgUrl) > 0: t.HeadImgUrl = f.HeadImgUrl
         return
 
-    
     def _contactElemToUser(self, elem):
         uo = elem
-        
+
         user = WXUser()
         if 'Uin' in uo: user.Uin = uo['Uin']
         else: print('warning contact has not Uin: %s:%s' % (uo['UserName'][0:8], uo['NickName']))
@@ -321,13 +331,13 @@ class WXSession():
         for uo in contact:
             user = self._contactElemToUser(uo)
             yield user
-            
+
         return
 
     # @param name str  UserName, like @xxx
     def getUserByName(self, name):
         if WXUser.isGroup(name): return self.getUserByGroupName(name)
-        
+
         mc = self.ContactData['MemberCount']
         qDebug(str(mc))
 
@@ -350,23 +360,22 @@ class WXSession():
         qDebug("can not find user:" + str(uin))
         return None
 
-
     def addGroupNames(self, GroupNames):
         for name in GroupNames:
             user = WXUser()
             user.UserName = name
             self.ICGroups[name] = user
         return
-    
+
     def getICGroups(self):
         grnames = []
         gkeys = self.ICGroups.keys()
         for k in gkeys:
             if WXUser.isGroup(k):
                 grnames.append(k)
+
         return grnames
 
-    
     def getGroupMembers(self, GroupName):
         if GroupName not in self.Users:
             qDebug('wtf???' + str(GroupName))
@@ -387,7 +396,6 @@ class WXSession():
             return None
         return self.Users[GroupName]
 
-    
     def addGroupUser(self, GroupName, obj):
         user = WXUser()
         user.Uin = obj['Uin']
@@ -397,9 +405,10 @@ class WXSession():
         if user.Uin not in self.Users:
             self.Users[user.Uin] = user
             self.Users[user.UserName] = user
-            
-        if user.UserName in self.ICGroups: self.ICGroups.pop(user.UserName)
-        if user.Uin in self.ICGroups: self.ICGroups.pop(user.Uin)
+
+        # 在这还不能从此拿出，因为这个调用无法保证group中所有member信息都是全面的。
+        # if user.UserName in self.ICGroups: self.ICGroups.pop(user.UserName)
+        # if user.Uin in self.ICGroups: self.ICGroups.pop(user.Uin)
         return
 
     # 不一定是好友的情况
@@ -427,4 +436,17 @@ class WXSession():
 
         if user.UserName in self.ICUsers: self.ICUsers.pop(user.UserName)
         if user.Uin in self.ICUsers: self.ICUsers.pop(user.Uin)
+        return
+
+    # user对象还无NickName的，这种的无法在UI上正常显示NickName
+    def checkUncompleteUsers(self):
+
+        cnt = 0
+        for uname in self.Users:
+            if type(uname) is not str: continue
+            user = self.Users[uname]
+            if user.NickName == '':
+                cnt += 1
+
+        qDebug('uncomplete users cnt/total: %s/%s' % (str(cnt), str(len(self.Users))))
         return

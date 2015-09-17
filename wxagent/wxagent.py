@@ -2,7 +2,6 @@
 
 import os, sys
 import json, re
-import enum
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -14,28 +13,17 @@ from .wxprotocol import *
 # from dbus.mainloop.pyqt5 import DBusQtMainLoop
 # DBusQtMainLoop(set_as_default = True)
 
-######
-class WXMsgType(enum.IntEnum):
-    MT_TEXT = 1
-    MT_FACE = 2
-    MT_SHOT = 3
-    MT_VOICE = 34
-    MT_X47 = 47  # 像是群内动画表情
-    MT_X49 = 49  # 像是服务号消息,像是群内分享，像xml格式
-    MT_X51 = 51
-    MT_X10000 = 10000  # 系统通知？
-    
+
 ######
 class WXAgent(QObject):
     qrpicGotten = pyqtSignal('QByteArray')
     asyncRequestDone = pyqtSignal(int, 'QByteArray')
-    
-    
-    def __init__(self, asvc, parent = None):
+
+    def __init__(self, asvc, parent=None):
         super(WXAgent, self).__init__(parent)
 
         self.asvc = asvc
-        
+
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
 
@@ -352,7 +340,7 @@ class WXAgent(QObject):
         elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
             qDebug('sendmsg...')
             self.saveContent('sendmsg.json', hcc)
-            
+
             ########
         elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
             qDebug('getbatchcontact done...')
@@ -362,19 +350,23 @@ class WXAgent(QObject):
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
+        elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?'):
+            if reply in self.asyncQueue:
+                reqno = self.asyncQueue.pop(reply)
+                self.asyncRequestDone.emit(reqno, hcc)
+            ########
         else:
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc)
-            
+
         return
 
-    
     def onReplyError(self, errcode):
         qDebug('reply error:' + str(errcode))
         reply = self.sender()
         url = reply.url().toString()
         qDebug('url: ' + url)
-        
+
         return
 
     def requestQRCode(self):
@@ -647,13 +639,37 @@ class WXAgent(QObject):
         self.asyncQueue[nsreply] = reqno
         return reqno
 
-    
+    def getMsgImg(self, msgid):
+
+        skey = self.wxinitData['SKey'].replace('@', '%40')
+
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID={MsgID值}&skey=%40{skey值}'
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID=%s&skey=%s' % \
+                (msgid, skey)
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+
+        nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        self.asyncQueueIdBase = self.asyncQueueIdBase + 1
+        reqno = self.asyncQueueIdBase
+        self.asyncQueue[nsreply] = reqno
+        return reqno
+
+    def getMsgImgUrl(self, msgid):
+        skey = self.wxinitData['SKey'].replace('@', '%40')
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID=%s&skey=%s' % \
+                (msgid, skey)
+        return nsurl
+
     def nextClientMsgId(self):
         now = QDateTime.currentDateTime()
         self.clientMsgIdBase = self.clientMsgIdBase + 1
         clientMsgId = '%s%4d' % (now.toMSecsSinceEpoch(), self.clientMsgIdBase % 10000)
         return clientMsgId
-    
+
     # @return str
     def getCookie(self, name):
         ckjar = self.nam.cookieJar()
@@ -668,14 +684,13 @@ class WXAgent(QObject):
                 return val
         return
 
-    
     def getCookie2(self, name):
         str_cookies = self.cookies.data().decode('utf8')
         for cline in str_cookies.split("\n"):
             for celem in cline.split(";"):
                 kv = celem.strip().split('=')
                 if (kv[0] == name): return kv[1];
-            
+
         return
 
     def getCookie3(self, name):
@@ -955,26 +970,58 @@ class WXAgentService(QObject):
 
         s = DelayReplySession()
         s.message = message
-        s.message.setDelayedReply(True);
+        s.message.setDelayedReply(True)
         s.busreply = s.message.createReply()
-        
+
         reqno = self.wxa.getbatchcontact(members)
         s.netreply = reqno
-        
+
         self.dses[reqno] = s
         return 'can not see this.'
 
-    
-    # @calltype: async    
+    # @calltype: async
     @pyqtSlot(QDBusMessage, result=bool)
-    def geturl(self, message):
+    def get_url(self, message):
         args = message.arguments()
         url = args[0]
-        
-        r = self.wxa.requrl(url)
 
-        return True
+        s = DelayReplySession()
+        s.message = message
+        s.message.setDelayedReply(True)
+        s.busreply = s.message.createReply()
 
+        reqno = self.wxa.requrl(url)
+        s.netreply = reqno
+
+        self.dses[reqno] = s
+        return 'can not see this.'
+
+    # @calltype: async
+    @pyqtSlot(QDBusMessage, result='QString')
+    def get_msg_img(self, message):
+        args = message.arguments()
+        msgid = args[0]
+
+        s = DelayReplySession()
+        s.message = message
+        s.message.setDelayedReply(True)
+        s.busreply = s.message.createReply()
+
+        reqno = self.wxa.getMsgImg(msgid)
+        s.netreply = reqno
+
+        self.dses[reqno] = s
+        return 'can not see this.'
+
+    # @calltype: sync
+    @pyqtSlot(QDBusMessage, result=str)
+    def get_msg_img_url(self, message):
+        args = message.arguments()
+        msgid = args[0]
+
+        r = self.wxa.getMsgImgUrl(msgid)
+
+        return r
 
     def onDelayedReply(self, reqno, hcc):
         qDebug(str(reqno))
@@ -1032,13 +1079,13 @@ class WXAgentService(QObject):
         # qDebug(str(bret) + ',' + str(message.isDelayedReply()))
         # qDebug(str(bret) + ',' + str(dreply.isDelayedReply()))
         return "123"
-    
+
     def tshot(self):
         bret = self.sysbus.send(self._reply)
         qDebug(str(bret))
 
-        
-##########    
+
+##########
 def init_dbus_service():
     sysbus = QDBusConnection.systemBus()
     bret = sysbus.registerService(WXAGENT_SERVICE_NAME)
@@ -1049,8 +1096,9 @@ def init_dbus_service():
     qDebug(str(sysbus.name()))
     iface = sysbus.interface()
     qDebug(str(sysbus.interface()) + str(iface.service()) + str(iface.path()))
-    
+
     return
+
 
 def register_dbus_service(wxasvc):
 
@@ -1065,7 +1113,8 @@ def register_dbus_service(wxasvc):
 
     return
 
-def main():    
+
+def main():
     app = QCoreApplication(sys.argv)
     import wxagent.qtutil as qtutil
     qtutil.pyctrl()
@@ -1077,7 +1126,5 @@ def main():
     app.exec_()
     return
 
+
 if __name__ == '__main__': main()
-
-
-

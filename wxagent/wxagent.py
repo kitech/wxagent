@@ -693,28 +693,17 @@ class WXAgent(QObject):
     # @return str
     def getCookie(self, name):
         ckjar = self.nam.cookieJar()
-        domain = 'https://wx2.qq.com'
+        #domain = 'https://wx2.qq.com'
+        domain = self.urlStart 
         cookies = ckjar.cookiesForUrl(QUrl(domain))
 
-        domainSecond = 'https://wx.qq.com'
-        cookiesSecond = ckjar.cookiesForUrl(QUrl(domainSecond))
-
-        if cookies :
-            for cookie in cookies:
-                tname = cookie.name().data().decode('utf8')
-                val = cookie.value().data.decode('utf8')
-                qDebug(tname + '=' + val);
-                if tname == name:
-                    return val
-            return
-        else :
-            for cookie in cookiesSecond:
-                tname = cookie.name().data().decode('utf8')
-                val = cookie.value().data.decode('utf8')
-                qDebug(tname + '=' + val);
-                if tname == name:
-                    return val
-            return
+        for cookie in cookies:
+            tname = cookie.name().data().decode('utf8')
+            val = cookie.value().data.decode('utf8')
+            qDebug(tname + '=' + val);
+            if tname == name:
+                return val
+        return
 
     
     def getCookie2(self, name):

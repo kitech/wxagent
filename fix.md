@@ -21,6 +21,17 @@
   >       	  self.urlStart = 'https://wx2.qq.com'
   > ```
 
+
+-  getCookie修改 696 line
+  
+  ​
+  
+  > ``` 
+  >     domain = self.urlStart
+  > ```
+  > 
+  > ​
+
 ### 获取不到pass_tickets
 
 - getBaseInfo的时候拿不到pass_tickets 436

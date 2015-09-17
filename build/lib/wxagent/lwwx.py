@@ -108,29 +108,35 @@ class QRWin(QMainWindow):
             toUser = self.wxses.getUserByName(msg.ToUserName)
             qDebug(str(fromUser))
             qDebug(str(toUser))
-            fromUser_NickName = ''
+            fromUser_NickName = 'me'
             if fromUser is not None: fromUser_NickName = fromUser.NickName
-            toUser_NickName = ''
+            toUser_NickName = 'me'
             if toUser is not None: toUser_NickName = toUser.NickName
 
             content = msg.UnescapedContent
-            msgemoji = re.search(r'<emoji.*></emoji>', content)
+            msgemoji = re.search(r'https:://emoji.qpic.cn/[^\s]+', content)
             qDebug('zhangjun test')
             if msgemoji :
                 emoji = msgemoji.group()
                 qDebug(emoji)
+            else :
+                qDebug('emoji is none')
 
             qDebug('zhangjun test')
-            content = re.sub(r'@.*\w:<\w.*/>', '', content)
-            content = re.sub(r'<\w.*>.*<\w.*/>', '', content)
+            if toUser_NickName == 'me' :
+                content = re.sub(r'@.*\w:<\w.*/>', '', content)
+            else :
+                content = re.sub(r'@.*\w:<\w.*/>', toUser_NickName, content)
+
+            content = re.sub(r'<\w.*>', '', content)
             logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::%s' % \
                      (msg.CreateTime, msg.MsgType, msg.FromUserName, fromUser_NickName,
                       msg.ToUserName, toUser_NickName, msg.MsgId, content)
-            fromUser_NickName = re.sub(r'<\w.*>\w.*<\w.*/>', '',fromUser_NickName)
-            toUser_NickName = re.sub(r'<\w.*>\w.*<\w.*/>', '',toUser_NickName)
+            fromUser_NickName = re.sub(r'<\w.*>', '',fromUser_NickName)
+            toUser_NickName = re.sub(r'<\w.*>', '',toUser_NickName)
             msg.CreateTime = time.localtime(msg.CreateTime)
             msgstr = '[%s] %s @say-> %s  ::  %s' % \
-                     (time.strftime('%Y-%m-%d %H:%M:%s',msg.CreateTime),  fromUser_NickName, toUser_NickName, content)
+                     (time.strftime('%Y-%m-%d %H:%M:%S',msg.CreateTime),  fromUser_NickName, toUser_NickName, content)
             #self.uiw.plainTextEdit.appendPlainText(logstr)
             self.uiw.plainTextEdit.appendPlainText(msgstr)
             

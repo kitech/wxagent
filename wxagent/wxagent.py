@@ -206,7 +206,6 @@ class WXAgent(QObject):
                 else :
                     self.urlStart = 'https://wx2.qq.com'
                     self.webpushUrlStart = 'https://webpush2.weixin.qq.com'
-                qDebug('zhangjun test')
                 qDebug(nsurl)
                 qDebug(self.urlStart)
                 qDebug(self.webpushUrlStart)
@@ -238,7 +237,6 @@ class WXAgent(QObject):
             # pass_ticket = mats[0][0]
             pass_ticket = mats[0]    ### 为什么又变成一维的了呢？
             self.wxPassTicket = pass_ticket
-            qDebug('zhangjun test 241 line')
             qDebug(pass_ticket)
 
             self.getBaseInfo()

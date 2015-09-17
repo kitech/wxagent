@@ -123,4 +123,4 @@ newmessage: 参数，json string
 
 [weixin web protocol.md(v1)](https://github.com/kitech/wxagent/blob/master/doc/protocol.md)
 
-
+ubuntu 12.04 64 位安装介绍 doc/build.md

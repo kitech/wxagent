@@ -234,8 +234,10 @@ https://res.wx.qq.com/zh_CN/htmledition/swf/msg17ced3.mp3
 
 ## 获取消息中的图片
 
-https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID={MsgID值}&skey=%40{skey值}
-
+缩略图：
+https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID={MsgID值}&skey=%40{skey值}
+原图：
+https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID={MsgID值}&skey=%40{skey值}
 
 ## 获取视频
 
@@ -247,3 +249,9 @@ https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID={MsgID值}
 ## 获取语音
 
 webwxgetvoice
+
+## 获取文件
+https://file2.wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia?sender=@9430feec6b3e2f13b011fcf1968fceeef11f67a0fefe49da80e00383199cbfbd&mediaid=@crypt_736e9b43_13a6c54428ab1cb061e55a957428df3700b128f2fc3b9718888da4e50c1422fbf97dc9fa344ce35f23b8feb46ae3d48602788e9eb5e787c8473c74bf5802e7f511f0c33090ff4593a33aa3397b1c3b6042ef9f965b31a43b5a96c905de612ec6b2b2ba6b935433c2711eca9c6eaa4c948cb764461ca2fb6b902aa1d306130bff57d90e070f1c2414107649aa09e212d43cb1aa8a40c48a85cd8581882f48af19c4e08409ca383bdcfd2d7bd4b2b5a99e888b116b7e3c7722007f78a3d5ed56fd942f6c0ff8f3f097457d5fdbef8efd88&filename=sbt.jar&fromuser=979270107&pass_ticket=SFxRYgzBDZXnDHyeS78pMJ8pQoifrwoSM%252BINCvLRrddKWIHY4I6dDgPRXCyLQeGK&webwx_data_ticket=AQar6r1A65dHjs1mh6%2FQYyeW
+
+这个url是可以不需要cookie，直接在客户端下载的。但是不知道是否有有效期。
+

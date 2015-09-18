@@ -360,6 +360,17 @@ class WXSession():
         qDebug("can not find user:" + str(uin))
         return None
 
+    # TODO 有可能重名呢？咋办？
+    # @param nick str 用户NickName
+    # @return WXUser object
+    def getUserByNickName(self, nick):
+        for tk in self.Users:
+            user = self.Users[tk]
+            if user.NickName == nick:
+                return user
+        qDebug(('why not found:' + nick).encode())
+        return None
+
     def addGroupNames(self, GroupNames):
         for name in GroupNames:
             user = WXUser()
@@ -450,3 +461,22 @@ class WXSession():
 
         qDebug('uncomplete users cnt/total: %s/%s' % (str(cnt), str(len(self.Users))))
         return
+
+    # TODO 如果NickName重名，应该怎么办呢？
+    # @param prefix str
+    # @return list of real friend and groups NickName
+    def getInviteCompleteList(self, prefix=None):
+        jsobj = self.ContactData
+
+        #######
+        nnlst = []
+        if prefix is not None:
+            prefix = prefix.strip()
+        for user in self.parseUsers(jsobj['MemberList']):
+            if prefix is not None:
+                if user.NickName.startswith(prefix):
+                    nnlst.append(user.NickName)
+            else:
+                nnlst.append(user.NickName)
+
+        return nnlst

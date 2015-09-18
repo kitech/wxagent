@@ -1,5 +1,5 @@
 # $Id: pkgbuild-mode.el,v 1.23 2007/10/20 16:02:14 juergen Exp $
-# Maintainer: liuguangzhao <liuguangzhao@users.sf.net>
+# Maintainer: yatseni <yatseni@163.com>
 
 _pkgname=wxagent
 pkgname=wxagent-git
@@ -7,7 +7,7 @@ pkgver=r39.fa04ca3
 pkgrel=1
 pkgdesc="A weixin agent daemon and client"
 license=('Apache')
-url="http://contrix.tk/"
+url="https://github.com/kitech/wxagent/"
 arch=('any')
 depends=('python' 'python-pyqt5')
 optdepends=()

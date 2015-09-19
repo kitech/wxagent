@@ -52,6 +52,16 @@ class Chatroom():
         return
 
 
+class FileTranItem():
+    def __init__(self):
+        self.name = ''
+        self.data = ''
+        self.file_number = -1
+        self.group_number = -1
+
+        return
+
+
 #
 #
 #
@@ -71,6 +81,7 @@ class WX2Tox(QObject):
         self.need_send_qrfile = False   # 有可能toxkit还未上线
         self.wx2tox_msg_buffer = []  # 存储未转发到tox的消息
         self.tox2wx_msg_buffer = []
+        self.ftqueue = {}  # file transfer queue, file_number => FileTranItem
 
         self.wxchatmap = {}  # Uin => Chatroom
         self.toxchatmap = {}  # group_number => Chatroom
@@ -187,12 +198,12 @@ class WX2Tox(QObject):
         qDebug(friendId + ':' + str(status))
 
         if status > 0 and self.need_send_qrfile is True:
-            file_number = self.toxkit.fileSend(self.peerToxId, len(self.qrpic), self.getBaseFileName(self.qrfile))
-            if file_number == pow(2,32):
-                qDebug('send file error')
+            fti = self.newFileTransfer(self.qrfile, self.qrpic)
+            file_number = self.startFileTransfer(fti)
+            if file_number is not False:
+                self.addFileTransferToQueue(file_number, fti)
             else:
                 self.need_send_qrfile = False
-
 
         if status > 0 and len(self.wx2tox_msg_buffer) > 0:
             blen = len(self.wx2tox_msg_buffer)
@@ -208,12 +219,16 @@ class WX2Tox(QObject):
         if qrand() % 7 == 1:
             qDebug('fn=%s,pos=%s,len=%s' % (file_number, position, length))
 
-        if position >= len(self.qrpic):
+        fti = self.ftqueue[file_number]
+        data = fti.data
+
+        if position >= len(data):
             qDebug('warning exceed file size: finished.')
             # self.toxkit.fileControl(friendId, file_number, 2)  # CANCEL
+            # self.removeFileTransfer(file_number)
             return
 
-        chunk = self.qrpic[position:(position + length)]
+        chunk = data[position:(position + length)]
         self.toxkit.fileSendChunk(friendId, file_number, position, chunk)
         return
 
@@ -312,9 +327,12 @@ class WX2Tox(QObject):
             tkc = False
             if self.toxkit is not None:  tkc = self.toxkit.isConnected()
             if tkc is True:
-                friendId = self.peerToxId
-                fsize = len(qrpic)
-                self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
+                fti = self.newFileTransfer(fname, qrpic)
+                file_number = self.startFileTransfer(fti)
+                if file_number is not False:
+                    self.addFileTransferToQueue(file_number, fti)
+                else:
+                    qDebug('maybe need retransfer the file.')
             else:
                 self.need_send_qrfile = True
 
@@ -464,7 +482,6 @@ class WX2Tox(QObject):
             if msg.MsgType == WXMsgType.MT_SHOT:
                 imgurl = self.getMsgImgUrl(msg)
                 logstr += '\n%s' % imgurl
-                self.getMsgImg(msg)
                 self.sendShotPicMessageToTox(msg, logstr)
 
         return
@@ -485,8 +502,17 @@ class WX2Tox(QObject):
 
         return
 
-    def sendShotPicMessageToTox(msg, logstr):
-        
+    def sendShotPicMessageToTox(self, msg, logstr):
+        def get_img_reply(data=None):
+            if data is None: return
+            fname = self.genMsgImgSaveFileName()
+            fti = self.newFileTransfer(fname, data)
+            file_number = self.startFileTransfer(fti)
+            if file_number is not False:
+                self.addFileTransferToQueue(file_number, fti)
+            return
+
+        self.getMsgImgCallback(msg, get_img_reply)
         return
 
     def dispatchToToxGroup(self, msg, fmtcc):
@@ -928,6 +954,11 @@ class WX2Tox(QObject):
         fname = '/tmp/wxqrcode_%s.jpg' % now.toString('yyyyMMddHHmmsszzz')
         return fname
 
+    def genMsgImgSaveFileName(self):
+        now = QDateTime.currentDateTime()
+        fname = '/tmp/wxpic_%s.jpg' % now.toString('yyyyMMddHHmmsszzz')
+        return fname
+
     def getBaseFileName(self, fname):
         bfname = QFileInfo(fname).fileName()
         return bfname
@@ -1079,7 +1110,8 @@ class WX2Tox(QObject):
 
         return
 
-    def getMsgImg(self, msg):
+    # @param cb(data)
+    def getMsgImgCallback(self, msg, imgcb=None):
 
         def on_dbus_reply(watcher):
             qDebug('replyyyyyyyyyyyyyyy')
@@ -1090,14 +1122,17 @@ class WX2Tox(QObject):
                 hcc = pendReply.argumentAt(0)
                 qDebug(str(type(hcc)))
             else:
+                self.asyncWatchers.pop(watcher)
+                if imgcb is not None: imgcb(None)
                 return
 
             message = pendReply.reply()
             args = message.arguments()
 
-            # send img file to tox client
-
             self.asyncWatchers.pop(watcher)
+            # send img file to tox client
+            if imgcb is not None: imgcb(args[0])
+
             return
 
         args = [msg.MsgId]
@@ -1149,6 +1184,39 @@ class WX2Tox(QObject):
         if rc != 0: qDebug('invite error')
 
         return groupchat
+
+    def newFileTransfer(self, name, data, group_number=None):
+        fti = FileTranItem()
+        fti.name = name
+        fti.data = data
+
+        if group_number is not None:
+            fti.group_number = group_number
+
+        return fti
+
+    def startFileTransfer(self, fti):
+        name = fti.name
+        data = fti.data
+
+        file_number = self.toxkit.fileSend(self.peerToxId, len(data), self.getBaseFileName(name))
+        if file_number == pow(2, 32):
+            qDebug('send file error')
+            return False
+
+        fti.file_number = file_number
+        return file_number
+
+    def addFileTransferToQueue(self, file_number, fti):
+        if file_number in self.ftqueue:
+            qDebug('warning reuse the file number %s?' % str(file_number))
+
+        self.ftqueue[file_number] = fti
+        return
+
+    def removeFileTransfer(self, file_number):
+        fti = self.ftqueue.pop(file_number)
+        return fti
 
     # @param hcc QByteArray
     # @return str

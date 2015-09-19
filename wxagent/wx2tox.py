@@ -3,6 +3,7 @@
 import os, sys
 import json, re
 import enum
+import magic
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -229,7 +230,10 @@ class WX2Tox(QObject):
             return
 
         chunk = data[position:(position + length)]
-        self.toxkit.fileSendChunk(friendId, file_number, position, chunk)
+        try:
+            self.toxkit.fileSendChunk(friendId, file_number, position, chunk)
+        except Exception as ex:
+            qDebug(str(ex))
         return
 
     def onToxnetFileRecvControl(self, friendId, file_number, control):
@@ -479,7 +483,7 @@ class WX2Tox(QObject):
             self.sendMessageToTox(msg, logstr)
 
             # multimedia 消息处理
-            if msg.MsgType == WXMsgType.MT_SHOT:
+            if msg.MsgType == WXMsgType.MT_SHOT or msg.MsgType == WXMsgType.MT_X47:
                 imgurl = self.getMsgImgUrl(msg)
                 logstr += '\n%s' % imgurl
                 self.sendShotPicMessageToTox(msg, logstr)
@@ -505,7 +509,7 @@ class WX2Tox(QObject):
     def sendShotPicMessageToTox(self, msg, logstr):
         def get_img_reply(data=None):
             if data is None: return
-            fname = self.genMsgImgSaveFileName()
+            fname = self.genMsgImgSaveFileName(data)
             fti = self.newFileTransfer(fname, data)
             file_number = self.startFileTransfer(fti)
             if file_number is not False:
@@ -954,9 +958,20 @@ class WX2Tox(QObject):
         fname = '/tmp/wxqrcode_%s.jpg' % now.toString('yyyyMMddHHmmsszzz')
         return fname
 
-    def genMsgImgSaveFileName(self):
+    # @param data QByteArray | bytes
+    def genMsgImgSaveFileName(self, data):
         now = QDateTime.currentDateTime()
-        fname = '/tmp/wxpic_%s.jpg' % now.toString('yyyyMMddHHmmsszzz')
+
+        m = magic.open(magic.MAGIC_MIME_TYPE)
+        m.load()
+        mty = m.buffer(data.data()) if type(data) == QByteArray else m.buffer(data)
+        m.close()
+
+        suffix = mty.split('/')[1]
+        suffix = 'jpg' if suffix == 'jpeg' else suffix
+        suffix = 'bmp' if suffix == 'x-ms-bmp' else suffix
+
+        fname = '/tmp/wxpic_%s.%s' % (now.toString('yyyyMMddHHmmsszzz'), suffix)
         return fname
 
     def getBaseFileName(self, fname):
@@ -1135,7 +1150,7 @@ class WX2Tox(QObject):
 
             return
 
-        args = [msg.MsgId]
+        args = [msg.MsgId, False]
         pcall = self.sysiface.asyncCall('get_msg_img', *args)
         watcher = QDBusPendingCallWatcher(pcall)
         watcher.finished.connect(on_dbus_reply)
@@ -1144,7 +1159,8 @@ class WX2Tox(QObject):
         return
 
     def getMsgImgUrl(self, msg):
-        return self.syncGetRpc('get_msg_img_url', [msg.MsgId])
+        args = [msg.MsgId, False]
+        return self.syncGetRpc('get_msg_img_url', args)
 
     # @param name str
     # @param args list

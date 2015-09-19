@@ -675,13 +675,14 @@ class WXAgent(QObject):
         self.asyncQueue[nsreply] = reqno
         return reqno
 
-    def getMsgImg(self, msgid):
+    def getMsgImg(self, msgid, thumb=True):
 
         skey = self.wxinitData['SKey'].replace('@', '%40')
+        tyarg = 'type=slave&' if thumb is True else ''
 
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID={MsgID值}&skey=%40{skey值}'
-        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID=%s&skey=%s' % \
-                (msgid, skey)
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?%sMsgID=%s&skey=%s' % \
+                (tyarg, msgid, skey)
 
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
@@ -694,10 +695,12 @@ class WXAgent(QObject):
         self.asyncQueue[nsreply] = reqno
         return reqno
 
-    def getMsgImgUrl(self, msgid):
+    def getMsgImgUrl(self, msgid, thumb=True):
         skey = self.wxinitData['SKey'].replace('@', '%40')
-        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID=%s&skey=%s' % \
-                (msgid, skey)
+        tyarg = 'type=slave&' if thumb is True else ''
+
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?%sMsgID=%s&skey=%s' % \
+                (tyarg, msgid, skey)
         return nsurl
 
     def nextClientMsgId(self):
@@ -978,7 +981,7 @@ class WXAgentService(QObject):
         groups = json.JSONEncoder().encode(self.wxa.wxGroupUserNames)
         rstr = groups
         return rstr
-    
+
     # @param from_username str
     # @param to_username str
     # @param content str, need utf8 encoded(but now seem utf16)
@@ -995,7 +998,7 @@ class WXAgentService(QObject):
         if len(args) > 3: msg_type = int(args[3])
         # TODO msg_type check
         # TODO content length check
-        
+
         self.wxa.sendmessage(from_username, to_username, content, msg_type)
         return True
 
@@ -1034,17 +1037,20 @@ class WXAgentService(QObject):
         return 'can not see this.'
 
     # @calltype: async
+    # @param msgid str
+    # @param thumb bool
     @pyqtSlot(QDBusMessage, result='QString')
     def get_msg_img(self, message):
         args = message.arguments()
         msgid = args[0]
+        thumb = args[1] if len(args) > 1 else True
 
         s = DelayReplySession()
         s.message = message
         s.message.setDelayedReply(True)
         s.busreply = s.message.createReply()
 
-        reqno = self.wxa.getMsgImg(msgid)
+        reqno = self.wxa.getMsgImg(msgid, thumb)
         s.netreply = reqno
 
         self.dses[reqno] = s
@@ -1055,8 +1061,9 @@ class WXAgentService(QObject):
     def get_msg_img_url(self, message):
         args = message.arguments()
         msgid = args[0]
+        thumb = args[1] if len(args) > 1 else True
 
-        r = self.wxa.getMsgImgUrl(msgid)
+        r = self.wxa.getMsgImgUrl(msgid, thumb)
 
         return r
 
@@ -1067,12 +1074,11 @@ class WXAgentService(QObject):
 
         s = self.dses.pop(reqno)
         s.busreply.setArguments([hcc])
-        
+
         self.sysbus.send(s.busreply)
 
         return
 
-    
     # @pyqtSlot(QDBusMessage, result=bool)
     # def hasmessage(self, message):
     #     # qDebug(str(message))
@@ -1090,10 +1096,9 @@ class WXAgentService(QObject):
     #     drses.message = message
     #     drses.busreply = message.createReply()
     #     drses.netreply = netreply
-        
+
     #     return "not impossible see this."
 
-    
     # @pyqtSlot(QDBusMessage, result=int)
     def login(self, message):
         # qDebug(str(message))

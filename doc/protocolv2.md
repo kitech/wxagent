@@ -251,7 +251,13 @@ https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID={MsgID值}&skey=%40{
 
 ## 获取语音
 
-webwxgetvoice
+GET
+https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgid=6104830929818611751&skey=@crypt_3ea2fe08_7782b85e3ba92163e53c8712a8187c32
+
+返回：
+
+Content-Type:audio/mp3
+
 
 ## 获取文件
 https://file2.wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia?sender=@9430feec6b3e2f13b011fcf1968fceeef11f67a0fefe49da80e00383199cbfbd&mediaid=@crypt_736e9b43_13a6c54428ab1cb061e55a957428df3700b128f2fc3b9718888da4e50c1422fbf97dc9fa344ce35f23b8feb46ae3d48602788e9eb5e787c8473c74bf5802e7f511f0c33090ff4593a33aa3397b1c3b6042ef9f965b31a43b5a96c905de612ec6b2b2ba6b935433c2711eca9c6eaa4c948cb764461ca2fb6b902aa1d306130bff57d90e070f1c2414107649aa09e212d43cb1aa8a40c48a85cd8581882f48af19c4e08409ca383bdcfd2d7bd4b2b5a99e888b116b7e3c7722007f78a3d5ed56fd942f6c0ff8f3f097457d5fdbef8efd88&filename=sbt.jar&fromuser=979270107&pass_ticket=SFxRYgzBDZXnDHyeS78pMJ8pQoifrwoSM%252BINCvLRrddKWIHY4I6dDgPRXCyLQeGK&webwx_data_ticket=AQar6r1A65dHjs1mh6%2FQYyeW

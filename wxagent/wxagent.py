@@ -379,6 +379,11 @@ class WXAgent(QObject):
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
+        elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?'):
+            if reply in self.asyncQueue:
+                reqno = self.asyncQueue.pop(reply)
+                self.asyncRequestDone.emit(reqno, hcc)
+            ########
         else:
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc, reply)
@@ -719,6 +724,24 @@ class WXAgent(QObject):
         nsurl = 'https://file2.wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia?sender=%s&mediaid=%s&filename=%s&fromuser=%s&pass_ticket=%s&webwx_data_ticket=%s'  % \
                 (sender_name, media_id, file_name, from_uin, pass_ticket, data_ticket)
         return nsurl
+
+    def getMsgVoice(self, msgid):
+
+        skey = self.wxinitData['SKey'].replace('@', '%40')
+
+        nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgid=%s&skey=%s' % \
+                (msgid, skey)
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+
+        nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        self.asyncQueueIdBase = self.asyncQueueIdBase + 1
+        reqno = self.asyncQueueIdBase
+        self.asyncQueue[nsreply] = reqno
+        return reqno
 
     def nextClientMsgId(self):
         now = QDateTime.currentDateTime()
@@ -1117,6 +1140,24 @@ class WXAgentService(QObject):
         r = self.wxa.getMsgFileUrl(sender_name, media_id, file_name, from_uin)
 
         return r
+
+    # @calltype: async
+    # @param msgid str
+    @pyqtSlot(QDBusMessage, result='QString')
+    def get_msg_voice(self, message):
+        args = message.arguments()
+        msgid = args[0]
+
+        s = DelayReplySession()
+        s.message = message
+        s.message.setDelayedReply(True)
+        s.busreply = s.message.createReply()
+
+        reqno = self.wxa.getMsgVoice(msgid)
+        s.netreply = reqno
+
+        self.dses[reqno] = s
+        return 'can not see this.'
 
     def onDelayedReply(self, reqno, hcc):
         qDebug(str(reqno))

@@ -55,6 +55,10 @@ class WXMessage():
         self.FileSize = 0
         self.MediaId = ''  # for file
         self.Url = ''
+
+        # for voice field
+        self.VoiceLength = 0
+
         return
 
 
@@ -122,6 +126,8 @@ class WXMessageList():
             msg.FileSize = um['FileSize']
             msg.MediaId = um['MediaId']
             msg.Url = um['Url']
+        elif msg.MsgType == WXMsgType.MT_VOICE:
+            msg.VoiceLength = um['VoiceLength']
 
         logstr = '[%s][%s] %s => %s @%s:::%s' % \
                  (msg.CreateTime, msg.MsgType, msg.FromUserName, msg.ToUserName, msg.MsgId, msg.UnescapedContent)

@@ -35,6 +35,7 @@ class WXAgent(QObject):
         self.rediect_url = ''
         self.cookies = []  # [QNetworkCookie]
         self.wxPassTicket = ''
+        self.wxDataTicket = ''
         self.wxinitRawData = b''  # QByteArray
         self.wxinitData = None   # json decoded
         self.wxFriendRawData = b''  # QByteArray
@@ -74,6 +75,7 @@ class WXAgent(QObject):
         self.rediect_url = ''
         self.cookies = []  # [QNetworkCookie]
         self.wxPassTicket = ''
+        self.wxDataTicket = ''
         self.wxinitRawData = b''  # QByteArray
         self.wxinitData = None   # json decoded
         self.wxFriendRawData = b''  # QByteArray
@@ -125,7 +127,7 @@ class WXAgent(QObject):
                 self.doboot()
                 return
             
-            self.saveContent('jslogin.html', hcc)
+            self.saveContent('jslogin.html', hcc, reply)
             
             # parse hcc: window.QRLogin.code = 200; window.QRLogin.uuid = "gYmgd1grLg==";
             qrcode = 200
@@ -215,8 +217,9 @@ class WXAgent(QObject):
             self.cookies = cookies
             self.wxuin = self.getCookie3('wxuin')
             self.wxsid = self.getCookie3('wxsid')
-            qDebug(str(self.wxuin) + ',' + str(self.wxsid))
-            
+            self.wxDataTicket = self.getCookie3('webwx_data_ticket')
+            qDebug(str(self.wxuin) + ', ' + str(self.wxsid) + ', ' + str(self.wxDataTicket))
+
             # parse content: SKey,pass_ticket
             # <error><ret>0</ret><message>OK</message><skey>@crypt_3ea2fe08_723d1e1bd7b4171657b58c6d2849b367</skey><wxsid>9qxNHGgi9VP4/Tx6</wxsid><wxuin>979270107</wxuin><pass_ticket>%2BEdqKi12tfvM8ZZTdNeh4GLO9LFfwKLQRpqWk8LRYVWFkDE6%2FZJJXurz79ARX%2FIT</pass_ticket><isgrayscale>1</isgrayscale></error>
             qDebug('parsing: ' + str(hcc))
@@ -236,7 +239,7 @@ class WXAgent(QObject):
         elif url.startswith(self.urlStart+'/cgi-bin/mmwebwx-bin/webwxinit?'):
             qDebug('wxinited.:' + str(type(hcc)))
             self.wxinitRawData = hcc
-            self.saveContent("baseinfo.json", hcc)
+            self.saveContent("baseinfo.json", hcc, reply)
             
             # qDebug(str(hcc.data().decode('utf8')))  # why can not decode?
             # UnicodeEncodeError: 'ascii' codec can't encode characters in position 131-136: ordinal not in range(128)
@@ -275,11 +278,12 @@ class WXAgent(QObject):
             # selector: 4: ??? 
             # retcode: 1100:???
             # retcode: 1101:??? 会话已退出/结束
+            # retcode: 1102: 用户在手机端主动退出
             # retcode: 1205: ???
             # retcode: 0: 成功
 
             # parser result:
-            
+
             reg = r'window.synccheck={retcode:"(-?\d+)",selector:"(\d)"}'
             mats = re.findall(reg, hcc.data().decode('utf8'))
             qDebug(str(mats) + '---' + hcc.data().decode('utf8'))
@@ -325,7 +329,7 @@ class WXAgent(QObject):
                 qDebug('maybe need rerun synccheck')
             
             self.wxWebSyncRawData = hcc
-            self.saveContent('websync.json', hcc)
+            self.saveContent('websync.json', hcc, reply)
             self.emitDBusNewMessage(hcc)
             
             # parse web sync result:
@@ -358,13 +362,13 @@ class WXAgent(QObject):
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
         elif url.startswith(self.urlStart+'/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
             qDebug('sendmsg...')
-            self.saveContent('sendmsg.json', hcc)
+            self.saveContent('sendmsg.json', hcc, reply)
 
             ########
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
         elif url.startswith(self.urlStart+'/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
             qDebug('getbatchcontact done...')
-            self.saveContent('getbatchcontact.json', hcc)
+            self.saveContent('getbatchcontact.json', hcc, reply)
 
             if reply in self.asyncQueue:
                 reqno = self.asyncQueue.pop(reply)
@@ -377,7 +381,7 @@ class WXAgent(QObject):
             ########
         else:
             qDebug('unknown requrl:' + str(url))
-            self.saveContent('wxunknown_requrl.json', hcc)
+            self.saveContent('wxunknown_requrl.json', hcc, reply)
 
         return
 
@@ -667,7 +671,7 @@ class WXAgent(QObject):
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
-        
+
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
@@ -701,6 +705,19 @@ class WXAgent(QObject):
 
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?%sMsgID=%s&skey=%s' % \
                 (tyarg, msgid, skey)
+        return nsurl
+
+    def getMsgFileUrl(self, sender_name, media_id, file_name, from_uin):
+        # sender_name = ''
+        # media_id = ''
+        # file_name = ''
+        # from_uin = 0
+        # file_name = urllib.parse.quote_plus(file_name)   # 对中文不太友好
+        file_name = file_name.replace(' ', '+')  # 这种可能存在bug
+        pass_ticket = self.wxPassTicket
+        data_ticket = self.wxDataTicket
+        nsurl = 'https://file2.wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia?sender=%s&mediaid=%s&filename=%s&fromuser=%s&pass_ticket=%s&webwx_data_ticket=%s'  % \
+                (sender_name, media_id, file_name, from_uin, pass_ticket, data_ticket)
         return nsurl
 
     def nextClientMsgId(self):
@@ -820,14 +837,35 @@ class WXAgent(QObject):
     # @param name str
     # @param hcc QByteArray
     # @return None
-    def saveContent(self, name, hcc):
+    def saveContent(self, name, hcc, reply):
         # fp = QFile("baseinfo.json")
         fp = QFile(name)
         fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
         # fp.resize(0)
+
+        # write reply info
+        reqinfo = b''
+        req = reply.request()
+        # qDebug(str(req.url()))
+        reqinfo += req.url().toString().encode() + b"\n"
+        stcode = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+        # qDebug(str(stcode))
+        reqinfo += b'status code:' + str(stcode).encode() + b"\n"
+        cookies = reply.header(QNetworkRequest.SetCookieHeader)
+        # qDebug(str(cookies))
+
+        hdrlst = reply.rawHeaderList()
+        for hdr in hdrlst:
+            hdrval = reply.rawHeader(hdr)
+            # qDebug(str(hdr) + '=' + str(hdrval))
+            reqinfo += hdr + b'=' + hdrval + b"\n"
+
+        reqinfo += b"\n\n"
+        fp.write(reqinfo)
+
         fp.write(hcc)
         fp.close()
-        
+
         return
 
 
@@ -1064,6 +1102,19 @@ class WXAgentService(QObject):
         thumb = args[1] if len(args) > 1 else True
 
         r = self.wxa.getMsgImgUrl(msgid, thumb)
+
+        return r
+
+    # @calltype: sync
+    @pyqtSlot(QDBusMessage, result=str)
+    def get_msg_file_url(self, message):
+        args = message.arguments()
+        sender_name = args[0]
+        media_id = args[1]
+        file_name = args[2]
+        from_uin = args[3]
+
+        r = self.wxa.getMsgFileUrl(sender_name, media_id, file_name, from_uin)
 
         return r
 

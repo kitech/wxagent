@@ -16,6 +16,9 @@
 
 https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=zh_CN&_=1388994062250
 
+这一步中，需要从cookie获取这三个值，wxuin, wxsid, webwx\_data\_ticket
+
+需要在response中获取这一个值，pass\_ticket
 
 ## 获取二维码
 
@@ -254,4 +257,10 @@ webwxgetvoice
 https://file2.wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia?sender=@9430feec6b3e2f13b011fcf1968fceeef11f67a0fefe49da80e00383199cbfbd&mediaid=@crypt_736e9b43_13a6c54428ab1cb061e55a957428df3700b128f2fc3b9718888da4e50c1422fbf97dc9fa344ce35f23b8feb46ae3d48602788e9eb5e787c8473c74bf5802e7f511f0c33090ff4593a33aa3397b1c3b6042ef9f965b31a43b5a96c905de612ec6b2b2ba6b935433c2711eca9c6eaa4c948cb764461ca2fb6b902aa1d306130bff57d90e070f1c2414107649aa09e212d43cb1aa8a40c48a85cd8581882f48af19c4e08409ca383bdcfd2d7bd4b2b5a99e888b116b7e3c7722007f78a3d5ed56fd942f6c0ff8f3f097457d5fdbef8efd88&filename=sbt.jar&fromuser=979270107&pass_ticket=SFxRYgzBDZXnDHyeS78pMJ8pQoifrwoSM%252BINCvLRrddKWIHY4I6dDgPRXCyLQeGK&webwx_data_ticket=AQar6r1A65dHjs1mh6%2FQYyeW
 
 这个url是可以不需要cookie，直接在客户端下载的。但是不知道是否有有效期。
+
+weixin限制文件大小25M以内。
+
+还有一种文件，消息类型同样为49，但是这种消息不包含MediaId，而是有Url字段，是一个普通HTML文档链接。
+
+这种不再需要获取真实文件URL地址操作。这种类型消息，一般是订阅号推送的新闻文章。
 

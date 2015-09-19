@@ -6,6 +6,8 @@ import html
 
 from PyQt5.QtCore import *
 
+from .wxcommon import *
+
 
 class WXUser():
     def __init__(self):
@@ -48,7 +50,13 @@ class WXMessage():
 
         self.jsonContent = {}
 
+        # for file field
+        self.FileName = ''
+        self.FileSize = 0
+        self.MediaId = ''  # for file
+        self.Url = ''
         return
+
 
 class WXMessageList():
 
@@ -108,6 +116,12 @@ class WXMessageList():
         msg.CreateTime = um['CreateTime']
         msg.ToUserName = um['ToUserName']
         msg.FromUserName = um['FromUserName']
+
+        if msg.MsgType == WXMsgType.MT_X49:
+            msg.FileName = um['FileName']
+            msg.FileSize = um['FileSize']
+            msg.MediaId = um['MediaId']
+            msg.Url = um['Url']
 
         logstr = '[%s][%s] %s => %s @%s:::%s' % \
                  (msg.CreateTime, msg.MsgType, msg.FromUserName, msg.ToUserName, msg.MsgId, msg.UnescapedContent)

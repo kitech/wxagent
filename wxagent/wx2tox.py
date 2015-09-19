@@ -217,11 +217,16 @@ class WX2Tox(QObject):
         return
 
     def onToxnetFileChunkReuqest(self, friendId, file_number, position, length):
-        if qrand() % 7 == 1:
+        if qrand() % 7 == 1 or position == 0 or length == 0:
             qDebug('fn=%s,pos=%s,len=%s' % (file_number, position, length))
 
         fti = self.ftqueue[file_number]
         data = fti.data
+
+        if length == 0:  # see tox.h:2012
+            qDebug('must finished.%s, %s' % (file_number, str(position >= len(data))))
+            self.removeFileTransfer(file_number)
+            return
 
         if position >= len(data):
             qDebug('warning exceed file size: finished.')
@@ -482,11 +487,24 @@ class WX2Tox(QObject):
 
             self.sendMessageToTox(msg, logstr)
 
+            logstr = ''
             # multimedia 消息处理
             if msg.MsgType == WXMsgType.MT_SHOT or msg.MsgType == WXMsgType.MT_X47:
                 imgurl = self.getMsgImgUrl(msg)
-                logstr += '\n%s' % imgurl
+                logstr += '\n> %s' % imgurl
+                self.sendMessageToTox(msg, logstr)
                 self.sendShotPicMessageToTox(msg, logstr)
+            elif msg.MsgType == WXMsgType.MT_X49:
+                if len(msg.MediaId) > 0:
+                    fileurl = self.getMsgFileUrl(msg)
+                    logstr += '\n> %s' % fileurl
+                    logstr += '\n\nname: %s' % msg.FileName
+                    logstr += '\nsize: %s' % msg.FileSize
+                else:
+                    fileurl = msg.Url
+                    logstr += '\n > %s' % fileurl
+                    logstr += '\n\nname: %s' % msg.FileName
+                self.sendMessageToTox(msg, logstr)
 
         return
 
@@ -1161,6 +1179,11 @@ class WX2Tox(QObject):
     def getMsgImgUrl(self, msg):
         args = [msg.MsgId, False]
         return self.syncGetRpc('get_msg_img_url', args)
+
+    def getMsgFileUrl(self, msg):
+        file_name = msg.FileName.replace(' ', '+')
+        args = [msg.FromUserName, msg.MediaId, file_name, self.wxses.me.Uin]
+        return self.syncGetRpc('get_msg_file_url', args)
 
     # @param name str
     # @param args list

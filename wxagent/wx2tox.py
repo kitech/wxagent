@@ -377,9 +377,15 @@ class WX2Tox(QObject):
             tkfc = self.toxkit.friendGetConnectionStatus(self.peerToxId)
 
         if tkc is True and tkfc is True:
-            friendId = self.peerToxId
-            fsize = len(qrpic)
-            self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
+            # friendId = self.peerToxId
+            # fsize = len(qrpic)
+            # self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
+
+            fname = self.genQRCodeSaveFileName()
+            fti = self.newFileTransfer(fname, qrpic)
+            file_number = self.startFileTransfer(fti)
+            if file_number is not False:
+                self.addFileTransferToQueue(file_number, fti)
         else:
             self.need_send_qrfile = True
 
@@ -498,12 +504,12 @@ class WX2Tox(QObject):
             elif msg.MsgType == WXMsgType.MT_X49:
                 if len(msg.MediaId) > 0:
                     fileurl = self.getMsgFileUrl(msg)
-                    logstr += '\n> %s' % fileurl
+                    logstr += '> %s' % fileurl
                     logstr += '\n\nname: %s' % msg.FileName
                     logstr += '\nsize: %s' % msg.FileSize
                 else:
                     fileurl = msg.Url
-                    logstr += '\n > %s' % fileurl
+                    logstr += '> %s' % fileurl
                     logstr += '\n\nname: %s' % msg.FileName
                 self.sendMessageToTox(msg, logstr)
             elif msg.MsgType == WXMsgType.MT_VOICE:

@@ -48,22 +48,22 @@ class WXAgent(QObject):
 
         self.wxproto = WXProtocol()
         self.wxGroupUserNames = {}  # 来自websync:AddMsgList:StatusNotifyUserName，以@@开头的
-        
+
         self.asyncQueueIdBase = qrand()
         self.asyncQueue = {} # {reply => id}
         self.refresh_count = 0
         self.urlStart = ''
         self.webpushUrlStart = ''
-        
+
         return
 
-    def refresh(self):        
+    def refresh(self):
         oldname = self.nam
         oldname.finished.disconnect()
         self.nam = None
 
         qDebug('see this...')
-        
+
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
 
@@ -89,14 +89,14 @@ class WXAgent(QObject):
         self.asyncQueue = {} # {reply => id}
 
         self.doboot()
-        
+
         self.refresh_count += 1
         return
-    
+
     def doboot(self):
 
         self.emitDBusBeginLogin()
-        
+
         url = "https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx2.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=en_US"
         req = QNetworkRequest(QUrl(url))
         req = self.mkreq(url)
@@ -107,17 +107,17 @@ class WXAgent(QObject):
         reply.error.connect(self.onReplyError, Qt.QueuedConnection)
 
         return
-    
+
     def onReply(self, reply):
         self.dumpReply(reply)
 
         status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
         error_no = reply.error()
-        
+
         url = reply.url().toString()
         hcc = reply.readAll()
         qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
-        
+
         # statemachine by url and response content
         if url.startswith('https://login.weixin.qq.com/jslogin?'):
             qDebug("qr login code/uuic:" + str(hcc))
@@ -126,9 +126,9 @@ class WXAgent(QObject):
                 qDebug('timeout:')
                 self.doboot()
                 return
-            
+
             self.saveContent('jslogin.html', hcc, reply)
-            
+
             # parse hcc: window.QRLogin.code = 200; window.QRLogin.uuid = "gYmgd1grLg==";
             qrcode = 200
             qruuid = ''
@@ -154,8 +154,8 @@ class WXAgent(QObject):
                 qDebug('timeout:')
                 self.requestQRCode()
                 return
-            
-            self.qrpic = hcc;
+
+            self.qrpic = hcc
             self.qrpicGotten.emit(hcc)
 
             self.emitDBusGotQRCode()
@@ -165,7 +165,7 @@ class WXAgent(QObject):
         ######
         elif url.startswith('https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?'):
             qDebug("app scaned qrpic:" + str(hcc))
-            
+
             # window.code=408;  # 像是超时
             # window.code=400;  # ??? 难道是会话过期???需要重新获取QR图（已确认，在浏览器中，收到400后刷新了https://wx2.qq.com/
             # window.code=201;  # 已扫描，未确认
@@ -180,7 +180,7 @@ class WXAgent(QObject):
             elif scan_code == '201':
                 self.pollLogin()
                 pass
-            elif scan_code == '200':  # 扫描确认完成，登陆成功                
+            elif scan_code == '200':  # 扫描确认完成，登陆成功
                 # emit logined
                 self.logined = True
                 self.emitDBusLogined()
@@ -240,7 +240,7 @@ class WXAgent(QObject):
             qDebug('wxinited.:' + str(type(hcc)))
             self.wxinitRawData = hcc
             self.saveContent("baseinfo.json", hcc, reply)
-            
+
             # qDebug(str(hcc.data().decode('utf8')))  # why can not decode?
             # UnicodeEncodeError: 'ascii' codec can't encode characters in position 131-136: ordinal not in range(128)
             strhcc = self.hcc2str(hcc)
@@ -258,7 +258,7 @@ class WXAgent(QObject):
             self.getContact()
             self.syncCheck()
             ########
-            
+
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?'):
         elif url.startswith(self.urlStart+'/cgi-bin/mmwebwx-bin/webwxgetcontact?'):
             qDebug('get contact:' + str(len(hcc)))
@@ -275,7 +275,7 @@ class WXAgent(QObject):
             # selector: 6: 表示有新消息
             # selector: 7: ??? 打开了某项，如群，好友，是一个事件
             # selector: 2: ??? 有新消息
-            # selector: 4: ??? 
+            # selector: 4: ???
             # retcode: 1100:???
             # retcode: 1101:??? 会话已退出/结束
             # retcode: 1102: 用户在手机端主动退出
@@ -327,11 +327,11 @@ class WXAgent(QObject):
             # TODO check no reply case and rerun synccheck.
             if status_code == '' and len(hcc) == 0:
                 qDebug('maybe need rerun synccheck')
-            
+
             self.wxWebSyncRawData = hcc
             self.saveContent('websync.json', hcc, reply)
             self.emitDBusNewMessage(hcc)
-            
+
             # parse web sync result:
             strhcc = self.hcc2str(hcc)
 
@@ -408,9 +408,9 @@ class WXAgent(QObject):
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreply = self.nam.get(nsreq)
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-        
+
         return
-        
+
     def pollLogin(self):
         ###
         nsurl = 'https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=4eDUw9zdPg==&tip=0&r=-1166218796'
@@ -418,7 +418,7 @@ class WXAgent(QObject):
         nsurl = 'https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=%s&tip=1&r=%s&lang=en_US' % \
                 (self.qruuid, self.nowTime())
         qDebug(nsurl)
-        
+
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
@@ -426,7 +426,6 @@ class WXAgent(QObject):
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         return
 
-    
     def getBaseInfo(self):
         # TODO: pass_ticket参数
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=1377482058764'
@@ -444,15 +443,15 @@ class WXAgent(QObject):
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
-            
+
         # nsreply = self.nam.get(nsreq)  # TODO POST
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-        
+
         return
 
     def getContact(self):
-        
+
         nsurl = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?r=1377482079876'
         #nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?r='
         nsurl = self.urlStart+'/cgi-bin/mmwebwx-bin/webwxgetcontact?r='
@@ -462,14 +461,12 @@ class WXAgent(QObject):
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
-            
+
         # nsreply = self.nam.get(nsreq)  # TODO POST
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-        
+
         return
-
-
 
     def syncCheck(self):
         ### make syncKey: format: 1_124125|2_452346345|3_65476547|1000_5643635
@@ -492,7 +489,7 @@ class WXAgent(QObject):
         nsurl = self.webpushUrlStart+'/cgi-bin/mmwebwx-bin/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&lang=en_US&pass_ticket=%s' % \
                 (self.nowTime(), skey, self.wxsid, self.wxuin, self.devid, syncKey, pass_ticket)
 
-        
+
         qDebug(nsurl)
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
@@ -500,10 +497,10 @@ class WXAgent(QObject):
         joined_cookies = self.joinCookies()
         # nsreq.setHeader(QNetworkRequest.CookieHeader, QByteArray(joined_cookies.encode('utf8')))
         nsreq.setRawHeader(b'Cookie', joined_cookies.encode('utf8'))
-        
+
         nsreply = self.nam.get(nsreq)
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-        
+
         return
 
     def webSync(self):
@@ -516,7 +513,7 @@ class WXAgent(QObject):
         syncKey = '%7C'.join(syncKey)   # [] => str''
 
         skey = self.wxinitData['SKey'].replace('@', '%40')
-        
+
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=9qxNHGgi9VP4/Tx6&skey=@crypt_3ea2fe08_723d1e1bd7b4171657b58c6d2849b367&lang=en_US&pass_ticket=%252BEdqKi12tfvM8ZZTdNeh4GLO9LFfwKLQRpqWk8LRYVWFkDE6%252FZJJXurz79ARX%252FIT'
         #nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=en_US&pass_ticket=%s' % \
                 #(self.wxsid, skey, self.wxPassTicket)
@@ -542,10 +539,10 @@ class WXAgent(QObject):
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
-        
+
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-        
+
         return nsreply
 
     def logout(self):
@@ -564,11 +561,11 @@ class WXAgent(QObject):
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
-            
+
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-        
-        return 
+
+        return
 
     # @param from_username str
     # @param to_username str
@@ -592,9 +589,9 @@ class WXAgent(QObject):
         #        (self.wxPassTicket)
         nsurl = self.urlStart+'/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=en_US&pass_ticket=%s' % \
                 (self.wxPassTicket)
-        
+
         clientMsgId = self.nextClientMsgId()
-        
+
         post_data_obj = {
             "BaseRequest": {
                 "Uin": self.wxuin,
@@ -611,19 +608,19 @@ class WXAgent(QObject):
                 "ClientMsgId": clientMsgId,
             },
         }
-        
+
         post_data = json.JSONEncoder(ensure_ascii=False).encode(post_data_obj)
         qDebug(bytes(post_data, 'utf8'))
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
-        
+
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-        
+
         return
-    
+
     #
     def requrl(self, url, method = 'GET', data = ''):
         nsurl = url
@@ -631,10 +628,10 @@ class WXAgent(QObject):
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-            
+
         nsreply = self.nam.get(nsreq)
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-        
+
         return nsreply
 
     ####
@@ -643,11 +640,9 @@ class WXAgent(QObject):
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=wxid_xx3mtgeux5511'
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=kitech'
         nsurl = self.urlStart+'/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=coder_zj'
-        
+
         return
 
-    
-    ####
     # @param members List json format in string
     def getbatchcontact(self, members):
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?type=ex&r=1440473919872&lang=en_US&pass_ticket=kKWVrvi2aw98Z8sXfzwncDWxWZZQgVZERel61bswt0bLI5z3Xo3Vz8l5UmrLWOXq'
@@ -666,8 +661,8 @@ class WXAgent(QObject):
                 "Skey": self.wxinitData['SKey'],
                 "DeviceID": self.devid,
             },
-            "Count":len(members_list),
-            "List":members_list,
+            "Count": len(members_list),
+            "List": members_list,
         }
         post_data = json.JSONEncoder(ensure_ascii=False).encode(post_data_obj)
         qDebug(bytes(post_data, 'utf8')[0:120])
@@ -753,13 +748,13 @@ class WXAgent(QObject):
     def getCookie(self, name):
         ckjar = self.nam.cookieJar()
         #domain = 'https://wx2.qq.com'
-        domain = self.urlStart 
+        domain = self.urlStart
         cookies = ckjar.cookiesForUrl(QUrl(domain))
 
         for cookie in cookies:
             tname = cookie.name().data().decode('utf8')
             val = cookie.value().data.decode('utf8')
-            qDebug(tname + '=' + val);
+            qDebug(tname + '=' + val)
             if tname == name:
                 return val
         return
@@ -769,7 +764,7 @@ class WXAgent(QObject):
         for cline in str_cookies.split("\n"):
             for celem in cline.split(";"):
                 kv = celem.strip().split('=')
-                if (kv[0] == name): return kv[1];
+                if (kv[0] == name): return kv[1]
 
         return
 
@@ -786,7 +781,7 @@ class WXAgent(QObject):
             tname = c.name().data().decode('utf8')
             tvalue = c.value().data().decode('utf8')
             joined = joined + '%s=%s; ' % (tname, tvalue)
-        
+
         return joined
 
     def nowTime(self):
@@ -799,7 +794,7 @@ class WXAgent(QObject):
         self.setUserAgent(req)
         self.setReferer(req)
         return req
-    
+
     def setUserAgent(self, req):
         ua = b'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.155 Safari/537.36'
         req.setRawHeader(b'User-Agent', ua)
@@ -808,7 +803,7 @@ class WXAgent(QObject):
     def setReferer(self, req):
         req.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         return
-    
+
     def dumpReply(self, reply):
         qDebug("\ngggggggg===========")
         qDebug(str(reply))
@@ -818,7 +813,7 @@ class WXAgent(QObject):
         qDebug(str(stcode))
         cookies = reply.header(QNetworkRequest.SetCookieHeader)
         qDebug(str(cookies))
-        
+
         hdrlst = reply.rawHeaderList()
         for hdr in hdrlst:
             hdrval = reply.rawHeader(hdr)
@@ -891,7 +886,7 @@ class WXAgent(QObject):
 
         return
 
-
+    # begin dbus signals
     def emitDBusBeginLogin(self):
         # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "beginlogin")
@@ -900,7 +895,7 @@ class WXAgent(QObject):
         sysbus = QDBusConnection.systemBus()
         bret = sysbus.send(sigmsg)
         qDebug(str(bret))
-        
+
         return
 
     def emitDBusGotQRCode(self):
@@ -914,7 +909,7 @@ class WXAgent(QObject):
         sysbus = QDBusConnection.systemBus()
         bret = sysbus.send(sigmsg)
         qDebug(str(bret))
-        
+
         return
 
     def emitDBusLoginSuccess(self):
@@ -926,9 +921,9 @@ class WXAgent(QObject):
         sysbus = QDBusConnection.systemBus()
         bret = sysbus.send(sigmsg)
         qDebug(str(bret))
-        
+
         return
-    
+
     def emitDBusLogined(self):
         # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "logined")
@@ -965,7 +960,7 @@ class WXAgent(QObject):
         qDebug(str(bret))
         return
 
-    
+
 ############
 class DelayReplySession():
     def __init__(self):
@@ -973,13 +968,14 @@ class DelayReplySession():
         self.netreply = None
         self.busreply = None
         return
-    
+
+
 class WXAgentService(QObject):
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         super(WXAgentService, self).__init__(parent)
 
         self.dses = {}  # reqno => DelayReplySession
-        
+
         self._reply = None
         self.sysbus = QDBusConnection.systemBus()
 
@@ -987,9 +983,8 @@ class WXAgentService(QObject):
         # self.wxa.reqfinished.connect(self.onNetReply, Qt.QueuedConnection)
         self.wxa.asyncRequestDone.connect(self.onDelayedReply, Qt.QueuedConnection)
         self.wxa.doboot()
-        
+
         return
-    
 
     @pyqtSlot(QDBusMessage, result=bool)
     def islogined(self, message):
@@ -1014,11 +1009,10 @@ class WXAgentService(QObject):
         self.wxa.logout()
         return True
 
-    
     # assert logined
     @pyqtSlot(QDBusMessage, result='QString')
     def getinitdata(self, message):
-        if type(self.wxa.wxinitRawData) == bytes: # we need QByteArray
+        if type(self.wxa.wxinitRawData) == bytes:  # we need QByteArray
             qDebug('maybe not inited.')
             return ''
 
@@ -1026,13 +1020,12 @@ class WXAgentService(QObject):
         rstr = data64.data().decode('utf8')
         return rstr
 
-
     @pyqtSlot(QDBusMessage, result='QString')
     def getcontact(self, message):
         if type(self.wxa.wxFriendRawData) == bytes: # we need QByteArray
             qDebug('maybe not inited.')
             return ''
-        
+
         data64 = self.wxa.wxFriendRawData.toBase64()
         rstr = data64.data().decode('utf8')
         return rstr

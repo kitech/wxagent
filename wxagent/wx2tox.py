@@ -3,6 +3,8 @@
 import os, sys
 import json, re
 import enum
+import magic
+import math
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -52,6 +54,16 @@ class Chatroom():
         return
 
 
+class FileTranItem():
+    def __init__(self):
+        self.name = ''
+        self.data = ''
+        self.file_number = -1
+        self.group_number = -1
+
+        return
+
+
 #
 #
 #
@@ -71,6 +83,7 @@ class WX2Tox(QObject):
         self.need_send_qrfile = False   # 有可能toxkit还未上线
         self.wx2tox_msg_buffer = []  # 存储未转发到tox的消息
         self.tox2wx_msg_buffer = []
+        self.ftqueue = {}  # file transfer queue, file_number => FileTranItem
 
         self.wxchatmap = {}  # Uin => Chatroom
         self.toxchatmap = {}  # group_number => Chatroom
@@ -187,12 +200,12 @@ class WX2Tox(QObject):
         qDebug(friendId + ':' + str(status))
 
         if status > 0 and self.need_send_qrfile is True:
-            file_number = self.toxkit.fileSend(self.peerToxId, len(self.qrpic), self.getBaseFileName(self.qrfile))
-            if file_number == pow(2,32):
-                qDebug('send file error')
+            fti = self.newFileTransfer(self.qrfile, self.qrpic)
+            file_number = self.startFileTransfer(fti)
+            if file_number is not False:
+                self.addFileTransferToQueue(file_number, fti)
             else:
                 self.need_send_qrfile = False
-
 
         if status > 0 and len(self.wx2tox_msg_buffer) > 0:
             blen = len(self.wx2tox_msg_buffer)
@@ -205,16 +218,28 @@ class WX2Tox(QObject):
         return
 
     def onToxnetFileChunkReuqest(self, friendId, file_number, position, length):
-        if qrand() % 7 == 1:
+        if qrand() % 7 == 1 or position == 0 or length == 0:
             qDebug('fn=%s,pos=%s,len=%s' % (file_number, position, length))
 
-        if position >= len(self.qrpic):
-            qDebug('warning exceed file size: finished.')
-            # self.toxkit.fileControl(friendId, file_number, 2)  # CANCEL
+        fti = self.ftqueue[file_number]
+        data = fti.data
+
+        if length == 0:  # see tox.h:2012
+            qDebug('must finished.%s, %s' % (file_number, str(position >= len(data))))
+            self.removeFileTransfer(file_number)
             return
 
-        chunk = self.qrpic[position:(position + length)]
-        self.toxkit.fileSendChunk(friendId, file_number, position, chunk)
+        if position >= len(data):
+            qDebug('warning exceed file size: finished.')
+            # self.toxkit.fileControl(friendId, file_number, 2)  # CANCEL
+            # self.removeFileTransfer(file_number)
+            return
+
+        chunk = data[position:(position + length)]
+        try:
+            self.toxkit.fileSendChunk(friendId, file_number, position, chunk)
+        except Exception as ex:
+            qDebug(str(ex))
         return
 
     def onToxnetFileRecvControl(self, friendId, file_number, control):
@@ -312,9 +337,12 @@ class WX2Tox(QObject):
             tkc = False
             if self.toxkit is not None:  tkc = self.toxkit.isConnected()
             if tkc is True:
-                friendId = self.peerToxId
-                fsize = len(qrpic)
-                self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
+                fti = self.newFileTransfer(fname, qrpic)
+                file_number = self.startFileTransfer(fti)
+                if file_number is not False:
+                    self.addFileTransferToQueue(file_number, fti)
+                else:
+                    qDebug('maybe need retransfer the file.')
             else:
                 self.need_send_qrfile = True
 
@@ -460,12 +488,28 @@ class WX2Tox(QObject):
 
             self.sendMessageToTox(msg, logstr)
 
+            logstr = ''
             # multimedia 消息处理
-            if msg.MsgType == WXMsgType.MT_SHOT:
+            if msg.MsgType == WXMsgType.MT_SHOT or msg.MsgType == WXMsgType.MT_X47:
                 imgurl = self.getMsgImgUrl(msg)
-                logstr += '\n%s' % imgurl
-                self.getMsgImg(msg)
+                logstr += '\n> %s' % imgurl
+                self.sendMessageToTox(msg, logstr)
                 self.sendShotPicMessageToTox(msg, logstr)
+            elif msg.MsgType == WXMsgType.MT_X49:
+                if len(msg.MediaId) > 0:
+                    fileurl = self.getMsgFileUrl(msg)
+                    logstr += '\n> %s' % fileurl
+                    logstr += '\n\nname: %s' % msg.FileName
+                    logstr += '\nsize: %s' % msg.FileSize
+                else:
+                    fileurl = msg.Url
+                    logstr += '\n > %s' % fileurl
+                    logstr += '\n\nname: %s' % msg.FileName
+                self.sendMessageToTox(msg, logstr)
+            elif msg.MsgType == WXMsgType.MT_VOICE:
+                logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength/1000)
+                self.sendMessageToTox(msg, logstr)
+                self.sendVoiceMessageToTox(msg, logstr)
 
         return
 
@@ -485,8 +529,30 @@ class WX2Tox(QObject):
 
         return
 
-    def sendShotPicMessageToTox(msg, logstr):
-        
+    def sendShotPicMessageToTox(self, msg, logstr):
+        def get_img_reply(data=None):
+            if data is None: return
+            fname = self.genMsgImgSaveFileName(data)
+            fti = self.newFileTransfer(fname, data)
+            file_number = self.startFileTransfer(fti)
+            if file_number is not False:
+                self.addFileTransferToQueue(file_number, fti)
+            return
+
+        self.getMsgImgCallback(msg, get_img_reply)
+        return
+
+    def sendVoiceMessageToTox(self, msg, logstr):
+        def get_voice_reply(data=None):
+            if data is None: return
+            fname = self.genMsgImgSaveFileName(data)
+            fti = self.newFileTransfer(fname, data)
+            file_number = self.startFileTransfer(fti)
+            if file_number is not False:
+                self.addFileTransferToQueue(file_number, fti)
+            return
+
+        self.getMsgVoiceCallback(msg, get_voice_reply)
         return
 
     def dispatchToToxGroup(self, msg, fmtcc):
@@ -928,6 +994,22 @@ class WX2Tox(QObject):
         fname = '/tmp/wxqrcode_%s.jpg' % now.toString('yyyyMMddHHmmsszzz')
         return fname
 
+    # @param data QByteArray | bytes
+    def genMsgImgSaveFileName(self, data):
+        now = QDateTime.currentDateTime()
+
+        m = magic.open(magic.MAGIC_MIME_TYPE)
+        m.load()
+        mty = m.buffer(data.data()) if type(data) == QByteArray else m.buffer(data)
+        m.close()
+
+        suffix = mty.split('/')[1]
+        suffix = 'jpg' if suffix == 'jpeg' else suffix
+        suffix = 'bmp' if suffix == 'x-ms-bmp' else suffix
+
+        fname = '/tmp/wxpic_%s.%s' % (now.toString('yyyyMMddHHmmsszzz'), suffix)
+        return fname
+
     def getBaseFileName(self, fname):
         bfname = QFileInfo(fname).fileName()
         return bfname
@@ -1079,7 +1161,8 @@ class WX2Tox(QObject):
 
         return
 
-    def getMsgImg(self, msg):
+    # @param cb(data)
+    def getMsgImgCallback(self, msg, imgcb=None):
 
         def on_dbus_reply(watcher):
             qDebug('replyyyyyyyyyyyyyyy')
@@ -1090,17 +1173,20 @@ class WX2Tox(QObject):
                 hcc = pendReply.argumentAt(0)
                 qDebug(str(type(hcc)))
             else:
+                self.asyncWatchers.pop(watcher)
+                if imgcb is not None: imgcb(None)
                 return
 
             message = pendReply.reply()
             args = message.arguments()
 
-            # send img file to tox client
-
             self.asyncWatchers.pop(watcher)
+            # send img file to tox client
+            if imgcb is not None: imgcb(args[0])
+
             return
 
-        args = [msg.MsgId]
+        args = [msg.MsgId, False]
         pcall = self.sysiface.asyncCall('get_msg_img', *args)
         watcher = QDBusPendingCallWatcher(pcall)
         watcher.finished.connect(on_dbus_reply)
@@ -1109,7 +1195,46 @@ class WX2Tox(QObject):
         return
 
     def getMsgImgUrl(self, msg):
-        return self.syncGetRpc('get_msg_img_url', [msg.MsgId])
+        args = [msg.MsgId, False]
+        return self.syncGetRpc('get_msg_img_url', args)
+
+    def getMsgFileUrl(self, msg):
+        file_name = msg.FileName.replace(' ', '+')
+        args = [msg.FromUserName, msg.MediaId, file_name, self.wxses.me.Uin]
+        return self.syncGetRpc('get_msg_file_url', args)
+
+    # @param cb(data)
+    def getMsgVoiceCallback(self, msg, imgcb=None):
+
+        def on_dbus_reply(watcher):
+            qDebug('replyyyyyyyyyyyyyyy')
+            pendReply = QDBusPendingReply(watcher)
+            qDebug(str(watcher))
+            qDebug(str(pendReply.isValid()))
+            if pendReply.isValid():
+                hcc = pendReply.argumentAt(0)
+                qDebug(str(type(hcc)))
+            else:
+                self.asyncWatchers.pop(watcher)
+                if imgcb is not None: imgcb(None)
+                return
+
+            message = pendReply.reply()
+            args = message.arguments()
+
+            self.asyncWatchers.pop(watcher)
+            # send img file to tox client
+            if imgcb is not None: imgcb(args[0])
+
+            return
+
+        args = [msg.MsgId]
+        pcall = self.sysiface.asyncCall('get_msg_voice', *args)
+        watcher = QDBusPendingCallWatcher(pcall)
+        watcher.finished.connect(on_dbus_reply)
+        self.asyncWatchers[watcher] = '1'
+
+        return
 
     # @param name str
     # @param args list
@@ -1149,6 +1274,39 @@ class WX2Tox(QObject):
         if rc != 0: qDebug('invite error')
 
         return groupchat
+
+    def newFileTransfer(self, name, data, group_number=None):
+        fti = FileTranItem()
+        fti.name = name
+        fti.data = data
+
+        if group_number is not None:
+            fti.group_number = group_number
+
+        return fti
+
+    def startFileTransfer(self, fti):
+        name = fti.name
+        data = fti.data
+
+        file_number = self.toxkit.fileSend(self.peerToxId, len(data), self.getBaseFileName(name))
+        if file_number == pow(2, 32):
+            qDebug('send file error')
+            return False
+
+        fti.file_number = file_number
+        return file_number
+
+    def addFileTransferToQueue(self, file_number, fti):
+        if file_number in self.ftqueue:
+            qDebug('warning reuse the file number %s?' % str(file_number))
+
+        self.ftqueue[file_number] = fti
+        return
+
+    def removeFileTransfer(self, file_number):
+        fti = self.ftqueue.pop(file_number)
+        return fti
 
     # @param hcc QByteArray
     # @return str

@@ -2,6 +2,7 @@
 
 import os, sys
 import json, re
+import time
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -53,6 +54,8 @@ class WXAgent(QObject):
         self.refresh_count = 0
         self.urlStart = ''
         self.webpushUrlStart = ''
+        self.msgimage= b''   # QByteArray
+        self.msgimagename = ''  #str 
         
         return
 
@@ -368,11 +371,17 @@ class WXAgent(QObject):
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
-        elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?'):
+        elif url.startswith(self.urlStart+'/cgi-bin/mmwebwx-bin/webwxgetmsgimg?'):
             if reply in self.asyncQueue:
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
+        elif url.startswith('http://emoji.qpic.cn/wx_emoji'):
+            qDebug('get the picture url that you saved'+str(len(hcc)))
+            self.msgimage = hcc
+            randnum = str(time.time())
+            self.msgimagename = 'img/mgs_image_'+randnum+'.json'
+            self.saveContent(self.msgimagename, hcc)
         else:
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc)
@@ -937,6 +946,26 @@ class WXAgentService(QObject):
 
         rstr = qrpic64.data().decode('utf8')
         return rstr
+
+    @pyqtSlot(QDBusMessage, result='QString')
+    def getmsgimage(self, message):
+        imgurls = message.arguments()
+        imgurl = imgurls[0]
+        #imgurl = 'http://emoji.qpic.cn/wx_emoji/OlaTef8nbNwrx2yCBBaaictrcFZGbrDbEPFB96n3Rve8hjj0xCFpcyQ/'
+        qDebug(str(imgurl))
+        nsreq = QNetworkRequest(QUrl(imgurl))
+        nsreq = self.wxa.mkreq(imgurl)
+        nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
+        nsreply = self.wxa.nam.get(nsreq)
+        nsreply.error.connect(self.wxa.onReplyError, Qt.QueuedConnection)
+        return
+
+
+    @pyqtSlot(QDBusMessage, result=str)
+    def getmessageimage(self, message):
+        qDebug(str(len(self.wxa.msgimage)))
+        #return 'img/mgs_image_1442807234.468248.json'
+        return  self.wxa.msgimagename
 
     @pyqtSlot(QDBusMessage, result=bool)
     def refresh(self, message):

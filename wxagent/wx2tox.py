@@ -674,11 +674,12 @@ class WX2Tox(QObject):
                 # message pending and try get group info
                 qDebug('warning FromUser not found, wxgroup not found:' + msg.FromUserName)
                 if msg.FromUserName in self.pendingGroupMessages:
-                    self.pendingGroupMessages[msg.FromUserName].append([msg,fmtcc])
+                    self.pendingGroupMessages[msg.FromUserName].append([msg, fmtcc])
                 else:
                     self.pendingGroupMessages[msg.ToUserName] = list()
-                    self.pendingGroupMessages[msg.ToUserName].append([msg,fmtcc])
+                    self.pendingGroupMessages[msg.ToUserName].append([msg, fmtcc])
 
+                self.wxses.addGroupNames([msg.FromUserName])
                 QTimer.singleShot(1, self.getBatchGroupAll)
                 return
             else:
@@ -691,11 +692,12 @@ class WX2Tox(QObject):
             if msg.ToUser is None:
                 qDebug('warning ToUser not found, wxgroup not found:' + msg.ToUserName)
                 if msg.FromUserName in self.pendingGroupMessages:
-                    self.pendingGroupMessages[msg.ToUserName].append([msg,fmtcc])
+                    self.pendingGroupMessages[msg.ToUserName].append([msg, fmtcc])
                 else:
                     self.pendingGroupMessages[msg.ToUserName] = list()
-                    self.pendingGroupMessages[msg.ToUserName].append([msg,fmtcc])
+                    self.pendingGroupMessages[msg.ToUserName].append([msg, fmtcc])
 
+                self.wxses.addGroupNames([msg.ToUserName])
                 QTimer.singleShot(1, self.getBatchGroupAll)
                 return
             else:
@@ -1078,6 +1080,7 @@ class WX2Tox(QObject):
         hccjs = json.JSONDecoder().decode(strhcc)
 
         # print(strhcc)
+        # self.saveContent('groups.json', hcc)
 
         memcnt = 0
         for contact in hccjs['ContactList']:
@@ -1093,7 +1096,11 @@ class WX2Tox(QObject):
                 while len(self.pendingGroupMessages[grname]) > 0:
                     msgobj = self.pendingGroupMessages[grname].pop()
                     GroupUser = self.wxses.getGroupByName(grname)
-                    self.dispatchWXGroupChatToTox2(msgobj[0], msgobj[1], GroupUser)
+                    if GroupUser is None:
+                        qDebug('still not get msg group info, new?sink?')
+                    else:
+                        # 是不是能说明，可以把该grname从半完成状态，设置为完成状态呢？
+                        self.dispatchWXGroupChatToTox2(msgobj[0], msgobj[1], GroupUser)
 
         qDebug('got memcnt: %s/%s' % (memcnt, len(self.wxses.ICGroups)))
 

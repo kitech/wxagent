@@ -2,6 +2,7 @@
 
 import os, sys
 import json, re
+import time
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -54,7 +55,9 @@ class WXAgent(QObject):
         self.refresh_count = 0
         self.urlStart = ''
         self.webpushUrlStart = ''
-
+        self.msgimage= b''   # QByteArray
+        self.msgimagename = ''  #str 
+        
         return
 
     def refresh(self):
@@ -196,7 +199,6 @@ class WXAgent(QObject):
                 else :
                     self.urlStart = 'https://wx2.qq.com'
                     self.webpushUrlStart = 'https://webpush2.weixin.qq.com'
-                qDebug('zhangjun test')
                 qDebug(nsurl)
                 qDebug(self.urlStart)
                 qDebug(self.webpushUrlStart)
@@ -229,7 +231,6 @@ class WXAgent(QObject):
             # pass_ticket = mats[0][0]
             pass_ticket = mats[0]    ### 为什么又变成一维的了呢？
             self.wxPassTicket = pass_ticket
-            qDebug('zhangjun test 241 line')
             qDebug(pass_ticket)
 
             self.getBaseInfo()
@@ -374,22 +375,29 @@ class WXAgent(QObject):
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
-        elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?'):
+        elif url.startswith(self.urlStart+'/cgi-bin/mmwebwx-bin/webwxgetmsgimg?'):
             if reply in self.asyncQueue:
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
-        elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?'):
-            if reply in self.asyncQueue:
-                reqno = self.asyncQueue.pop(reply)
-                self.asyncRequestDone.emit(reqno, hcc)
-            ########
+        elif url.startswith('http://emoji.qpic.cn/wx_emoji'):
+            qDebug('get the picture url that you saved : '+str(len(hcc)))
+            self.msgimage = hcc
+            self.createMsgImage(hcc)
         else:
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc, reply)
 
         return
 
+    def createMsgImage(self, hcc):
+        randnum = str(int(time.time()))
+        self.msgimagename = 'img/mgs_image'+randnum+'.json'
+        fp = QFile(self.msgimagename)
+        fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
+        fp.write(hcc)
+        fp.close()
+        
     def onReplyError(self, errcode):
         qDebug('reply error:' + str(errcode))
         reply = self.sender()
@@ -998,6 +1006,25 @@ class WXAgentService(QObject):
 
         rstr = qrpic64.data().decode('utf8')
         return rstr
+
+    @pyqtSlot(QDBusMessage, result='QString')
+    def getmsgimage(self, message):
+        imgurls = message.arguments()
+        imgurl = imgurls[0]
+        #imgurl = 'http://emoji.qpic.cn/wx_emoji/OlaTef8nbNwrx2yCBBaaictrcFZGbrDbEPFB96n3Rve8hjj0xCFpcyQ/'
+        qDebug(str(imgurl))
+        nsreq = QNetworkRequest(QUrl(imgurl))
+        nsreq = self.wxa.mkreq(imgurl)
+        nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
+        nsreply = self.wxa.nam.get(nsreq)
+        nsreply.error.connect(self.wxa.onReplyError, Qt.QueuedConnection)
+        return
+
+
+    @pyqtSlot(QDBusMessage, result=str)
+    def getmessageimage(self, message):
+        qDebug(str(len(self.wxa.msgimage)))
+        return  self.wxa.msgimagename
 
     @pyqtSlot(QDBusMessage, result=bool)
     def refresh(self, message):

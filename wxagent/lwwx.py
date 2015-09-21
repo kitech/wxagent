@@ -4,6 +4,8 @@ import os, sys
 import json, re
 import enum
 import html
+import time
+import emoji
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -59,7 +61,7 @@ class QRWin(QMainWindow):
 
     @pyqtSlot(QDBusMessage)
     def onDBusNewMessage(self, message):
-        # qDebug(str(message.arguments()))
+        qDebug(str(message.arguments()))
         args = message.arguments()
         msglen = args[0]
         msghcc = args[1]
@@ -107,19 +109,62 @@ class QRWin(QMainWindow):
             toUser = self.wxses.getUserByName(msg.ToUserName)
             qDebug(str(fromUser))
             qDebug(str(toUser))
-            fromUser_NickName = ''
-            if fromUser is not None: fromUser_NickName = fromUser.NickName
-            toUser_NickName = ''
-            if toUser is not None: toUser_NickName = toUser.NickName
+            fromUser_NickName = 'me'
+            if fromUser is not None: 
+                fromUser_NickName = fromUser.NickName
+            toUser_NickName = 'me'
+            if toUser is not None: 
+                toUser_NickName = toUser.NickName
+            else :
+                toUser_NickName = 'all'
 
             content = msg.UnescapedContent
+            # send the picture that you collected 
+            msgemoji = re.search(r'http://emoji.qpic.cn/[^\s]+', content)
+            if msgemoji :
+                emoji = msgemoji.group()
+                msgimgurl = re.sub(r'\"','',emoji)
+                qDebug(msgimgurl)
+                reply = self.sysiface.call('getmsgimage', msgimgurl)
+                reply = self.sysiface.call('getmessageimage')
+                rr = QDBusReply(reply)
+                if not rr.isValid():
+                    qDebug(str(rr.error().message()))
+                    qDebug(str(rr.error().name()))
+                qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
+                self.getImage(rr.value())
+
+            content = re.sub(r'@.*\w:<\w.*/>', '', content)
+            content = re.sub(r'<\w.*>', '', content)
+            # emoji [sob]
+            #emojiContent = re.sub(r'\[',':', content)
+            #emojiContent = re.sub(r'\]',':', emojiContent)
+            #if emojiContent :
+            #    import emoji
+            #    content = content+emoji.emojize(emojiContent)
+                #qrpic64 = emojiContent.encode('utf8')   # to bytes
+                #qrpic = QByteArray.fromBase64(qrpic64)
+                #qDebug('msgimg'+str(qrpic))
+                #self.getImage(qrpic)
+            
             logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::%s' % \
                      (msg.CreateTime, msg.MsgType, msg.FromUserName, fromUser_NickName,
                       msg.ToUserName, toUser_NickName, msg.MsgId, content)
-            self.uiw.plainTextEdit.appendPlainText(logstr)
-            
+            fromUser_NickName = re.sub(r'<\w.*>\w.*<\w.*/>', '',fromUser_NickName)
+            toUser_NickName = re.sub(r'<\w.*>\w.*<\w.*/>', '',toUser_NickName)
+            msg.CreateTime = time.localtime(msg.CreateTime)
+            msgstr = '[%s] %s @say-> %s  ::  %s' % \
+                     (time.strftime('%Y-%m-%d %H:%M:%S',msg.CreateTime),  fromUser_NickName, toUser_NickName, content)
+            #self.uiw.plainTextEdit.appendPlainText(logstr)
+            self.uiw.plainTextEdit.appendPlainText(msgstr)
+            #if msg.MsgType == WXMsgType.MT_SHOT:
+            #    imgurl = self.getMsgImgUrl(msg)
+            #    logstr += '\n%s' % imgurl
+            #    self.getMsgImg(msg)
+            #    self.sendShotPicMessageToTox(msg, logstr)
             
         return
+
 
     def createWXSession(self):
         if self.wxses is not None:
@@ -157,6 +202,15 @@ class QRWin(QMainWindow):
 
         pix = QPixmap("qrpic.jpg")
         npix = pix.scaled(180, 180)
+        self.uiw.label.setPixmap(npix)
+        
+        return
+
+    def getImage(self, msgimagename):
+
+        qDebug(msgimagename)
+        pix = QPixmap(msgimagename)
+        npix = pix.scaled(180,180)
         self.uiw.label.setPixmap(npix)
         
         return

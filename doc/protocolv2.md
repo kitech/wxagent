@@ -244,7 +244,10 @@ https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?type=slave&MsgID={MsgID值
 原图：
 https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID={MsgID值}&skey=%40{skey值}
 
-## 获取视频
+另外， 如果在微信中收藏的图片地址为cdnurl：
+
+
+'emoji fromusername = wxid_72ihdogv8ya621 tousername = wang1058056871 type=1 idbuffer=media:0_0 md5=63d404516886152038c15e22113d06c0 len = 19870 productid= androidmd5=63d404516886152038c15e22113d06c0 androidlen=19870 s60v3md5 = 63d404516886152038c15e22113d06c0 s60v3len=19870 s60v5md5 = 63d404516886152038c15e22113d06c0 s60v5len=19870 cdnurl = http://emoji.qpic.cn/wx_emoji/OlaTef8nbNwrx2yCBBaaictrcFZGbrDbEPFB96n3Rve8hjj0xCFpcyQ/ '
 
 /cgi-bin/mmwebwx-bin/webwxgetvideo?type=flv&msgid={MsgID值}&skey={SKey值}
 

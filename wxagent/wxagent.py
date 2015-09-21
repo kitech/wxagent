@@ -381,17 +381,23 @@ class WXAgent(QObject):
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
         elif url.startswith('http://emoji.qpic.cn/wx_emoji'):
-            qDebug('get the picture url that you saved'+str(len(hcc)))
+            qDebug('get the picture url that you saved : '+str(len(hcc)))
             self.msgimage = hcc
-            randnum = str(time.time())
-            self.msgimagename = 'img/mgs_image_'+randnum+'.json'
-            self.saveContent(self.msgimagename, hcc)
+            self.createMsgImage(hcc)
         else:
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc, reply)
 
         return
 
+    def createMsgImage(self, hcc):
+        randnum = str(int(time.time()))
+        self.msgimagename = 'img/mgs_image'+randnum+'.json'
+        fp = QFile(self.msgimagename)
+        fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
+        fp.write(hcc)
+        fp.close()
+        
     def onReplyError(self, errcode):
         qDebug('reply error:' + str(errcode))
         reply = self.sender()
@@ -1018,7 +1024,6 @@ class WXAgentService(QObject):
     @pyqtSlot(QDBusMessage, result=str)
     def getmessageimage(self, message):
         qDebug(str(len(self.wxa.msgimage)))
-        #return 'img/mgs_image_1442807234.468248.json'
         return  self.wxa.msgimagename
 
     @pyqtSlot(QDBusMessage, result=bool)

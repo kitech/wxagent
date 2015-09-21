@@ -119,7 +119,6 @@ class QRWin(QMainWindow):
                 toUser_NickName = 'all'
 
             content = msg.UnescapedContent
-            qDebug('content message'+content)
             # send the picture that you collected 
             msgemoji = re.search(r'http://emoji.qpic.cn/[^\s]+', content)
             if msgemoji :

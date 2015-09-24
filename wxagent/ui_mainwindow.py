@@ -53,9 +53,6 @@ class Ui_MainWindow(object):
         self.pushButton_6 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_6.setGeometry(QtCore.QRect(20, 50, 84, 33))
         self.pushButton_6.setObjectName("pushButton_6")
-        self.pushButton_10 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_10.setGeometry(QtCore.QRect(580, 400, 80, 40))
-        self.pushButton_10.setObjectName('pushButton_10')
         self.plainTextEdit = QtWidgets.QPlainTextEdit(self.centralwidget)
         self.plainTextEdit.setGeometry(QtCore.QRect(230, 150, 441, 181))
         self.plainTextEdit.setObjectName("plainTextEdit")
@@ -65,9 +62,6 @@ class Ui_MainWindow(object):
         self.pushButton_8 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_8.setGeometry(QtCore.QRect(230, 50, 81, 33))
         self.pushButton_8.setObjectName("pushButton_8")
-        self.pushButton_9 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_9.setGeometry(QtCore.QRect(230, 50, 81, 33))
-        self.pushButton_9.setObjectName("pushButton_9")
         self.lineEdit = QtWidgets.QLineEdit(self.centralwidget)
         self.lineEdit.setGeometry(QtCore.QRect(310, 50, 361, 31))
         self.lineEdit.setObjectName("lineEdit")
@@ -100,10 +94,11 @@ class Ui_MainWindow(object):
     def addButton(self, fromuser, users):
         self.fromuser = fromuser
         MainWindow = self.MainWindow
-        MainWindow.resize(850, 500)
+        MainWindow.resize(800, 700)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         _translate = QtCore.QCoreApplication.translate
         self.leftFiller = QtWidgets.QWidget()
+
         for user in users :
             self.pushButton_9 = QtWidgets.QPushButton(self.leftFiller)
             self.pushButton_9.setGeometry(QtCore.QRect(self.left, self.top, self.width, self.height))
@@ -130,12 +125,16 @@ class Ui_MainWindow(object):
         self.plainTextEdit.setGeometry(QtCore.QRect(230, 10, 441, 181))
         self.plainTextEdit.setObjectName("plainTextEdit")
 
+        self.label = QtWidgets.QLabel(self.centralwidget)
+        self.label.setGeometry(QtCore.QRect(230, 200, 441, 180))
+        self.label.setObjectName("show picture")
+
         self.plainTextEdit_1 = QtWidgets.QPlainTextEdit(self.centralwidget)
-        self.plainTextEdit_1.setGeometry(QtCore.QRect(230, 200, 441, 181))
+        self.plainTextEdit_1.setGeometry(QtCore.QRect(230, 400, 441, 181))
         self.plainTextEdit_1.setObjectName("plainTextEdit_1")
 
         self.pushButton_10 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_10.setGeometry(QtCore.QRect(580, 400, 80, 40))
+        self.pushButton_10.setGeometry(QtCore.QRect(580, 600, 80, 40))
         self.pushButton_10.setObjectName('pushButton_10')
         self.pushButton_10.setText(_translate("MainWindow", '发送' ))
         self.pushButton_10.released.connect(self.postUserMsg)

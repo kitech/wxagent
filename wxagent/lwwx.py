@@ -217,7 +217,7 @@ class QRWin(QMainWindow):
 
         qDebug(msgimagename)
         pix = QPixmap(msgimagename)
-        npix = pix.scaled(180,180)
+        npix = pix.scaled(430,180)
         self.uiw.label.setPixmap(npix)
         
         return

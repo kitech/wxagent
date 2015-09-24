@@ -1,3 +1,8 @@
+2015.9.24
+
+- wxaui , you can use it  send message to your friend.
+
+
 2015.9.21
 
 -  让图片显示在wxaui，保存发送过来的图片 wxagent.py line 383

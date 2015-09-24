@@ -9,6 +9,7 @@ from PyQt5.QtNetwork import *
 from PyQt5.QtDBus import *
 
 from .wxcommon import *
+from .wxsession import *
 from .wxprotocol import *
 
 # from dbus.mainloop.pyqt5 import DBusQtMainLoop
@@ -27,6 +28,8 @@ class WXAgent(QObject):
 
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+
+        self.wxses = None
 
         self.logined = False
         self.qruuid = ''
@@ -487,6 +490,7 @@ class WXAgent(QObject):
         syncKey = '%7C'.join(syncKey)   # [] => str''
 
         skey = self.wxinitData['SKey'].replace('@', '%40')
+        self.skey = skey
         pass_ticket = self.wxPassTicket.replace('%', '%25')
         nsurl = 'https://webpush.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?callback=jQuery18309326978388708085_1377482079946&r=1377482079876&sid=QfLp+Z+FePzvOFoG&uin=2545437902&deviceid=e1615250492&synckey=(见以下说明)&_=1377482079876'
         #nsurl = 'https://webpush2.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?callback=&r=&skey=%s&sid=%s&uin=%s&deviceid=e1615250492&synckey=%s&_=' % \
@@ -1020,7 +1024,6 @@ class WXAgentService(QObject):
         nsreply.error.connect(self.wxa.onReplyError, Qt.QueuedConnection)
         return
 
-
     @pyqtSlot(QDBusMessage, result=str)
     def getmessageimage(self, message):
         qDebug(str(len(self.wxa.msgimage)))
@@ -1070,6 +1073,7 @@ class WXAgentService(QObject):
     @pyqtSlot(QDBusMessage, result=bool)
     def sendmessage(self, message):
         args = message.arguments()
+        qDebug(json.dumps(args) )
         from_username = args[0]
         to_username = args[1]
         qDebug('cc type: ' + str(type(args[2])))

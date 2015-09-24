@@ -7,9 +7,21 @@
 # WARNING! All changes made in this file will be lost!
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtNetwork import *
+from PyQt5.QtDBus import *
+from .wxcommon import *
+from .wxsession import *
+from .wxprotocol import *
 
 class Ui_MainWindow(object):
+    MainWindow = ''
+    top = 10
+    left = 20
+    height = 40
+    width = 150
+    fromuser = None
     def setupUi(self, MainWindow):
+        self.MainWindow = MainWindow
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(684, 469)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -26,24 +38,6 @@ class Ui_MainWindow(object):
         self.label_3 = QtWidgets.QLabel(self.centralwidget)
         self.label_3.setGeometry(QtCore.QRect(340, 90, 141, 17))
         self.label_3.setObjectName("label_3")
-        self.label_4 = QtWidgets.QLabel(self.centralwidget)
-        self.label_4.setGeometry(QtCore.QRect(270, 120, 54, 17))
-        self.label_4.setObjectName("label_4")
-        self.label_5 = QtWidgets.QLabel(self.centralwidget)
-        self.label_5.setGeometry(QtCore.QRect(340, 120, 141, 17))
-        self.label_5.setObjectName("label_5")
-        self.label_6 = QtWidgets.QLabel(self.centralwidget)
-        self.label_6.setGeometry(QtCore.QRect(420, 90, 54, 17))
-        self.label_6.setObjectName("label_6")
-        self.label_7 = QtWidgets.QLabel(self.centralwidget)
-        self.label_7.setGeometry(QtCore.QRect(490, 90, 141, 17))
-        self.label_7.setObjectName("label_7")
-        self.label_8 = QtWidgets.QLabel(self.centralwidget)
-        self.label_8.setGeometry(QtCore.QRect(420, 120, 54, 17))
-        self.label_8.setObjectName("label_8")
-        self.label_9 = QtWidgets.QLabel(self.centralwidget)
-        self.label_9.setGeometry(QtCore.QRect(490, 120, 141, 17))
-        self.label_9.setObjectName("label_9")
         self.pushButton_2 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_2.setGeometry(QtCore.QRect(120, 10, 84, 33))
         self.pushButton_2.setObjectName("pushButton_2")
@@ -88,14 +82,6 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.pushButton.setText(_translate("MainWindow", "login"))
         self.label.setText(_translate("MainWindow", "TextLabel"))
-        self.label_2.setText(_translate("MainWindow", "TextLabel"))
-        self.label_3.setText(_translate("MainWindow", "TextLabel"))
-        self.label_4.setText(_translate("MainWindow", "TextLabel"))
-        self.label_5.setText(_translate("MainWindow", "TextLabel"))
-        self.label_6.setText(_translate("MainWindow", "TextLabel"))
-        self.label_7.setText(_translate("MainWindow", "TextLabel"))
-        self.label_8.setText(_translate("MainWindow", "TextLabel"))
-        self.label_9.setText(_translate("MainWindow", "TextLabel"))
         self.pushButton_2.setText(_translate("MainWindow", "logout"))
         self.pushButton_3.setText(_translate("MainWindow", "get contact"))
         self.pushButton_4.setText(_translate("MainWindow", "sync check"))
@@ -104,3 +90,76 @@ class Ui_MainWindow(object):
         self.pushButton_7.setText(_translate("MainWindow", "create session"))
         self.pushButton_8.setText(_translate("MainWindow", "geturl"))
 
+
+    def addButton(self, fromuser, users):
+        self.fromuser = fromuser
+        MainWindow = self.MainWindow
+        MainWindow.resize(800, 700)
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        _translate = QtCore.QCoreApplication.translate
+        self.leftFiller = QtWidgets.QWidget()
+
+        for user in users :
+            self.pushButton_9 = QtWidgets.QPushButton(self.leftFiller)
+            self.pushButton_9.setGeometry(QtCore.QRect(self.left, self.top, self.width, self.height))
+            self.top = self.top+self.height
+            self.pushButton_9.setObjectName(user['UserName'])
+            if user['RemarkName'] == '':
+                nickName = re.sub(r'<\w.*>', '', user['NickName'])
+                self.pushButton_9.setText(_translate("MainWindow", user['NickName']))
+            else :
+                self.pushButton_9.setText(_translate("MainWindow", user['RemarkName']))
+            self.pushButton_9.released.connect(self.getUserName)
+
+        self.leftFiller.setMinimumSize ( 40, self.top)
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidget(self.leftFiller) 
+        scroll.setWidgetResizable(True)
+
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addWidget(scroll)  
+        self.centralwidget.setLayout(vbox)
+
+
+        self.plainTextEdit = QtWidgets.QPlainTextEdit(self.centralwidget)
+        self.plainTextEdit.setGeometry(QtCore.QRect(230, 10, 441, 181))
+        self.plainTextEdit.setObjectName("plainTextEdit")
+
+        self.label = QtWidgets.QLabel(self.centralwidget)
+        self.label.setGeometry(QtCore.QRect(230, 200, 441, 180))
+        self.label.setObjectName("show picture")
+
+        self.plainTextEdit_1 = QtWidgets.QPlainTextEdit(self.centralwidget)
+        self.plainTextEdit_1.setGeometry(QtCore.QRect(230, 400, 441, 181))
+        self.plainTextEdit_1.setObjectName("plainTextEdit_1")
+
+        self.pushButton_10 = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_10.setGeometry(QtCore.QRect(580, 600, 80, 40))
+        self.pushButton_10.setObjectName('pushButton_10')
+        self.pushButton_10.setText(_translate("MainWindow", '发送' ))
+        self.pushButton_10.released.connect(self.postUserMsg)
+
+        self.pushButton.released.connect(self.postUserMsg)
+        MainWindow.setCentralWidget(self.centralwidget)
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+     
+        return 
+
+
+    def getUserName(self):
+        obj = self.MainWindow.sender()
+        self.plainTextEdit_1.appendPlainText('me say to:'+str(obj.objectName())+':')
+
+        return 
+
+    def postUserMsg(self):
+        self.sysbus = QDBusConnection.systemBus()
+        self.sysiface = QDBusInterface(WXAGENT_SERVICE_NAME, '/io/qtc/wxagent', WXAGENT_IFACE_NAME, self.sysbus)
+        from_username =  self.fromuser.UserName
+        text = self.plainTextEdit_1.toPlainText()
+        paramslist = text.split(':')
+        to_username = paramslist[1]
+        content = paramslist[2]
+        self.sysiface.call('sendmessage', from_username, to_username, content)
+
+        return 

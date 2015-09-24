@@ -1,4 +1,4 @@
-# web weixin protocol
+ #web weixin protocol
 
 import os, sys
 import json, re
@@ -26,6 +26,7 @@ class QRWin(QMainWindow):
         self.uiw.setupUi(self)
 
         self.wxses = None
+        self.fromuser = None
 
         self.sysbus = QDBusConnection.systemBus()
         self.sysiface = QDBusInterface(WXAGENT_SERVICE_NAME, '/io/qtc/wxagent', WXAGENT_IFACE_NAME, self.sysbus)
@@ -47,6 +48,7 @@ class QRWin(QMainWindow):
         self.uiw.pushButton_6.clicked.connect(self.onRefresh, Qt.QueuedConnection)
         self.uiw.pushButton_7.clicked.connect(self.createWXSession, Qt.QueuedConnection)
         self.uiw.pushButton_8.clicked.connect(self.onGetUrl, Qt.QueuedConnection)
+        self.uiw.pushButton_10.clicked.connect(self.postUserMsg, Qt.QueuedConnection)
         return
 
     @pyqtSlot(QDBusMessage)
@@ -179,6 +181,7 @@ class QRWin(QMainWindow):
         data64 = rr.value().encode('utf8')   # to bytes
         data = QByteArray.fromBase64(data64)
         self.wxses.setInitData(data)
+        self.fromuser = self.wxses.me
         self.saveContent('initdata.json', data)
         
         # reply = self.iface.call('getcontact', 123, 'a1', 456)
@@ -189,9 +192,14 @@ class QRWin(QMainWindow):
         data = QByteArray.fromBase64(data64)
         self.wxses.setContact(data)
         self.saveContent('contact.json', data)
+        strhcc = data.data().decode('utf8')
+        qDebug(strhcc[0:120].replace("\n", "\\n"))
+        users = json.JSONDecoder().decode(strhcc)
+        _translate = QtCore.QCoreApplication.translate
+        qDebug('zhangjun test username')
+        self.uiw.addButton( self.fromuser, users['MemberList'])
         
         return
-    
     
     def onQRPicGotten(self, qrpic):
         qDebug(str(len(qrpic)))
@@ -251,15 +259,35 @@ class QRWin(QMainWindow):
         rr = QDBusReply(reply)
         qDebug(str(rr.value()) + ',' + str(type(rr.value())))
         return
+
+    def postUserMsg(self):
+        qDebug('zhangjun test postUserMsg')
+        text = self.uiw.plainTextEdit_1.toPlainText()
+        qDebut(str(text))
+
+        return
     
     def onGetContact(self):
-        self.wx.getContact()
+        #self.wx.getContact()
+        reply = self.sysiface.call('getContact', 123, 'a1', 456)
+        rr = QDBusReply(reply)
+        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
+        data64 = rr.value().encode('utf8')   # to bytes
+        data = QByteArray.fromBase64(data64)
+        self.wxses.setContact(data)
+        self.saveContent('contact.json', data)
         return
     def onSyncCheck(self):
-        self.wx.syncCheck()
+        #self.wx.syncCheck()
+        reply = self.sysiface.call('syncCheck', 123, 'a1', 456)
+        rr = QDBusReply(reply)
+        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
         return
     def onWebSync(self):
-        self.wx.webSync()
+        #self.wxa.webSync()
+        reply = self.sysiface.call('webSync', 123, 'a1', 456)
+        rr = QDBusReply(reply)
+        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
         return
 
     def onGetUrl(self):

@@ -48,7 +48,6 @@ class QRWin(QMainWindow):
         self.uiw.pushButton_6.clicked.connect(self.onRefresh, Qt.QueuedConnection)
         self.uiw.pushButton_7.clicked.connect(self.createWXSession, Qt.QueuedConnection)
         self.uiw.pushButton_8.clicked.connect(self.onGetUrl, Qt.QueuedConnection)
-        self.uiw.pushButton_10.clicked.connect(self.postUserMsg, Qt.QueuedConnection)
         return
 
     @pyqtSlot(QDBusMessage)
@@ -260,12 +259,6 @@ class QRWin(QMainWindow):
         qDebug(str(rr.value()) + ',' + str(type(rr.value())))
         return
 
-    def postUserMsg(self):
-        qDebug('zhangjun test postUserMsg')
-        text = self.uiw.plainTextEdit_1.toPlainText()
-        qDebut(str(text))
-
-        return
     
     def onGetContact(self):
         #self.wx.getContact()

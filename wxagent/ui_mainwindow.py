@@ -95,7 +95,6 @@ class Ui_MainWindow(object):
         self.pushButton_6.setText(_translate("MainWindow", "refresh"))
         self.pushButton_7.setText(_translate("MainWindow", "create session"))
         self.pushButton_8.setText(_translate("MainWindow", "geturl"))
-        self.pushButton_10.setText(_translate("MainWindow", "发送"))
 
 
     def addButton(self, fromuser, users):

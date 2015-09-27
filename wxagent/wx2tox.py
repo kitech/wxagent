@@ -85,7 +85,7 @@ class WX2Tox(QObject):
         self.tox2wx_msg_buffer = []
         self.ftqueue = {}  # file transfer queue, file_number => FileTranItem
 
-        self.wxchatmap = {}  # Uin => Chatroom
+        self.wxchatmap = {}  # cname => Chatroom
         self.toxchatmap = {}  # group_number => Chatroom
         self.wxproto = WXProtocol()
         self.pendingGroupMessages = {}  # group name => msg
@@ -259,9 +259,9 @@ class WX2Tox(QObject):
             return
 
         qDebug('nextline...')
-        print('will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.ToUser.NickName))
+        print('will send wx msg:%s,%s' % (groupchat.ToUser.cname(), groupchat.ToUser.NickName))
         if groupchat.FromUser is not None:
-            print('or will send wx msg:%s,%s' % (groupchat.FromUser.Uin, groupchat.FromUser.NickName))
+            print('or will send wx msg:%s,%s' % (groupchat.FromUser.cname(), groupchat.FromUser.NickName))
         else:
             print('or will send wx msg:%s' % (groupchat.FromUserName))
 
@@ -583,29 +583,6 @@ class WX2Tox(QObject):
             self.dispatchU2UChatToTox(msg, fmtcc)
             pass
 
-        # if msg.FromUser.Uin in self.wxchatmap:
-        #     groupchat = self.wxchatmap[msg.FromUser.Uin]
-        # else:
-        #     group_number = self.toxkit.groupchatAdd()
-        #     groupchat = Chatroom()
-        #     groupchat.group_number = group_number
-        #     groupchat.FromUser = msg.FromUser
-        #     groupchat.ToUser = msg.ToUser
-        #     self.wxchatmap[msg.FromUser.Uin] = groupchat
-        #     self.toxchatmap[group_number] = groupchat
-        #     if msg.ToUser.UserName == 'filehelper':
-        #         groupchat.title = '%s@WXU' % msg.ToUser.NickName
-        #     else:
-        #         groupchat.title = '%s@WXU' % msg.FromUser.NickName
-
-        #     rc = self.toxkit.groupchatSetTitle(group_number, groupchat.title)
-        #     rc = self.toxkit.groupchatInviteFriend(group_number, self.peerToxId)
-        #     if rc != 0: qDebug('invite error')
-
-        # # assert groupchat is not None
-        # rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
-        # if rc != 0: qDebug('group chat send msg error')
-
         return
 
     def dispatchNewsappChatToTox(self, msg, fmtcc):
@@ -640,10 +617,10 @@ class WX2Tox(QObject):
         title = ''
 
         if msg.FromUserName == 'filehelper':
-            mkey = msg.FromUser.Uin
+            mkey = msg.FromUser.UserName
             title = '%s@WXU' % msg.FromUser.NickName
         else:
-            mkey = msg.ToUser.Uin
+            mkey = msg.ToUser.UserName
             title = '%s@WXU' % msg.ToUser.NickName
 
         if mkey in self.wxchatmap:
@@ -683,11 +660,11 @@ class WX2Tox(QObject):
                 QTimer.singleShot(1, self.getBatchGroupAll)
                 return
             else:
-                mkey = msg.FromUser.Uin
+                mkey = msg.FromUser.cname()
                 title = '%s@WXU' % msg.FromUser.NickName
                 if len(msg.FromUser.NickName) == 0:
                     qDebug('maybe a temp group and without nickname')
-                    title = 'TGC%s@WXU' % msg.FromUser.Uin
+                    title = 'TGC%s@WXU' % msg.FromUser.cname()
         else:
             if msg.ToUser is None:
                 qDebug('warning ToUser not found, wxgroup not found:' + msg.ToUserName)
@@ -701,11 +678,11 @@ class WX2Tox(QObject):
                 QTimer.singleShot(1, self.getBatchGroupAll)
                 return
             else:
-                mkey = msg.ToUser.Uin
+                mkey = msg.ToUser.cname()
                 title = '%s@WXU' % msg.ToUser.NickName
                 if len(msg.ToUser.NickName) == 0:
                     qDebug('maybe a temp group and without nickname')
-                    title = 'TGC%s@WXU' % msg.ToUser.Uin
+                    title = 'TGC%s@WXU' % msg.ToUser.cname()
 
         if mkey in self.wxchatmap:
             groupchat = self.wxchatmap[mkey]
@@ -742,11 +719,11 @@ class WX2Tox(QObject):
         # 两个用户，正反向通信，使用同一个groupchat，但需要找到它
         # 这两个用户一定有一个是自己
         if self.wxses.me is not None:
-            if self.wxses.me.Uin == msg.FromUser.Uin:
-                mkey = msg.ToUser.Uin
+            if self.wxses.me.UserName == msg.FromUser.UserName:
+                mkey = msg.ToUser.cname()
                 title = '%s@WXU' % msg.ToUser.NickName
-            if self.wxses.me.Uin == msg.ToUser.Uin:
-                mkey = msg.FromUser.Uin
+            if self.wxses.me.UserName == msg.ToUser.UserName:
+                mkey = msg.FromUser.cname()
                 title = '%s@WXU' % msg.FromUser.NickName
         else:
             qDebug('wtf???')
@@ -910,7 +887,7 @@ class WX2Tox(QObject):
 
         # 一定是发送给对方的消息
         if self.wxses.me is not None:
-            if self.wxses.me.Uin == groupchat.FromUser.Uin:
+            if self.wxses.me.UserName == groupchat.FromUser.UserName:
                 from_username = groupchat.FromUser.UserName
                 to_username = groupchat.ToUser.UserName
             else:
@@ -1090,7 +1067,7 @@ class WX2Tox(QObject):
             grname = contact['UserName']
             if not WXUser.isGroup(grname): continue
 
-            print('uid=%s,un=%s,nn=%s\n' % (contact['Uin'], contact['UserName'], contact['NickName']))
+            print('uid=%s,un=%s,nn=%s\n' % (0, contact['UserName'], contact['NickName']))
             self.wxses.addGroupUser(grname, contact)
             if grname in self.pendingGroupMessages and len(self.pendingGroupMessages[grname]) > 0:
                 while len(self.pendingGroupMessages[grname]) > 0:
@@ -1213,7 +1190,7 @@ class WX2Tox(QObject):
 
     def getMsgFileUrl(self, msg):
         file_name = msg.FileName.replace(' ', '+')
-        args = [msg.FromUserName, msg.MediaId, file_name, self.wxses.me.Uin]
+        args = [msg.FromUserName, msg.MediaId, file_name, 0]
         return self.syncGetRpc('get_msg_file_url', args)
 
     # @param cb(data)
@@ -1269,7 +1246,7 @@ class WX2Tox(QObject):
         FromUser = self.wxses.me
         ToUser = self.wxses.getUserByNickName(nick)
         title = '%s@WXU' % nick
-        mkey = ToUser.Uin
+        mkey = ToUser.cname()
 
         group_number = self.toxkit.groupchatAdd()
         groupchat = Chatroom()

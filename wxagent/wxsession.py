@@ -31,6 +31,9 @@ class WXUser():
     def isMPSub(self):
         return self.Uin == 0 and self.HeadImgUrl == ''
 
+    def cname(self):
+        return self.UserName.strip('@')[0:7]
+
 
 class WXMessage():
 

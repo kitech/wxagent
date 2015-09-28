@@ -13,7 +13,6 @@ class WXUser():
     def __init__(self):
         "docstring"
 
-        self.Uin = 0
         self.UserName = ''
         self.NickName = ''
         self.HeadImgUrl = ''
@@ -29,7 +28,10 @@ class WXUser():
         return p0.startswith('@@')
 
     def isMPSub(self):
-        return self.Uin == 0 and self.HeadImgUrl == ''
+        return self.HeadImgUrl == ''
+
+    def cname(self):
+        return self.UserName.strip('@')[0:7]
 
 
 class WXMessage():
@@ -183,7 +185,6 @@ class WXSession():
 
         uo = self.InitData['User']
         user = WXUser()
-        user.Uin = uo['Uin']
         user.UserName = uo['UserName']
         user.NickName = uo['NickName']
         user.HeadImgUrl = uo['HeadImgUrl']
@@ -199,7 +200,6 @@ class WXSession():
         cnt = 0
         for user in self.parseUsers(self.InitData['ContactList']):
             self.Users[user.UserName] = user
-            self.Users[user.Uin] = user
 
             if not user.isGroup(): continue
             self.ICGroups[user.UserName] = user
@@ -215,13 +215,10 @@ class WXSession():
         cnt = 0
         # ## InitData中的group都是有info的记录，直接存储在Users中
         for uo in self.InitData['ContactList']:
-            user = self.Users[uo['Uin']]
+            user = self.Users[uo['UserName']]
             for mo in self.parseUsers(uo['MemberList']):
                 self.ICUsers[mo.UserName] = mo
-                self.ICUsers[mo.Uin] = mo
-
                 user.members[mo.UserName] = mo
-                user.members[mo.Uin] = mo
                 cnt += 1
 
         qDebug('got %s groups members(not complete) from init data' % str(cnt))
@@ -260,16 +257,13 @@ class WXSession():
         newcnt = 0
         totcnt = 0  # total cnt
         for user in self.parseUsers(jsobj['MemberList']):
-            if user.Uin in self.ICUsers: self.ICUsers.pop(user.Uin)
             if user.UserName in self.ICUsers: self.ICUsers.pop(user.UserName)
 
             if user.UserName in self.Users:
                 self._assignUser(self.Users[user.UserName], user)
-                self.Users[user.Uin] = self.Users[user.UserName]
                 upcnt += 1
             else:
                 self.Users[user.UserName] = user
-                self.Users[user.Uin] = user
                 newcnt += 1
             totcnt += 1
 
@@ -283,15 +277,13 @@ class WXSession():
             user = self._contactElemToUser(contact)
 
             # ## 准备下次获取该群组信息
-            if user.Uin == 0 and user.UserName not in self.Users:
+            if user.UserName not in self.Users:
                 self.addGroupNames([user.UserName])
 
             if user.UserName in self.ICGroups: self.ICGroups.pop(user.UserName)
-            if user.Uin > 0 and user.Uin in self.ICGroups: self.ICGroups.pop(user.Uin)
 
             if user.UserName not in self.Users:
                 self.Users[user.UserName] = user
-                self.Users[user.Uin] = user
             else:
                 self._assignUser(self.Users[user.UserName], user)
 
@@ -300,18 +292,15 @@ class WXSession():
             # ## 更新群组成员列表
             for subuser in self.parseUsers(contact['MemberList']):
                 if subuser.UserName in self.ICUsers: self.ICUsers.pop(subuser.UserName)
-                if subuser.Uin in self.ICUsers: self.ICUsers.pop(subuser.Uin)
 
                 if subuser.UserName not in self.Users:
                     self.Users[subuser.UserName] = subuser
-                    self.Users[subuser.Uin] = subuser
                 else:
                     self._assignUser(self.Users[subuser.UserName], subuser)
 
                 # 加入到group的members列表中
                 if subuser.UserName not in guser.members:
                     guser.members[subuser.UserName] = subuser
-                    guser.members[subuser.Uin] = subuser
 
         return
 
@@ -328,7 +317,6 @@ class WXSession():
         return
 
     def _assignUser(self, t, f):
-        if f.Uin > 0: t.Uin = f.Uin
         if len(f.UserName) > 0: t.UserName = f.UserName
         if len(f.NickName) > 0: t.NickName = f.NickName
         if len(f.HeadImgUrl) > 0: t.HeadImgUrl = f.HeadImgUrl
@@ -338,8 +326,6 @@ class WXSession():
         uo = elem
 
         user = WXUser()
-        if 'Uin' in uo: user.Uin = uo['Uin']
-        else: print('warning contact has not Uin: %s:%s' % (uo['UserName'][0:8], uo['NickName']))
         user.UserName = uo['UserName']
         user.NickName = uo['NickName']
         if 'HeadImgUrl' in uo: user.HeadImgUrl = uo['HeadImgUrl']
@@ -373,12 +359,6 @@ class WXSession():
         if name in self.Users: return self.Users[name]
         qDebug("can not find user:" + str(name))
         return
-
-    # @param uin int
-    def getUserByUin(self, uin):
-        if uin in self.Users: return self.Users[uin]
-        qDebug("can not find user:" + str(uin))
-        return None
 
     # TODO 有可能重名呢？咋办？
     # @param nick str 用户NickName
@@ -429,17 +409,14 @@ class WXSession():
 
     def addGroupUser(self, GroupName, obj):
         user = WXUser()
-        user.Uin = obj['Uin']
         user.UserName = obj['UserName']
         user.NickName = obj['NickName']
 
-        if user.Uin not in self.Users:
-            self.Users[user.Uin] = user
+        if user.UserName not in self.Users:
             self.Users[user.UserName] = user
 
         # 在这还不能从此拿出，因为这个调用无法保证group中所有member信息都是全面的。
         # if user.UserName in self.ICGroups: self.ICGroups.pop(user.UserName)
-        # if user.Uin in self.ICGroups: self.ICGroups.pop(user.Uin)
         return
 
     # 不一定是好友的情况
@@ -457,16 +434,13 @@ class WXSession():
     # @param member json's member node
     def addMember(self, member):
         user = WXUser()
-        user.Uin = member['Uin']
         user.UserName = member['UserName']
         user.NickName = member['NickName']
 
-        if user.Uin not in self.Users:
+        if user.UserName not in self.Users:
             self.Users[user.UserName] = user
-            self.Users[user.Uin] = user
 
         if user.UserName in self.ICUsers: self.ICUsers.pop(user.UserName)
-        if user.Uin in self.ICUsers: self.ICUsers.pop(user.Uin)
         return
 
     # user对象还无NickName的，这种的无法在UI上正常显示NickName

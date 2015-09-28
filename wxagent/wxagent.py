@@ -383,6 +383,11 @@ class WXAgent(QObject):
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
+        elif url.startswith(self.urlStart+'/cgi-bin/mmwebwx-bin/webwxgetvoice?'):
+            if reply in self.asyncQueue:
+                reqno = self.asyncQueue.pop(reply)
+                self.asyncRequestDone.emit(reqno, hcc)
+            ########
         elif url.startswith('http://emoji.qpic.cn/wx_emoji'):
             qDebug('get the picture url that you saved : '+str(len(hcc)))
             self.msgimage = hcc

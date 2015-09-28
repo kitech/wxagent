@@ -3,6 +3,7 @@
 import os, sys
 import json, re
 import enum
+import math
 import hashlib
 
 from PyQt5.QtCore import *
@@ -31,7 +32,10 @@ def md5_file(data):
     return h.hexdigest()
 
 
+# @param data bytes | QByteArray
 def upload_file(data):
+    if type(data) == QByteArray:
+        data = data.data()
     from .secfg import qiniu_acckey, qiniu_seckey, qiniu_bucket_name
     access_key = qiniu_acckey
     secret_key = qiniu_seckey
@@ -559,6 +563,21 @@ class WX2Tox(QObject):
                 logstr += '\n%s' % imgurl
                 self.getMsgImg(msg)
                 self.sendShotPicMessageToTox(msg, logstr)
+            elif msg.MsgType == WXMsgType.MT_X49:
+                if len(msg.MediaId) > 0:
+                    fileurl = self.getMsgFileUrl(msg)
+                    logstr += '> %s' % fileurl
+                    logstr += '\n\nname: %s' % msg.FileName
+                    logstr += '\nsize: %s' % msg.FileSize
+                else:
+                    fileurl = msg.Url
+                    logstr += '> %s' % fileurl
+                    logstr += '\n\nname: %s' % msg.FileName
+                self.sendMessageToTox(msg, logstr)
+            elif msg.MsgType == WXMsgType.MT_VOICE:
+                logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength/1000)
+                self.sendMessageToTox(msg, logstr)
+                self.sendVoiceMessageToTox(msg, logstr)
 
         return
 
@@ -579,8 +598,30 @@ class WX2Tox(QObject):
 
         return
 
-    def sendShotPicMessageToTox(msg, logstr):
+    def sendShotPicMessageToTox(self, msg, logstr):
+        def get_img_reply(data=None):
+            if data is None: return
+            url = upload_file(data)
+            qDebug(url)
 
+            picmsg = 'picmsg url: %s' % url
+            self.sendMessageToTox(msg, picmsg)
+            return
+
+        self.getMsgImgCallback(msg, get_img_reply)
+        return
+
+    def sendVoiceMessageToTox(self, msg, logstr):
+        def get_voice_reply(data=None):
+            if data is None: return
+            url = upload_file(data)
+            qDebug(url)
+
+            voicemsg = 'voicemsg url: %s' % url
+            self.sendMessageToTox(msg, voicemsg)
+            return
+
+        self.getMsgVoiceCallback(msg, get_voice_reply)
         return
 
     def dispatchToToxGroup(self, msg, fmtcc):
@@ -1145,6 +1186,39 @@ class WX2Tox(QObject):
 
         return
 
+    # @param cb(data)
+    def getMsgImgCallback(self, msg, imgcb=None):
+
+        def on_dbus_reply(watcher):
+            qDebug('replyyyyyyyyyyyyyyy')
+            pendReply = QDBusPendingReply(watcher)
+            qDebug(str(watcher))
+            qDebug(str(pendReply.isValid()))
+            if pendReply.isValid():
+                hcc = pendReply.argumentAt(0)
+                qDebug(str(type(hcc)))
+            else:
+                self.asyncWatchers.pop(watcher)
+                if imgcb is not None: imgcb(None)
+                return
+
+            message = pendReply.reply()
+            args = message.arguments()
+
+            self.asyncWatchers.pop(watcher)
+            # send img file to tox client
+            if imgcb is not None: imgcb(args[0])
+
+            return
+
+        args = [msg.MsgId, False]
+        pcall = self.sysiface.asyncCall('get_msg_img', *args)
+        watcher = QDBusPendingCallWatcher(pcall)
+        watcher.finished.connect(on_dbus_reply)
+        self.asyncWatchers[watcher] = '1'
+
+        return
+
     def getMsgImg(self, msg):
 
         def on_dbus_reply(watcher):
@@ -1176,6 +1250,44 @@ class WX2Tox(QObject):
 
     def getMsgImgUrl(self, msg):
         return self.syncGetRpc('get_msg_img_url', [msg.MsgId])
+
+    def getMsgFileUrl(self, msg):
+        file_name = msg.FileName.replace(' ', '+')
+        args = [msg.FromUserName, msg.MediaId, file_name, self.wxses.me.Uin]
+        return self.syncGetRpc('get_msg_file_url', args)
+
+    # @param cb(data)
+    def getMsgVoiceCallback(self, msg, imgcb=None):
+
+        def on_dbus_reply(watcher):
+            qDebug('replyyyyyyyyyyyyyyy')
+            pendReply = QDBusPendingReply(watcher)
+            qDebug(str(watcher))
+            qDebug(str(pendReply.isValid()))
+            if pendReply.isValid():
+                hcc = pendReply.argumentAt(0)
+                qDebug(str(type(hcc)))
+            else:
+                self.asyncWatchers.pop(watcher)
+                if imgcb is not None: imgcb(None)
+                return
+
+            message = pendReply.reply()
+            args = message.arguments()
+
+            self.asyncWatchers.pop(watcher)
+            # send img file to tox client
+            if imgcb is not None: imgcb(args[0])
+
+            return
+
+        args = [msg.MsgId]
+        pcall = self.sysiface.asyncCall('get_msg_voice', *args)
+        watcher = QDBusPendingCallWatcher(pcall)
+        watcher.finished.connect(on_dbus_reply)
+        self.asyncWatchers[watcher] = '1'
+
+        return
 
     # @param name str
     # @param args list

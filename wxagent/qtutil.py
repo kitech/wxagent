@@ -92,6 +92,7 @@ from PyQt5.QtCore import QCoreApplication
 def sigint_handler(a0, a1):
     qApp = QCoreApplication.instance()
     print("SIGINT catched:", a0, a1, qApp)
+    qApp.aboutToQuit.emit()
     qApp.quit()
     sys.exit(0)
 

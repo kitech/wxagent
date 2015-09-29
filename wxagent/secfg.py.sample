@@ -1,0 +1,11 @@
+
+# secret config for wx2xmpp, change to your fit.
+
+xmpp_user = 'abcefg@xmpp.jp'
+xmpp_pass = '1234567'
+peer_xmpp_user = 'kjsifse@xmpp.jp'
+
+qiniu_acckey = ''
+qiniu_seckey = ''
+qiniu_bucket_name = 'xpim'
+

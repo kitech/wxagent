@@ -33,6 +33,9 @@ class WXUser():
     def cname(self):
         return self.UserName.strip('@')[0:7]
 
+    def cname(self):
+        return self.UserName.strip('@')[0:7]
+
 
 class WXMessage():
 

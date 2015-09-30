@@ -118,7 +118,7 @@ class QQAgent(QObject):
             self.verify_code = mats[0][1]
             self.verify_salt = mats[0][2]
             self.verify_verify = mats[0][3]
-            self.verfiy_rand_slat = mats[0][4]
+            self.verify_rand_salt = mats[0][4]
 
             if self.verify_need == '0':
                 qDebug('Verify code:' + self.verify_code)
@@ -432,13 +432,28 @@ class QQAgent(QObject):
         mats = re.findall(exp, outstr.decode())
         return mats[0].lstrip()
 
+    def JSInfoHashInline(self, username, ptwebqq):
+        import execjs
+        jsrts = execjs.available_runtimes()
+        jsrt = execjs.get('Node') if 'Node' in jsrts else None
+
+        hash_js_file = os.path.dirname(os.path.realpath(__file__)) + '/hash.js'
+        hash_js_fp = open(hash_js_file, "r")
+
+        full_js = hash_js_fp.read()
+        ctx = jsrt.compile(full_js)
+        val = ctx.call('P', username, ptwebqq)
+        return val
+
     def getInfoHash(self):
         try:
             if self.info_hash is not None: return self.info_hash
         except Exception as ex:
+            type(ex)
             pass
 
-        self.info_hash = self.JSInfoHash(self.username, self.ptwebqq)
+        # self.info_hash = self.JSInfoHash(self.username, self.ptwebqq)
+        self.info_hash = self.JSInfoHashInline(self.username, self.ptwebqq)
         return self.info_hash
 
     def doJSLogin(self):

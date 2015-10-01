@@ -70,17 +70,13 @@ class WX2Tox(QObject):
         super(WX2Tox, self).__init__(parent)
 
         self.wxses = None
-        self.toxkit = None
-        self.peerToxId = '398C8161D038FD328A573FFAA0F5FAAF7FFDE5E8B4350E7D15E6AFD0B993FC529FA90C343627'
-
         self.peerRelay = None
-
 
         # #### state
         self.qrpic = None  # QByteArray
         self.qrfile = ''
-        self.need_send_qrfile = False   # 有可能toxkit还未上线
-        self.need_send_notify = False   # 有可能toxkit还未上线
+        self.need_send_qrfile = False   # 有可能peerRelay还未上线
+        self.need_send_notify = False   # 有可能peerRelay还未上线
         self.notify_buffer = []
         self.wx2tox_msg_buffer = []  # 存储未转发到tox的消息
         self.tox2wx_msg_buffer = []
@@ -111,7 +107,6 @@ class WX2Tox(QObject):
         self.asyncWatchers = {}   # watcher => arg0
 
         self.initRelay()
-        # self.initToxnet()
         self.startWXBot()
         return
 
@@ -183,89 +178,8 @@ class WX2Tox(QObject):
         self.uicmdHandler(msg)
         return
 
-    def onRelayGroupMessage(self):
-        qDebug('hehee')
-        return
-
-    def onToxnetConnectStatus(self, status):
-        qDebug(str(status))
-        friendId = self.peerToxId
-        fexists = self.toxkit.friendExists(friendId)
-        qDebug(str(fexists))
-
-        famsg = 'from qq2tox...'
-        if not fexists:
-            friend_number = self.toxkit.friendAdd(friendId, famsg)
-            qDebug(str(friend_number))
-        else:
-            # rc = self.toxkit.friendDelete(friendId)
-            # qDebug(str(rc))
-            try:
-                True
-                # friend_number = self.toxkit.friendAddNorequest(friendId)
-                # qDebug(str(friend_number))
-            except Exception as ex:
-                pass
-            # self.toxkit.friendAddNorequest(friendId)
-            pass
-
-        return
-
-    def onToxnetMessage(self, friendId, msgtype, msg):
-        qDebug(friendId + ':' + str(msgtype) + '=' + str(len(msg)))
-
-        # 汇总消息好友发送过来的消息当作命令处理
-        # getqrcode
-        # islogined
-        # 等待，总之是wxagent支持的命令，
-
-        self.uicmdHandler(msg)
-
-        return
-
-    def onToxnetFriendStatus(self, friendId, status):
-        qDebug(friendId + ':' + str(status))
-
-        if status > 0 and self.need_send_notify is True:
-            blen = len(self.notify_buffer)
-            while len(self.notify_buffer) > 0:
-                notify_msg = self.notify_buffer.pop()
-                self.toxkit.sendMessage(self.peerToxId, notify_msg)
-                qDebug('send buffered notify msg: %s' % blen)
-            self.need_send_notify = False
-
-        if status > 0 and len(self.wx2tox_msg_buffer) > 0:
-            blen = len(self.wx2tox_msg_buffer)
-            while len(self.wx2tox_msg_buffer) > 0:
-                msg = self.wx2tox_msg_buffer.pop()
-                mid = self.toxkit.sendMessage(self.peerToxId, msg)
-                # ## TODO 如果发送失败，这条消息可就丢失了。
-            qDebug('send buffered wx2tox msg: %s' % blen)
-
-        return
-
-    def onToxnetFileChunkReuqest(self, friendId, file_number, position, length):
-        if qrand() % 7 == 1:
-            qDebug('fn=%s,pos=%s,len=%s' % (file_number, position, length))
-
-        if position >= len(self.qrpic):
-            qDebug('warning exceed file size: finished.')
-            # self.toxkit.fileControl(friendId, file_number, 2)  # CANCEL
-            return
-
-        chunk = self.qrpic[position:(position + length)]
-        self.toxkit.fileSendChunk(friendId, file_number, position, chunk)
-        return
-
-    def onToxnetFileRecvControl(self, friendId, file_number, control):
-        qDebug('fn=%s,ctl=%s,' % (file_number, control))
-
-        return
-
-    def onToxnetGroupMessage(self, group_number, peer_number, message):
-        qDebug('nextline...')
-        print('gn=%s,pn=%s,mlen=%s,mp=%s' % (group_number, peer_number, len(message), message[0:27]))
-
+    def onRelayGroupMessage(self, group_number, message):
+        qDebug('hehee' + str(group_number))
         groupchat = None
         if group_number in self.toxchatmap:
             groupchat = self.toxchatmap[group_number]
@@ -280,53 +194,20 @@ class WX2Tox(QObject):
         else:
             print('or will send wx msg:%s' % (groupchat.FromUserName))
 
-        if peer_number == 0:  # it myself sent message, omit
-            pass
-        else:
-            self.sendMessageToWX(groupchat, message)
-
+        peer_number = 'jaoijfiwafaewf'
         # TODO 把从各群组来的发给WX端的消息，同步再发送给tox汇总端一份。也就是tox的唯一peer端。
         # TODO 如果是从wx2tox转过去的消息，这里也会再次收到，所以，会向tox汇总端重复发一份了，需要处理。
         try:
             if peer_number == 0: pass  # it myself sent message, omit
-            else: mid = self.toxkit.sendMessage(self.peerToxId, message)
+            else:
+                self.peerRelay.sendMessage(message, self.peerRelay.peer_user)
         except Exception as ex:
             qDebug('send msg error: %s' % str(ex))
 
-        return
-
-    def onToxnetGroupNamelistChanged(self, group_number, peer_number, change):
-        qDebug(str(change))
-
-        # TODO group number count == 2
-        number_peers = self.toxkit.groupNumberPeers(group_number)
-        if number_peers == 0:
-            qDebug('why 0?')
-        elif number_peers == 1:
-            qDebug('myself added')
-        elif number_peers == 2:
-            qDebug('toxpeer added')
+        if peer_number == 0:  # it myself sent message, omit
+            pass
         else:
-            qDebug('wtf?')
-
-        qDebug('np: %d' % number_peers)
-        if number_peers != 2: return
-
-        groupchat = self.toxchatmap[group_number]
-        qDebug('unsend queue: %s ' % len(groupchat.unsend_queue))
-
-        unsends = groupchat.unsend_queue
-        groupchat.unsend_queue = []
-
-        idx = 0
-        for fmtcc in unsends:
-            # assert groupchat is not None
-            rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
-            if rc != 0:
-                qDebug('group chat send msg error:%s, %d' % (str(rc), idx))
-                # groupchat.unsend_queue.append(fmtcc)  # 也许是这个函数返回值有问题，即使返回错误也可能发送成功。
-            idx += 1
-
+            self.sendMessageToWX(groupchat, message)
         return
 
     # @param msg str
@@ -339,7 +220,7 @@ class WX2Tox(QObject):
         if msg.startswith("'help"):
             friendId = self.peerToxId
             uicmds = ["'help", "'qqnum <num>", "'passwd <pwd[|vfcode]>'", ]
-            self.toxkit.sendMessage(friendId, "\n".join(uicmds))
+            self.peerRelay.sendMessage("\n".join(uicmds), self.peerRelay.peer_user)
             pass
         elif msg.startswith("'qqnum"):
             qqnum = msg[6:].strip()
@@ -654,29 +535,6 @@ class WX2Tox(QObject):
             self.dispatchU2UChatToTox(msg, fmtcc)
             pass
 
-        # if msg.FromUser.Uin in self.wxchatmap:
-        #     groupchat = self.wxchatmap[msg.FromUser.Uin]
-        # else:
-        #     group_number = self.toxkit.groupchatAdd()
-        #     groupchat = Chatroom()
-        #     groupchat.group_number = group_number
-        #     groupchat.FromUser = msg.FromUser
-        #     groupchat.ToUser = msg.ToUser
-        #     self.wxchatmap[msg.FromUser.Uin] = groupchat
-        #     self.toxchatmap[group_number] = groupchat
-        #     if msg.ToUser.UserName == 'filehelper':
-        #         groupchat.title = '%s@WQU' % msg.ToUser.NickName
-        #     else:
-        #         groupchat.title = '%s@WQU' % msg.FromUser.NickName
-
-        #     rc = self.toxkit.groupchatSetTitle(group_number, groupchat.title)
-        #     rc = self.toxkit.groupchatInviteFriend(group_number, self.peerToxId)
-        #     if rc != 0: qDebug('invite error')
-
-        # # assert groupchat is not None
-        # rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
-        # if rc != 0: qDebug('group chat send msg error')
-
         return
 
     def dispatchNewsappChatToTox(self, msg, fmtcc):
@@ -691,14 +549,13 @@ class WX2Tox(QObject):
             groupchat = self.wxchatmap[mkey]
             # assert groupchat is not None
             # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
-            number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
+            number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
                 ### reinvite peer into group
-                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)
+                self.peerRelay.groupInvite(groupchat.group_number, self.peerRelay.peer_user)
             else:
-                rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
-                if rc != 0: qDebug('group chat send msg error')
+                self.peerRelay.sendGroupMessage(fmtcc, groupchat.group_number)
         else:
             groupchat = self.createChatroom(msg, mkey, title)
             groupchat.unsend_queue.append(fmtcc)
@@ -721,14 +578,13 @@ class WX2Tox(QObject):
             groupchat = self.wxchatmap[mkey]
             # assert groupchat is not None
             # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
-            number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
+            number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
                 ### reinvite peer into group
-                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)
+                self.peerRelay.groupInvite(groupchat.group_number, self.peerRelay.peer_user)
             else:
-                rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
-                if rc != 0: qDebug('group chat send msg error:%s' % str(rc))
+                self.peerRelay.sendGroupMessage(fmtcc, groupchat.group_number)
         else:
             groupchat = self.createChatroom(msg, mkey, title)
             groupchat.unsend_queue.append(fmtcc)
@@ -781,14 +637,13 @@ class WX2Tox(QObject):
             groupchat = self.wxchatmap[mkey]
             # assert groupchat is not None
             # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
-            number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
+            number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
                 ### reinvite peer into group
-                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)
+                self.peerRelay.groupInvite(groupchat.group_number, self.peerRelay.peer_user)
             else:
-                rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
-                if rc != 0: qDebug('group chat send msg error: %s' % str(rc))
+                self.peerRelay.sendGroupMessage(fmtcc, groupchat.group_number)
         else:
             # TODO 如果是新创建的groupchat，则要等到groupchat可用再发，否则会丢失消息
             groupchat = self.createChatroom(msg, mkey, title)
@@ -836,14 +691,13 @@ class WX2Tox(QObject):
             groupchat = self.wxchatmap[mkey]
             # assert groupchat is not None
             # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
-            number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
+            number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
                 ### reinvite peer into group
-                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)
+                self.peerRelay.groupInvite(groupchat.group_number, self.peerRelay.peer_user)
             else:
-                rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
-                if rc != 0: qDebug('group chat send msg error: %s' % str(rc))
+                self.peerRelay.sendGroupMessage(fmtcc, groupchat.group_number)
         else:
             # TODO 如果是新创建的groupchat，则要等到groupchat可用再发，否则会丢失消息
             groupchat = self.createChatroom(msg, mkey, title)
@@ -912,10 +766,6 @@ class WX2Tox(QObject):
         groupchat.ServiceType = msg.ServiceType
 
         self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
-
-        # rc = self.toxkit.groupchatSetTitle(group_number, groupchat.title)
-        # rc = self.toxkit.groupchatInviteFriend(group_number, self.peerToxId)
-        # if rc != 0: qDebug('invite error')
 
         return groupchat
 
@@ -1304,6 +1154,7 @@ class WX2Tox(QObject):
         ######
         hcc = args[0]  # QByteArray
         strhcc = self.hcc2str(hcc)
+        qDebug(strhcc.encode())
         hccjs = json.JSONDecoder().decode(strhcc)
         print(extrainfo, ':::', strhcc)
 
@@ -1316,24 +1167,24 @@ class WX2Tox(QObject):
             for um in hccjs['result']['gnamelist']:
                 gcode = um['code']
                 gname = um['name']
-                qDebug('get group detail...' + str(um))
+                qDebug(b'get group detail...' + str(um).encode())
                 pcall = self.sysiface.asyncCall('get_group_detail', gcode, 'a0', 123, 'a1')
                 twatcher = QDBusPendingCallWatcher(pcall)
                 twatcher.finished.connect(self.onGetGroupOrDiscusDetailDone, Qt.QueuedConnection)
                 self.asyncWatchers[twatcher] = 'get_group_detail'
-                qDebug('get group detail...' + str(um) + str(twatcher))
+                qDebug(b'get group detail...' + str(um).encode() + str(twatcher).encode())
 
         if extrainfo == 'getdiscuslist':
             self.wxses.setDiscusList(hcc)
             for um in hccjs['result']['dnamelist']:
                 did = um['did']
                 dname = um['name']
-                qDebug('get discus detail...' + str(um))
+                qDebug(b'get discus detail...' + str(um).encode())
                 pcall = self.sysiface.asyncCall('get_discus_detail', did, 'a0', 123, 'a1')
                 twatcher = QDBusPendingCallWatcher(pcall)
                 twatcher.finished.connect(self.onGetGroupOrDiscusDetailDone, Qt.QueuedConnection)
                 self.asyncWatchers[twatcher] = 'get_discus_detail'
-                qDebug('get discus detail...' + str(um) + str(twatcher))
+                qDebug(b'get discus detail...' + str(um).encode() + str(twatcher).encode())
 
         self.asyncWatchers.pop(watcher)
         return
@@ -1555,21 +1406,21 @@ class WX2Tox(QObject):
 
         try:
             astr = hcc.data().decode('gkb')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode gbk error:')
 
         try:
             astr = hcc.data().decode('utf16')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode utf16 error:')
 
         try:
             astr = hcc.data().decode('utf8')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode utf8 error:')

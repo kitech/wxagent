@@ -345,7 +345,7 @@ class WXSession():
         hcc = self.GroupRawList
 
         strhcc = hcc.data().decode()
-        qDebug(strhcc[0:120].replace("\n", "\\n"))
+        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
         jsobj = json.JSONDecoder().decode(strhcc)
         self.GroupList = jsobj
 
@@ -355,7 +355,7 @@ class WXSession():
             user.UserName = str(grp['gid'])
             user.NickName = grp['name']
             user.UserType = UT_GROUP
-            qDebug('got group:' + str(user.NickName))
+            qDebug(b'got group:' + str(user.NickName).encode())
 
             self.Users[user.Uin] = user
             self.Users[user.UserName] = user
@@ -372,7 +372,7 @@ class WXSession():
         hcc = self.DiscusRawList
 
         strhcc = hcc.data().decode()
-        qDebug(strhcc[0:120].replace("\n", "\\n"))
+        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
         jsobj = json.JSONDecoder().decode(strhcc)
         self.GroupList = jsobj
 
@@ -382,7 +382,7 @@ class WXSession():
             user.UserName = str(grp['did'])
             user.NickName = grp['name']
             user.UserType = UT_DISCUS
-            qDebug('got discus:' + str(user.NickName))
+            qDebug(b'got discus:' + str(user.NickName).encode())
 
             self.Users[user.Uin] = user
             self.Users[user.UserName] = user
@@ -541,21 +541,21 @@ class WXSession():
 
         try:
             astr = hcc.data().decode('gkb')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode gbk error:')
 
         try:
             astr = hcc.data().decode('utf16')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode utf16 error:')
 
         try:
             astr = hcc.data().decode('utf8')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode utf8 error:')

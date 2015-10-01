@@ -111,7 +111,9 @@ class WX2Tox(QObject):
         return
 
     def initRelay(self):
-        self.peerRelay = IMRelayFactory.create('xmpp')
+        # self.peerRelay = IMRelayFactory.create('xmpp')
+        self.peerRelay = IMRelayFactory.create('tox')
+        self.peerRelay.src_pname = 'WXQ'
 
         relay = self.peerRelay
         relay.connected.connect(self.onRelayConnected, Qt.QueuedConnection)
@@ -741,7 +743,7 @@ class WX2Tox(QObject):
     def createChatroom(self, msg, mkey, title):
 
         group_number = ('WXU.%s' % mkey).lower()
-        group_number = self.peerRelay.createChatroom(mkey, title).lower()
+        group_number = self.peerRelay.createChatroom(mkey, title)
         groupchat = Chatroom()
         groupchat.group_number = group_number
         groupchat.FromUser = msg.FromUser

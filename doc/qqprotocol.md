@@ -81,5 +81,6 @@ w.qq与手机qq能够保证都收到消息，但是手机上发送的消息不�
 ### 参考：
 
 https://github.com/xhan/qqbot/blob/master/protocol.md
+
 https://github.com/zeruniverse/GnomeQQ/blob/master/PROTOCOL.md
 

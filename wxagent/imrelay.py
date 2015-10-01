@@ -21,6 +21,7 @@ class IMRelay(QThread):
     def __init__(self, parent=None):
         super(IMRelay, self).__init__(parent)
         self.src_pname = 'WXU.or.WQU'  # src proto name
+        self.relay_tail = ''  # like  -- from tox/xmpp
         return
 
     # @return True|False

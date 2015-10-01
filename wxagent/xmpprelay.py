@@ -12,7 +12,6 @@ from PyQt5.QtCore import *
 
 import sleekxmpp
 
-from .filestore import upload_file
 from .imrelay import IMRelay
 
 
@@ -21,7 +20,7 @@ class XmppRelay(IMRelay):
     def __init__(self, parent=None):
         super(XmppRelay, self).__init__(parent)
 
-        self.src_pname = 'WQU'
+        self.src_pname = ''
 
         self.self_user = ''
         self.peer_user = ''
@@ -71,7 +70,7 @@ class XmppRelay(IMRelay):
     def createChatroom(self, room_key, title):
         room_ident = '%s.%s' % (self.src_pname, room_key)
         self.create_muc2(room_ident, title)
-        return room_ident
+        return room_ident.lower()
 
     def groupInvite(self, group_number, peer):
         self.muc_invite(group_number, peer)

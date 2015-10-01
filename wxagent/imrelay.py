@@ -5,7 +5,7 @@ from abc import ABCMeta,abstractmethod
 from PyQt5.QtCore import *
 
 
-class IMRelay(QObject):
+class IMRelay(QThread):
 
     __metaclass__ = ABCMeta
 
@@ -19,7 +19,7 @@ class IMRelay(QObject):
     newGroupMessage = pyqtSignal('QString', 'QString')  # group identifier, msg
 
     def __init__(self, parent=None):
-        supert(self, IMRelay).__init__(parent)
+        super(IMRelay, self).__init__(parent)
 
     # @return True|False
     @abstractmethod
@@ -44,4 +44,12 @@ class IMRelay(QObject):
     # @return True|False
     @abstractmethod
     def sendImageMessage(self, msg, peer):
+        return
+
+    @abstractmethod
+    def disconnectIt(self):
+        return
+
+    @abstractmethod
+    def isConnected(self):
         return

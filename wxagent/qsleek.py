@@ -9,6 +9,7 @@ from PyQt5.QtCore import *
 import sleekxmpp
 
 
+# 本类实现转换到Qt接口的功能，并不做其他的处理
 # 无法使用多继承，SleekXMPP的方法与QObject的方法冲突
 class QSleek(QThread):
     connected = pyqtSignal()

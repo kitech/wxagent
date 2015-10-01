@@ -120,6 +120,7 @@ class QQAgent(QObject):
             self.verify_verify = mats[0][3]
             self.verify_rand_salt = mats[0][4]
 
+            qDebug('Verify salt:' + self.verify_salt)
             if self.verify_need == '0':
                 qDebug('Verify code:' + self.verify_code)
                 cookies = reply.rawHeader(b'Set-Cookie')
@@ -410,10 +411,10 @@ class QQAgent(QObject):
         return
 
     # @return str
-    def JSVerifyCalc(self, username, password, verify_code):
+    def JSVerifyCalc(self, password, verify_salt, verify_code):
         import subprocess
         outstr = ''
-        cmd = ['wxagent/qqjsverify.py', 'jsverify', username, password, verify_code]
+        cmd = ['wxagent/qqjsverify.py', 'jsverify', password, verify_salt, verify_code]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         outstr, errstr = process.communicate()
         print(outstr)
@@ -421,10 +422,10 @@ class QQAgent(QObject):
         mats = re.findall(exp, outstr.decode())
         return mats[0].lstrip()
 
-    def JSInfoHash(self, username, ptwebqq):
+    def JSInfoHash(self, uin, ptwebqq):
         import subprocess
         outstr = ''
-        cmd = ['wxagent/qqjsverify.py', 'infohash', username, ptwebqq]
+        cmd = ['wxagent/qqjsverify.py', 'infohash', uin, ptwebqq]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         outstr, errstr = process.communicate()
         print(outstr)
@@ -432,20 +433,34 @@ class QQAgent(QObject):
         mats = re.findall(exp, outstr.decode())
         return mats[0].lstrip()
 
-    def JSInfoHashInline(self, username, ptwebqq):
+    # @return str
+    def JSVerifyCalcInline(self, password, verify_salt, verify_code):
         import execjs
         jsrts = execjs.available_runtimes()
         jsrt = execjs.get('Node') if 'Node' in jsrts else None
 
-        hash_js_file = os.path.dirname(os.path.realpath(__file__)) + '/hash.js'
+        hash_js_file = os.path.dirname(os.path.realpath(__file__)) + '/encrypt.js'
         hash_js_fp = open(hash_js_file, "r")
 
         full_js = hash_js_fp.read()
         ctx = jsrt.compile(full_js)
-        val = ctx.call('P', username, ptwebqq)
+        val = ctx.call('encryption', password, verify_salt, verify_code)
         return val
 
-    def getInfoHash(self):
+    def JSInfoHashInline(self, uin, ptwebqq):
+        import execjs
+        jsrts = execjs.available_runtimes()
+        jsrt = execjs.get('Node') if 'Node' in jsrts else None
+
+        hash_js_file = os.path.dirname(os.path.realpath(__file__)) + '/encrypt.js'
+        hash_js_fp = open(hash_js_file, "r")
+
+        full_js = hash_js_fp.read()
+        ctx = jsrt.compile(full_js)
+        val = ctx.call('P', uin, ptwebqq)
+        return val
+
+    def getInfoHash(self, uin, ptwebqq):
         try:
             if self.info_hash is not None: return self.info_hash
         except Exception as ex:
@@ -453,7 +468,7 @@ class QQAgent(QObject):
             pass
 
         # self.info_hash = self.JSInfoHash(self.username, self.ptwebqq)
-        self.info_hash = self.JSInfoHashInline(self.username, self.ptwebqq)
+        self.info_hash = self.JSInfoHashInline(uin, ptwebqq)
         return self.info_hash
 
     def doJSLogin(self):
@@ -464,8 +479,13 @@ class QQAgent(QObject):
             use_verify_code = self.input_verify_code
         else:
             use_verify_code = self.verify_code
-        self.p = self.JSVerifyCalc(self.password, self.verify_salt, use_verify_code)
-        qDebug(self.p)
+        p2 = self.JSVerifyCalc(self.password, self.verify_salt, use_verify_code)
+        p22 = self.JSVerifyCalc(self.password, self.verify_salt, use_verify_code)
+        qDebug(p2 + ',,,' + p22)
+        p3 = self.JSVerifyCalcInline(self.password, self.verify_salt, use_verify_code)
+        p32 = self.JSVerifyCalcInline(self.password, self.verify_salt, use_verify_code)
+        qDebug(p3 + ',,,' + p32)
+        self.p = p2
 
         # http%%3A%%2F%%2Fw.qq.com%%2Fproxy.html%%3Flogin2qq%%3D1%%26webqq_type%%3D10
         # http://w.qq.com/proxy.html?login2qq=1&webqq_type=10

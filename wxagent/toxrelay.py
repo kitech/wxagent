@@ -8,4 +8,4 @@ from .imrelay import IMRelay
 class ToxRelay(IMRelay):
 
     def __init__(self, parent=None):
-        supert(self, ToxRelay).__init__(parent)
+        super(ToxRelay, self).__init__(parent)

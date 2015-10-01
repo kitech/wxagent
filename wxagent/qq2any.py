@@ -8,6 +8,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
 from PyQt5.QtDBus import *
 
+import wxagent.filestore as filestore
 from .imrelayfactory import IMRelayFactory
 from .qqcom import *
 from .qqsession import *
@@ -133,7 +134,7 @@ class WX2Tox(QObject):
 
         if self.need_send_qrfile is True:
             # from .secfg import peer_xmpp_user
-            url = upload_file(self.qrpic.data())
+            url = filestore.upload_file(self.qrpic.data())
             self.peerRelay.sendMessage('test qrpic url....' + url,
                                        self.peerRelay.peer_user)
             self.need_send_qrfile = False
@@ -410,25 +411,25 @@ class WX2Tox(QObject):
         #         self.need_send_request_username = True
 
         ### 无论是否登陆，启动的都发送一次qrcode文件
-        # qrpic = self.getQRCode()
-        # if qrpic is None:
-        #     qDebug('maybe wxagent not run...')
-        #     pass
-        # else:
-        #     fname = self.genQRCodeSaveFileName()
-        #     self.saveContent(fname, qrpic)
+        qrpic = self.getQRCode()
+        if qrpic is None:
+            qDebug('maybe wxagent not run...')
+            pass
+        else:
+            fname = self.genQRCodeSaveFileName()
+            self.saveContent(fname, qrpic)
 
-        #     self.qrpic = qrpic
-        #     self.qrfile = fname
+            self.qrpic = qrpic
+            self.qrfile = fname
 
-        #     tkc = False
-        #     if self.toxkit is not None:  tkc = self.toxkit.isConnected()
-        #     if tkc is True:
-        #         friendId = self.peerToxId
-        #         fsize = len(qrpic)
-        #         self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
-        #     else:
-        #         self.need_send_qrfile = True
+            tkc = False
+            tkc = self.peerRelay.isConnected()
+            if tkc is True:
+                url = filestore.upload_file(self.qrpic)
+                self.peerRelay.sendMessage('qrcode url:' + url,
+                                           self.peerRelay.peer_user)
+            else:
+                self.need_send_qrfile = True
 
         # if logined is True: self.createWXSession()
         return
@@ -474,6 +475,7 @@ class WX2Tox(QObject):
 
     @pyqtSlot(QDBusMessage)
     def onDBusGotQRCode(self, message):
+        qDebug('hereee')
         args = message.arguments()
         # qDebug(str(message.arguments()))
         qrpic64str = args[1]
@@ -485,11 +487,11 @@ class WX2Tox(QObject):
         self.qrfile = fname
 
         tkc = False
-        if self.toxkit is not None:  tkc = self.toxkit.isConnected()
+        tkc = self.peerRelay.isConnected()
         if tkc is True:
-            friendId = self.peerToxId
-            fsize = len(qrpic)
-            self.toxkit.fileSend(friendId, fsize, self.getBaseFileName(fname))
+            url = filestore.upload_file(self.qrpic)
+            self.peerRelay.sendMessage('qrpic url:' + url,
+                                       self.peerRelay.peer_user)
         else:
             self.need_send_qrfile = True
 
@@ -610,11 +612,12 @@ class WX2Tox(QObject):
         return
 
     def sendMessageToTox(self, msg, fmtcc):
-        fstatus = self.toxkit.friendGetConnectionStatus(self.peerToxId)
-        if fstatus > 0:
+        fstatus = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
+        # qDebug(str(fstatus))
+        if fstatus is True:
             try:
                 # 把收到的消息发送到汇总tox端
-                mid = self.toxkit.sendMessage(self.peerToxId, fmtcc)
+                self.peerRelay.sendMessage(fmtcc, self.peerRelay.peer_user)
             except Exception as ex:
                 qDebug(b'tox send msg error: ' + bytes(str(ex), 'utf8'))
             ### dispatch by MsgId
@@ -850,33 +853,32 @@ class WX2Tox(QObject):
 
     def dispatchU2UChatToTox(self, msg, fmtcc):
         groupchat = None
-        mkeys = None
+        mkey = None
         title = ''
 
         # 两个用户，正反向通信，使用同一个groupchat，但需要找到它
-        mkeys = ['%s&%s' %(msg.FromUser.Uin, msg.ToUser.Uin),
-                 '%s&%s' %(msg.ToUser.Uin, msg.FromUser.Uin)]
-        title = '%s@WQU' % msg.FromUser.NickName
+        if msg.FromUser.Uin == self.wxses.me.Uin:
+            mkey = msg.ToUser.Uin
+            title = '%s@WQU' % msg.ToUser.NickName
+        else:
+            mkey = msg.FromUser.Uin
+            title = '%s@WQU' % msg.FromUser.NickName
 
         # TODO 可能有一个计算交集的函数吧
-        for mkey in mkeys:
-            if mkey in self.wxchatmap:
-                groupchat = self.wxchatmap[mkey]
-                break
+        if mkey in self.wxchatmap:
+            groupchat = self.wxchatmap[mkey]
 
         if groupchat is not None:
             # assert groupchat is not None
             # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
-            number_peers = self.toxkit.groupNumberPeers(groupchat.group_number)
+            number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
                 groupchat.unsend_queue.append(fmtcc)
                 ### reinvite peer into group
-                rc = self.toxkit.groupchatInviteFriend(groupchat.group_number, self.peerToxId)
+                self.peerRelay.groupInvite(groupchat.group_number, self.peerRelay.peer_user)
             else:
-                rc = self.toxkit.groupchatSendMessage(groupchat.group_number, fmtcc)
-                if rc != 0: qDebug('group chat send msg error')
+                self.peerRelay.sendGroupMessage(fmtcc, groupchat.group_number)
         else:
-            mkey = mkeys[0]
             groupchat = self.createChatroom(msg, mkey, title)
             groupchat.unsend_queue.append(fmtcc)
 
@@ -884,7 +886,8 @@ class WX2Tox(QObject):
 
     def createChatroom(self, msg, mkey, title):
 
-        group_number = self.toxkit.groupchatAdd()
+        group_number = ('WXU.%s' % mkey).lower()
+        group_number = self.peerRelay.createChatroom(mkey, title).lower()
         groupchat = Chatroom()
         groupchat.group_number = group_number
         groupchat.FromUser = msg.FromUser
@@ -908,9 +911,11 @@ class WX2Tox(QObject):
         groupchat.Gid = msg.Gid
         groupchat.ServiceType = msg.ServiceType
 
-        rc = self.toxkit.groupchatSetTitle(group_number, groupchat.title)
-        rc = self.toxkit.groupchatInviteFriend(group_number, self.peerToxId)
-        if rc != 0: qDebug('invite error')
+        self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
+
+        # rc = self.toxkit.groupchatSetTitle(group_number, groupchat.title)
+        # rc = self.toxkit.groupchatInviteFriend(group_number, self.peerToxId)
+        # if rc != 0: qDebug('invite error')
 
         return groupchat
 

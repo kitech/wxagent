@@ -27,6 +27,7 @@ class QQAgent(QObject):
 
         self.connState = CONN_STATE_NONE
         self.logined = False
+        self.appid = "501004106"
         self.qruuid = ''
         self.devid = 'e669767113868187'
         self.qrpic = b''   # QByteArray
@@ -56,6 +57,7 @@ class QQAgent(QObject):
 
         self.connState = CONN_STATE_NONE
         self.logined = False
+        self.appid = "501004106"
         self.qruuid = ''
         self.devid = 'e669767113868187'
         self.qrpic = b''   # QByteArray
@@ -102,9 +104,10 @@ class QQAgent(QObject):
         if url.startswith('https://ui.ptlogin2.qq.com/cgi-bin/login?'):
 
             self.connState = CONN_STATE_WANT_USERNAME
-            self.emitDBusWantQQNum()
+            # self.emitDBusWantQQNum()
             # self.checkNeedVerify()
 
+            self.requestQRCode()
             ########
         elif url.startswith('https://ssl.ptlogin2.qq.com/check?'):
 
@@ -225,6 +228,49 @@ class QQAgent(QObject):
             self.loginGetVerifyWebQQ()
 
             ########
+        elif url.startswith('https://ssl.ptlogin2.qq.com/ptqrshow?'):
+            qDebug('get qr code done')
+
+            self.qrpic = hcc
+
+            self.qrsig = self.getCookie4(reply.rawHeader(b'Set-Cookie'), 'qrsig')
+            qDebug(self.qrsig)
+
+            self.qrpicGotten.emit(hcc)
+            self.emitDBusGotQRCode()
+
+            self.qrpic_show_begin_time = QDateTime.currentDateTime()
+            self.pollLogin()
+            ########
+        elif url.startswith('https://ssl.ptlogin2.qq.com/ptqrlogin?'):
+            qDebug('poll qr login...')
+            qDebug(hcc)
+
+            strhcc = self.hcc2str(hcc)
+            # parse content
+            # ptuiCB('66','0','','0','二维码未失效。(1451238424)', '');
+            exp = r"ptuiCB\('(\d+)','(\d+)','(.*)','(\d+)','(.+)', '(.*)'\);"
+            mats = re.findall(exp, strhcc)
+            qDebug(str(mats).encode())
+
+            ptcode = mats[0][0]
+
+            if ptcode == '66':
+                QTimer.singleShot(2345, self.pollLogin)
+            elif ptcode == '67':
+                QTimer.singleShot(2345, self.pollLogin)
+            elif ptcode == '65':
+                self.qrpic_show_expire_time = QDateTime.currentDateTime()
+                qDebug(str(self.qrpic_show_begin_time.secsTo(self.qrpic_show_expire_time)))
+                QTimer.singleShot(567, self.requestQRCode)
+                pass
+            elif ptcode == '0':
+                self.ptwebqq = self.getCookie4(reply.rawHeader(b'Set-Cookie'), 'ptwebqq')
+                qDebug('ptwebqq:' + self.ptwebqq)
+                self.check_sig_url = mats[0][2]
+                self.loginCheckSig()
+                pass
+            ########
         elif url.startswith('http://s.web2.qq.com/api/getvfwebqq?'):
             qDebug('getvfwebqq done')
             qDebug(hcc[0:120])
@@ -306,6 +352,12 @@ class QQAgent(QObject):
         elif url.startswith('http://s.web2.qq.com/api/get_self_info2?'):
             self.selfRawData = hcc
             qDebug('this is myself')
+
+            # parse me
+            strhcc = self.hcc2str(hcc)
+            jshcc = json.JSONDecoder().decode(strhcc)
+
+            self.username = jshcc['result']['uin']
 
             self.logined = True
             self.connState = CONN_STATE_CONNECTED
@@ -453,11 +505,12 @@ class QQAgent(QObject):
         jsrt = execjs.get('Node') if 'Node' in jsrts else None
 
         hash_js_file = os.path.dirname(os.path.realpath(__file__)) + '/encrypt.js'
+        hash_js_file = os.path.dirname(os.path.realpath(__file__)) + '/hash.js'
         hash_js_fp = open(hash_js_file, "r")
 
         full_js = hash_js_fp.read()
         ctx = jsrt.compile(full_js)
-        val = ctx.call('P', uin, ptwebqq)
+        val = ctx.call('P2', uin, ptwebqq)
         return val
 
     def getInfoHash(self, uin, ptwebqq):
@@ -467,7 +520,8 @@ class QQAgent(QObject):
             type(ex)
             pass
 
-        # self.info_hash = self.JSInfoHash(self.username, self.ptwebqq)
+        uin = str(uin)
+        # self.info_hash = self.JSInfoHash(uin, ptwebqq)
         self.info_hash = self.JSInfoHashInline(uin, ptwebqq)
         return self.info_hash
 
@@ -522,6 +576,34 @@ class QQAgent(QObject):
         nsreply = self.nam.get(nsreq)
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
 
+        return
+
+    def requestQRCode(self):
+        import random
+        nsurl = 'https://ssl.ptlogin2.qq.com/ptqrshow?appid=501004106&e=0&l=M&s=5&d=72&v=4&t=0.704464654205367'
+        nsurl = 'https://ssl.ptlogin2.qq.com/ptqrshow?appid=%s&e=0&l=M&s=5&d=72&v=4&t=%s' % \
+                (self.appid, str(random.random()))
+        qDebug(nsurl)
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+
+        nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        return
+
+    def pollLogin(self):
+        nsurl = 'https://ssl.ptlogin2.qq.com/ptqrlogin?webqq_type=10&remember_uin=1&login2qq=1&aid=501004106&u1=http%3A%2F%2Fw.qq.com%2Fproxy.html%3Flogin2qq%3D1%26webqq_type%3D10&ptredirect=0&ptlang=2052&daid=164&from_ui=1&pttype=1&dumy=&fp=loginerroralert&action=0-2-234799&mibao_css=m_webqq&t=1&g=1&js_type=0&js_ver=10135&login_sig=&pt_randsalt=0'
+        nsurl = 'https://ssl.ptlogin2.qq.com/ptqrlogin?webqq_type=10&remember_uin=1&login2qq=1&aid=%s&u1=http://w.qq.com/proxy.html?login2qq=1&webqq_type=10&ptredirect=0&ptlang=2052&daid=164&from_ui=1&pttype=1&dumy=&fp=loginerroralert&action=0-2-234799&mibao_css=m_webqq&t=1&g=1&js_type=0&js_ver=10135&login_sig=&pt_randsalt=0' % \
+                (self.appid)
+        qDebug(nsurl)
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+
+        nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         return
 
     def loginCheckSig(self):
@@ -605,19 +687,6 @@ class QQAgent(QObject):
 
         return
 
-    def requestQRCode(self):
-        nsurl = 'https://login.weixin.qq.com/qrcode/4ZYgra8RHw=='
-        nsurl = 'https://login.weixin.qq.com/qrcode/%s' % self.qruuid
-        qDebug(str(nsurl))
-
-        nsreq = QNetworkRequest(QUrl(nsurl))
-        nsreq = self.mkreq(nsurl)
-        nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-        nsreply = self.nam.get(nsreq)
-        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
-
-        return
-
     def logout(self):
 
         skey = self.wxinitData['SKey'].replace('@', '%40')
@@ -659,7 +728,7 @@ class QQAgent(QObject):
         # "hash":"5F130B2A0B65592E"}
         post_data_obj = {
             'vfwebqq': self.newvfwebqq,
-            'hash': self.getInfoHash(),
+            'hash': self.getInfoHash(self.username, self.ptwebqq),
         }
         post_data = json.JSONEncoder(ensure_ascii=False).encode(post_data_obj)
         qDebug(bytes(post_data, 'utf8'))
@@ -688,7 +757,7 @@ class QQAgent(QObject):
         # "hash":"5F130B2A0B65592E"}
         post_data_obj = {
             'vfwebqq': self.newvfwebqq,
-            'hash': self.getInfoHash(),
+            'hash': self.getInfoHash(self.username, self.ptwebqq),
         }
         post_data = json.JSONEncoder(ensure_ascii=False).encode(post_data_obj)
         qDebug(bytes(post_data, 'utf8'))
@@ -1120,24 +1189,24 @@ class QQAgent(QObject):
 
         try:
             astr = hcc.data().decode('gkb')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode gbk error:')
 
         try:
             astr = hcc.data().decode('utf16')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode utf16 error:')
 
         try:
             astr = hcc.data().decode('utf8')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
-            qDebug('decode utf8 error:')
+            qDebug('decode utf8 error:' + str(ex))
 
         return strhcc
 
@@ -1190,7 +1259,7 @@ class QQAgent(QObject):
 
     def emitDBusGotQRCode(self):
         # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
-        sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "gotqrcode")
+        sigmsg = QDBusMessage.createSignal("/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', "gotqrcode")
 
         qrpic64 = self.qrpic.toBase64()
         qrpic64str = qrpic64.data().decode()
@@ -1215,7 +1284,7 @@ class QQAgent(QObject):
 
     def emitDBusLogined(self):
         # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
-        sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "logined")
+        sigmsg = QDBusMessage.createSignal("/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', "logined")
         sigmsg.setArguments([123])
 
         sysbus = QDBusConnection.systemBus()
@@ -1225,7 +1294,7 @@ class QQAgent(QObject):
 
     def emitDBusLogouted(self):
         # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
-        sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "logouted")
+        sigmsg = QDBusMessage.createSignal("/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', "logouted")
         sigmsg.setArguments([123])
 
         sysbus = QDBusConnection.systemBus()

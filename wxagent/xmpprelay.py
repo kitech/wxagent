@@ -21,6 +21,8 @@ class XmppRelay(IMRelay):
     def __init__(self, parent=None):
         super(XmppRelay, self).__init__(parent)
 
+        self.src_pname = 'WQU'
+
         self.self_user = ''
         self.peer_user = ''
         self.nick_name = ''
@@ -38,6 +40,7 @@ class XmppRelay(IMRelay):
 
     # @return True|False
     def sendGroupMessage(self, msg, peer):
+        self.muc_send_message(peer, msg)
         return
 
     # @return True|False
@@ -57,9 +60,25 @@ class XmppRelay(IMRelay):
         return
 
     def isConnected(self):
-        st = self.xmpp.state.current_state
-        qDebug(str(st))
+        # st = self.xmpp.state.current_state
+        # qDebug(str(st))
         return self.is_connected
+
+    def isPeerConnected(self, peer):
+        # qDebug(str(self.fixstatus))
+        return self.fixstatus[peer]
+
+    def createChatroom(self, room_key, title):
+        room_ident = '%s.%s' % (self.src_pname, room_key)
+        self.create_muc2(room_ident, title)
+        return room_ident
+
+    def groupInvite(self, group_number, peer):
+        self.muc_invite(group_number, peer)
+        return
+
+    def groupNumberPeers(self, group_number):
+        return self.muc_number_peers(group_number)
 
     # raw xmpp protocol handler
     def initXmpp(self):
@@ -75,7 +94,11 @@ class XmppRelay(IMRelay):
         self.peer_jid = peer_xmpp_user
         self.is_connected = False
         self.fixrooms = defaultdict(list)
+        self.fixstatus = defaultdict(bool)
         self.xmpp = sleekxmpp.ClientXMPP(jid=xmpp_user, password=xmpp_pass)
+
+        self.xmpp.auto_authorize = True
+        self.xmpp.auto_subscribe = True
 
         self.xmpp.register_plugin('xep_0030')
         self.xmpp.register_plugin('xep_0045')
@@ -234,7 +257,7 @@ class XmppRelay(IMRelay):
         # for f in form.field:
         #    print("%40s\t%15s\t%s\n" % (f, form.field[f]['type'], form.field[f]['value']))
 
-        self.plugin_muc.invite(room, peer_jid, reason=reason)  # , mfrom=mfrom)
+        # self.plugin_muc.invite(room, peer_jid, reason=reason)  # , mfrom=mfrom)
 
         return
 
@@ -248,6 +271,10 @@ class XmppRelay(IMRelay):
 
     def on_presence(self, presence):
         qDebug(b'hreere' + str(presence).encode())
+
+        # qDebug(str(self.xmpp.roster))
+        qDebug(str(self.xmpp.client_roster))
+        qDebug(str(self.xmpp.client_roster['yatseni@xmpp.jp'].resources))
 
         def check_self_presence(presence):
             if presence['to'] == presence['from']:
@@ -266,8 +293,10 @@ class XmppRelay(IMRelay):
 
         if check_peer_prsence(presence):
             if presence['type'] == 'unavailable':
+                self.fixstatus[self.peer_user] = False
                 self.peerDisconnected.emit(self.peer_user)
             else:
+                self.fixstatus[self.peer_user] = True
                 self.peerConnected.emit(self.peer_user)
             return
 
@@ -324,7 +353,7 @@ class XmppRelay(IMRelay):
         qDebug(muc_name + str(self.fixrooms))
         # room_obj = self.plugin_muc.rooms[muc_name]
         room_obj = self.fixrooms[muc_name]
-        qDebug(str(room_obj))
+        qDebug(str(room_obj) + '==len==' + str(len(room_obj)))
         for e in self.fixrooms:
             qDebug(str(e))
         # qDebug(str(room_obj) + str(self.plugin_muc.rooms.keys()))
@@ -337,6 +366,7 @@ class XmppRelay(IMRelay):
         mto = '%s@conference.xmpp.jp' % room_name
         mbody = msg
         mtype = 'groupchat'
+        qDebug(mto)
         self.xmpp.send_message(mto=mto, mbody=mbody, mtype=mtype)
         return
 

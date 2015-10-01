@@ -20,6 +20,8 @@ class IMRelay(QThread):
 
     def __init__(self, parent=None):
         super(IMRelay, self).__init__(parent)
+        self.src_pname = 'WXU.or.WQU'  # src proto name
+        return
 
     # @return True|False
     @abstractmethod
@@ -52,4 +54,20 @@ class IMRelay(QThread):
 
     @abstractmethod
     def isConnected(self):
+        return
+
+    @abstractmethod
+    def isPeerConnected(self, peer):
+        return
+
+    @abstractmethod
+    def createChatroom(self, key, title):
+        return
+
+    @abstractmethod
+    def groupInvite(self, group_number, peer):
+        return
+
+    @abstractmethod
+    def groupNumberPeers(self, group_number):
         return

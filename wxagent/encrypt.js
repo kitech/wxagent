@@ -1400,7 +1400,7 @@ Encryption = function() {
 //export symbol
 encryption = Encryption.getEncryption;
 rsaencryption = Encryption.getRSAEncryption;
-
+PP = RSA.P;
 
 function xyz(x,y,z){
 return x+y+z;

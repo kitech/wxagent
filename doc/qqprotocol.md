@@ -14,6 +14,38 @@ web QQ端无法发送讨论组消息，只能接收。
 
 w.qq与桌面版本qq不能同时登陆。是按照设备来区分的，并不是真正的允许一个产品线登陆一个。
 
+#### 二维码方式，获取二维码
+GET
+https://ssl.ptlogin2.qq.com/ptqrshow?appid=501004106&e=0&l=M&s=5&d=72&v=4&t=0.704464654205367
+
+#### poll二维码登陆状态
+
+是个是长poll还是定时方式呢？webqq实现方式好像调用很频繁？
+
+Web QQ渣竟然使用的是定时轮循的方式，非长轮循，这么渣，很可能以后还会改, 
+
+GET
+https://ssl.ptlogin2.qq.com/ptqrlogin?webqq_type=10&remember_uin=1&login2qq=1&aid=501004106&u1=http%3A%2F%2Fw.qq.com%2Fproxy.html%3Flogin2qq%3D1%26webqq_type%3D10&ptredirect=0&ptlang=2052&daid=164&from_ui=1&pttype=1&dumy=&fp=loginerroralert&action=0-2-234799&mibao_css=m_webqq&t=1&g=1&js_type=0&js_ver=10135&login_sig=&pt_randsalt=0
+
+返回值：
+
+ptuiCB('66','0','','0','二维码未失效。(668993644)', '');
+
+ptuiCB('65','0','','0','二维码已失效。(687867386)', '');
+
+ptuiCB('67','0','','0','二维码认证中。(1476407059)', '');
+
+ptuiCB('0','0','http://ptlogin4.web2.qq.com/check_sig?pttype=1&uin=1449732709&service=ptqrlogin&nodirect=0&ptsigx=f8e9bead7b555c24827306627b025455c049216faeb9b620db93d01dfb55f8695eb3b2bd03866e5ba5bc576159da655296977b9d3cfe42a0a61325abd93c18e4&s_url=http%3A%2F%2Fw.qq.com%2Fproxy.html%3Flogin2qq%3D1&f_url=&ptlang=2052&ptredirect=100&aid=501004106&daid=164&j_later=0&low_login_hour=0&regmaster=0&pt_login_type=3&pt_aid=0&pt_aaid=16&pt_light=0&pt_3rd_aid=0','0','登录成功！', 'abcyatsen1');
+
+
+登陆成功后，获取cookie: ptwebqq
+
+登陆成功后，获取内容项: check\_sig\_url
+
+其他：
+
+qrcode失效时间，大概120秒，2分钟。
+
 
 ### 消息
 

@@ -1,5 +1,5 @@
 [Unit]
-Description=A weixin agent daemon
+Description=A QQ agent daemon
 After=network.target,dbus.service
 Requires=dbus.socket
 
@@ -7,7 +7,7 @@ Requires=dbus.socket
 Type=simple
 # User=nobody
 # Environment="DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-XXBRdFQxlY,guid=adc3d044b0c8e6fb961e747a55d7ef59"
-ExecStart=/usr/bin/wxagent
+ExecStart=/usr/bin/qqagent
 
 [Install]
 WantedBy=multi-user.target

@@ -39,8 +39,8 @@ class ToxRelay(IMRelay):
     # @return True|False
     def sendGroupMessage(self, msg, peer):
         group_number = int(peer)
-        self.toxkit.groupchatSendMessage(group_number, msg)
-        return
+        rc = self.toxkit.groupchatSendMessage(group_number, msg)
+        return rc
 
     # @return True|False
     def sendFileMessage(self, msg, peer):
@@ -205,8 +205,11 @@ class ToxRelay(IMRelay):
         elif number_peers == 2:
             qDebug('toxpeer added')
         else:
-            qDebug('wtf?')
+            qDebug('who is there? wtf?')
 
         qDebug('np: %d' % number_peers)
         if number_peers != 2: return
+
+        # 上游需要字符串类型的group标识。
+        self.peerEnterGroup.emit(str(group_number))
         return

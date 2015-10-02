@@ -34,13 +34,15 @@ class XmppRelay(IMRelay):
     # abstract method implemention
     # @return True|False
     def sendMessage(self, msg, peer):
-        self.xmpp.send_message(mto=peer, mbody=msg)
+        rc = self.xmpp.send_message(mto=peer, mbody=msg)
+        qDebug(str(rc))
         return True
 
     # @return True|False
     def sendGroupMessage(self, msg, peer):
-        self.muc_send_message(peer, msg)
-        return
+        rc = self.muc_send_message(peer, msg)
+        qDebug(str(rc))
+        return rc
 
     # @return True|False
     def sendFileMessage(self, msg, peer):
@@ -312,9 +314,14 @@ class XmppRelay(IMRelay):
 
         peer_jid = mats[0]
         if presence['type'] == 'unavailable':
-            del self.fixrooms[room_jid]
+            del self.fixrooms[room_jid][peer_jid]
         else:
+            onum = len(self.fixrooms[room_jid])
             self.fixrooms[room_jid].append(peer_jid)
+            nnum = len(self.fixrooms[room_jid])
+            if nnum == 2 and self.peer_user in self.fixrooms[room_jid]:
+                user = presence['from'].user
+                self.peerEnterGroup.emit(user)
 
         qDebug(str(self.fixrooms))
         return

@@ -111,8 +111,8 @@ class WX2Tox(QObject):
         return
 
     def initRelay(self):
-        # self.peerRelay = IMRelayFactory.create('xmpp')
-        self.peerRelay = IMRelayFactory.create('tox')
+        self.peerRelay = IMRelayFactory.create('xmpp')
+        # self.peerRelay = IMRelayFactory.create('tox')
         self.peerRelay.src_pname = 'WQU'
 
         relay = self.peerRelay
@@ -152,7 +152,7 @@ class WX2Tox(QObject):
 
     def onRelayPeerConnected(self):
         qDebug('hehee')
-        
+
         if self.need_send_qrfile is True:
             # from .secfg import peer_xmpp_user
             url = filestore.upload_file(self.qrpic.data())
@@ -174,8 +174,26 @@ class WX2Tox(QObject):
         qDebug('hehee')
         return
 
-    def onRelayPeerEnterGroup(self):
-        qDebug('hehee')
+    def onRelayPeerEnterGroup(self, group_number):
+        qDebug('hehee:' + group_number)
+
+        qDebug(str(self.toxchatmap.keys()))
+
+        groupchat = self.toxchatmap[group_number]
+        qDebug('unsend queue: %s ' % len(groupchat.unsend_queue))
+
+        unsends = groupchat.unsend_queue
+        groupchat.unsend_queue = []
+
+        idx = 0
+        for fmtcc in unsends:
+            # assert groupchat is not None
+            rc = self.peerRelay.sendGroupMessage(fmtcc, groupchat.group_number)
+            if rc is False:
+                qDebug('group chat send msg error:%s, %d' % (str(rc), idx))
+                # groupchat.unsend_queue.append(fmtcc)  # 也许是这个函数返回值有问题，即使返回错误也可能发送成功。
+            idx += 1
+
         return
 
     def onRelayMessage(self, msg):

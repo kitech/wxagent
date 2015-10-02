@@ -9,6 +9,9 @@ qiniu_acckey = ''
 qiniu_seckey = ''
 qiniu_bucket_name = 'xpim'
 
-peer_tox_user = ''  # 398C8161D03xx...........
+
+# for ToxRelay, this is relay dest's toxid.
+# 398C8161D03xx...........
+peer_tox_user = ''
 
 relay_type = ''  # tox/xmpp

@@ -35,7 +35,7 @@ class XmppRelay(IMRelay):
     # @return True|False
     def sendMessage(self, msg, peer):
         self.xmpp.send_message(mto=peer, mbody=msg)
-        return
+        return True
 
     # @return True|False
     def sendGroupMessage(self, msg, peer):

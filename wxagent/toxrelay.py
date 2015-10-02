@@ -33,7 +33,8 @@ class ToxRelay(IMRelay):
             self.toxkit.sendMessage(peer, msg)
         except Exception as ex:
             qDebug(str(ex))
-        return
+            return False
+        return True
 
     # @return True|False
     def sendGroupMessage(self, msg, peer):

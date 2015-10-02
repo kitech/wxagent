@@ -848,21 +848,21 @@ class WXAgent(QObject):
 
         try:
             astr = hcc.data().decode('gkb')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode gbk error:')
 
         try:
             astr = hcc.data().decode('utf16')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode utf16 error:')
 
         try:
             astr = hcc.data().decode('utf8')
-            qDebug(astr[0:120].replace("\n", "\\n"))
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
             strhcc = astr
         except Exception as ex:
             qDebug('decode utf8 error:')

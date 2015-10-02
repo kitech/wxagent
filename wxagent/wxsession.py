@@ -173,7 +173,7 @@ class WXSession():
         hcc = self.InitRawData
 
         strhcc = hcc.data().decode('utf8')
-        qDebug(strhcc[0:120].replace("\n", "\\n"))
+        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
         jsobj = json.JSONDecoder().decode(strhcc)
         self.InitData = jsobj
 
@@ -251,7 +251,7 @@ class WXSession():
         hcc = self.ContactRawData
 
         strhcc = hcc.data().decode('utf8')
-        qDebug(strhcc[0:120].replace("\n", "\\n"))
+        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
         jsobj = json.JSONDecoder().decode(strhcc)
         self.ContactData = jsobj
 

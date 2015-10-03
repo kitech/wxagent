@@ -248,7 +248,7 @@ class XmppRelay(IMRelay):
         form.field['muc#roomconfig_moderatedroom']['value'] = False
         form.field['allow_private_messages']['value'] = False
         form.field['muc#roomconfig_enablelogging']['value'] = False
-        form.field['muc#roomconfig_changesubject']['value'] = False
+        form.field['muc#roomconfig_changesubject']['value'] = True
         form.field['muc#roomconfig_maxusers']['value'] = ('3')
         form.set_type('submit')
         self.plugin_muc.setRoomConfig(room, form)
@@ -275,7 +275,8 @@ class XmppRelay(IMRelay):
 
         # qDebug(str(self.xmpp.roster))
         qDebug(str(self.xmpp.client_roster))
-        qDebug(str(self.xmpp.client_roster['yatseni@xmpp.jp'].resources))
+        # qDebug(str(self.xmpp.client_roster['yatseni@xmpp.jp'].resources).encode())
+        qDebug(str(self.xmpp.client_roster[self.peer_user].resources).encode())
 
         def check_self_presence(presence):
             if presence['to'] == presence['from']:
@@ -294,9 +295,15 @@ class XmppRelay(IMRelay):
 
         if check_peer_prsence(presence):
             if presence['type'] == 'unavailable':
+                for room in self.fixrooms:
+                    if self.peer_user in self.fixrooms[room]:
+                        self.fixrooms[room].remove(self.peer_user)
                 self.fixstatus[self.peer_user] = False
                 self.peerDisconnected.emit(self.peer_user)
             else:
+                for room in self.fixrooms:
+                    if self.peer_user not in self.fixrooms[room]:
+                        self.fixrooms[room].append(self.peer_user)
                 self.fixstatus[self.peer_user] = True
                 self.peerConnected.emit(self.peer_user)
             return
@@ -314,10 +321,12 @@ class XmppRelay(IMRelay):
 
         peer_jid = mats[0]
         if presence['type'] == 'unavailable':
-            del self.fixrooms[room_jid][peer_jid]
+            if peer_jid in self.fixrooms[room_jid]:
+                self.fixrooms[room_jid].remove(peer_jid)
         else:
             onum = len(self.fixrooms[room_jid])
-            self.fixrooms[room_jid].append(peer_jid)
+            if peer_jid not in self.fixrooms[room_jid]:
+                self.fixrooms[room_jid].append(peer_jid)
             nnum = len(self.fixrooms[room_jid])
             if nnum == 2 and self.peer_user in self.fixrooms[room_jid]:
                 user = presence['from'].user
@@ -340,11 +349,17 @@ class XmppRelay(IMRelay):
     def create_muc2(self, room_jid, nick_name):
         muc_name = '%s@conference.xmpp.jp' % room_jid
         muc_nick = nick_name
-        self.xmpp.add_event_handler('muc::%s::presence', self.on_muc_room_presence)
+        self.xmpp.add_event_handler('muc::%s::presence' % muc_name, self.on_muc_room_presence)
         qDebug((muc_name+',,,'+muc_nick).encode())
         self.plugin_muc.joinMUC(muc_name, muc_nick)
         print(self.plugin_muc.rooms, muc_name, self.xmpp.boundjid.bare)
         qDebug(str(self.plugin_muc.jidInRoom(muc_name, self.xmpp.boundjid.bare)))
+        nowtm = QDateTime.currentDateTime()
+        muc_subject = 'Chat with %s@%s since %s' \
+                      % (nick_name, room_jid, nowtm.toString('H:m:ss M/d/yy'))
+        # 设置聊天室主题
+        self.xmpp.send_message(mto=muc_name, mbody=None,
+                               msubject=muc_subject, mtype='groupchat')
         return
 
     def muc_invite(self, room_name, peer_jid):

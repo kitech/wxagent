@@ -31,9 +31,8 @@ class WXUser():
         return self.HeadImgUrl == ''
 
     def cname(self):
-        return self.UserName.strip('@')[0:7]
-
-    def cname(self):
+        if self.UserName in ['filehelper', 'newsapp']:
+            return self.UserName
         return self.UserName.strip('@')[0:7]
 
 

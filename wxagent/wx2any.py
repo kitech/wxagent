@@ -8,8 +8,6 @@ import math
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
-# from PyQt5.QtGui import *
-# from PyQt5.QtWidgets import *
 from PyQt5.QtDBus import *
 
 
@@ -103,8 +101,8 @@ class WX2Tox(QObject):
         return
 
     def initRelay(self):
-        # self.peerRelay = IMRelayFactory.create('xmpp')
-        self.peerRelay = IMRelayFactory.create('tox')
+        self.peerRelay = IMRelayFactory.create('xmpp')
+        # self.peerRelay = IMRelayFactory.create('tox')
         self.peerRelay.src_pname = 'WXU'
 
         relay = self.peerRelay
@@ -179,7 +177,8 @@ class WX2Tox(QObject):
         # islogined
         # 等待，总之是wxagent支持的命令，
 
-        self.uicmdHandler(msg)
+        # self.uicmdHandler(msg)
+        self.botcmdHandler(msg)
         return
 
     def onRelayGroupMessage(self, group_number, message):
@@ -212,6 +211,54 @@ class WX2Tox(QObject):
             pass
         else:
             self.sendMessageToWX(groupchat, message)
+        return
+
+    def uicmdHandler(self, msg):
+        return
+
+    def botcmdHandler(self, msg):
+        # 汇总消息好友发送过来的消息当作命令处理
+        # getqrcode
+        # islogined
+        # 等待，总之是wxagent支持的命令，
+
+        #
+        cmd = BotCmder.parseCmd(msg)
+        if cmd is False:
+            qDebug('not a cmd: %s' % msg[0:120])
+            return
+
+        if cmd[0] == 'help':
+            helpmsg = BotCmder.helpMessage()
+            self.peerRelay.sendMessage(helpmsg, self.peerRelay.peer_user)
+            return
+
+        elif cmd[0] == 'invite':
+            if cmd[1] == '':  # 发送所有的好友，注意是真正的已添加的好友，不是在群组里面的。
+                nnlst = self.wxses.getInviteCompleteList()
+                self.peerRelay.sendMessage(', '.join(nnlst), self.peerRelay.peer_user)
+                pass
+            else:
+                # 查找是否有该好友，
+                # 如果有，则创建与该好友的聊天室
+                # 如果没有，则查找是否有前相似匹配的
+                # 如果有相似匹配的，则提示相似匹配的所有好友
+                nnlst = self.wxses.getInviteCompleteList(cmd[1])
+                nnlen = len(nnlst)
+                if nnlen == 0:
+                    qDebug(('not found:' + cmd[1]).encode())
+                elif nnlen == 1:
+                    qDebug(('exact match found:' + cmd[1] +',' + str(nnlst[0])).encode())
+                    rpstr = 'inviteing %s......' % nnlst[0]
+                    self.peerRelay.sendMessage(rpstr, self.peerRelay.peer_user)
+                    self.inviteFriendToChat(nnlst[0])
+                else:
+                    qDebug(('multi match found:' + cmd[1]).encode())
+                    self.peerRelay.sendMessage(','.join(nnlst), self.peerRelay.peer_user)
+                pass
+        else:
+            qDebug('unknown cmd:' + str(cmd))
+
         return
 
     def startWXBot(self):
@@ -497,10 +544,10 @@ class WX2Tox(QObject):
         title = ''
 
         if msg.FromUserName == 'filehelper':
-            mkey = msg.FromUser.UserName
+            mkey = msg.FromUser.cname()
             title = '%s@WXU' % msg.FromUser.NickName
         else:
-            mkey = msg.ToUser.UserName
+            mkey = msg.ToUser.cname()
             title = '%s@WXU' % msg.ToUser.NickName
 
         if mkey in self.wxchatmap:

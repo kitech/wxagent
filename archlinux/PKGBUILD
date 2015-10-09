@@ -3,21 +3,28 @@
 
 _pkgname=wxagent
 pkgname=wxagent-git
-pkgver=r39.fa04ca3
+pkgver=r65.9b7b29d
 pkgrel=1
 pkgdesc="A weixin agent daemon and client"
 license=('Apache')
 url="https://github.com/kitech/wxagent/"
 arch=('any')
-depends=('python' 'python-pyqt5')
+depends=('python' 'python-pyqt5' 'python-qiniu')
 optdepends=()
 makedepends=('git')
 checkdepends=()
+conflicts=('wxagent')
 #install=${pkgname}.install
-source=("$_pkgname::git+https://kitech@git.oschina.net/kitech/mkuse.git"
-       "wxagent.service")
+source=("$_pkgname::git+https://github.com/kitech/wxagent.git"
+        "wxagent.service"
+        "wxagent.conf"
+        "qqagent.service"
+        "qqagent.conf")
 sha512sums=('SKIP'
-            '862ca81608ac87a6f522e36dea6827bd0fd83afe02a90683bbca5f6c86c73566ddf20e20626dca107b73a908927731510745cd0ad03386a45d761a9de1eac113')
+            '0f6e46266546e1ab00fb72fb0f9d6a05c7380c51f4d8c1ce422689fd3a3e9a04570296d16a0c3bb4da7b3516a0f1d155fb30c6458eff8397bc56ef774cc195a8'
+            '13e0ffc8198f33c305033354abb7ba83da388cc7fe254daff4c6ba93e91c23084d3ab2ac024a1d9525d4458a3529ba1d546b78b45180676d7fdb729944d5c445'
+            '7b9e48dfe119318ab0b2ae976c8ec69c13dea8f939c60b38d2f0bf5ccaf14dd585610d510a75db10cd5a469770527a901c82f5d47a09eba08c9286ce651c8952'
+            '94f6c174731556327ee6e761895decd470ca75e370b9e5ad437d36cdb704963bacd8ea8e0354393aca7d61071143cd7ec07365975b2ac708ad0b3e698c58dbb0')
 
 # set -x
 
@@ -30,33 +37,22 @@ pkgver() {
 prepare()
 {
   true
-  # cd wxagent/lwwx/
-  pwd
-  ls
-  tree wxagent/lwwx/
-  cp -va $HOME/opensource/mkuse/lwwx/setup.py wxagent/lwwx/
-  cp -va $HOME/opensource/mkuse/lwwx/wxagent/*.py wxagent/lwwx/wxagent/
 }
 
 build()
 {
-  pwd
-  ls
-  
+  true
 }
 
 package()
 {
-  pwd
-  cd wxagent/lwwx
-  pwd
-  ls
-  echo "aaaa:$pkgdir"
+  cd "$srcdir/wxagent"
   python setup.py install -O1 --root "$pkgdir"
 
   install -Dm644 "$srcdir/wxagent.service" "$pkgdir/usr/lib/systemd/user/wxagent.service"
-  tree "$pkgdir"
-  true
+  install -Dm644 "$srcdir/wxagent.conf" "$pkgdir/etc/dbus-1/wxagent.conf"
+  install -Dm644 "$srcdir/qqagent.service" "$pkgdir/usr/lib/systemd/user/qqagent.service"
+  install -Dm644 "$srcdir/qqagent.conf" "$pkgdir/etc/dbus-1/qqagent.conf"
 }
 
 # vim:set ts=2 sw=2 et:

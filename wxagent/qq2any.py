@@ -1487,9 +1487,9 @@ def main():
     qtutil.pyctrl()
 
     w2t = WX2Tox()
+
     global g_w2t
     g_w2t = w2t
-
     app.aboutToQuit.connect(on_app_about_close)
 
     app.exec_()

@@ -166,8 +166,26 @@ class WX2Tox(QObject):
         qDebug('hehee')
         return
 
-    def onRelayPeerEnterGroup(self):
-        qDebug('hehee')
+    def onRelayPeerEnterGroup(self, group_number):
+        qDebug('hehee:' + group_number)
+
+        qDebug(str(self.toxchatmap.keys()))
+
+        groupchat = self.toxchatmap[group_number]
+        qDebug('unsend queue: %s ' % len(groupchat.unsend_queue))
+
+        unsends = groupchat.unsend_queue
+        groupchat.unsend_queue = []
+
+        idx = 0
+        for fmtcc in unsends:
+            # assert groupchat is not None
+            rc = self.peerRelay.sendGroupMessage(fmtcc, groupchat.group_number)
+            if rc is False:
+                qDebug('group chat send msg error:%s, %d' % (str(rc), idx))
+                # groupchat.unsend_queue.append(fmtcc)  # 也许是这个函数返回值有问题，即使返回错误也可能发送成功。
+            idx += 1
+
         return
 
     def onRelayMessage(self, msg):
@@ -1230,12 +1248,28 @@ class WX2Tox(QObject):
         return
 
 
+# hot fix
+g_w2t = None
+
+
+def on_app_about_close():
+    qDebug('hereee')
+    global g_w2t
+
+    g_w2t.peerRelay.disconnectIt()
+    return
+
+
 def main():
     app = QCoreApplication(sys.argv)
     import wxagent.qtutil as qtutil
     qtutil.pyctrl()
 
     w2t = WX2Tox()
+
+    global g_w2t
+    g_w2t = w2t
+    app.aboutToQuit.connect(on_app_about_close)
 
     app.exec_()
     return

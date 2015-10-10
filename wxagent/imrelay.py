@@ -4,6 +4,8 @@ from abc import ABCMeta,abstractmethod
 
 from PyQt5.QtCore import *
 
+from .unimessage import *
+
 
 class IMRelay(QThread):
 
@@ -20,6 +22,8 @@ class IMRelay(QThread):
 
     def __init__(self, parent=None):
         super(IMRelay, self).__init__(parent)
+
+        self.unimsgcls = UniMessage  # 为foo2bar主控逻辑做消息转换时使用
         self.src_pname = 'WXU.or.WQU'  # src proto name
         self.relay_tail = ''  # like  -- from tox/xmpp
         return

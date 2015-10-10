@@ -13,6 +13,7 @@ from PyQt5.QtCore import *
 import sleekxmpp
 
 from .imrelay import IMRelay
+from .unimessage import *
 
 
 class XmppRelay(IMRelay):
@@ -20,6 +21,7 @@ class XmppRelay(IMRelay):
     def __init__(self, parent=None):
         super(XmppRelay, self).__init__(parent)
 
+        self.unimsgcls = XmppMessage
         self.src_pname = ''
 
         self.self_user = ''
@@ -71,6 +73,7 @@ class XmppRelay(IMRelay):
 
     def createChatroom(self, room_key, title):
         room_ident = '%s.%s' % (self.src_pname, room_key)
+        room_ident = '%s.%s' % (self.src_pname, self._roomify_name(title))
         self.create_muc2(room_ident, title)
         return room_ident.lower()
 
@@ -225,14 +228,14 @@ class XmppRelay(IMRelay):
         reason = 'hello come here:' + room
         # mfrom = presense['to']
 
-        qDebug('muc room is:' + room)
+        qDebug(('muc room is:' + room).encode())
         if room == self.xmpp.boundjid:  # not a room
-            qDebug('not a valid muc room:' + room)
+            qDebug(('not a valid muc room:' + room).encode())
             return
 
         qDebug(self.xmpp.boundjid.host)
         if room.split('@')[1] == self.xmpp.boundjid.host:
-            qDebug('not a valid muc room:' + room)
+            qDebug(('not a valid muc room:' + room).encode())
             return
 
         form = self.plugin_muc.getRoomConfig(room)
@@ -274,7 +277,7 @@ class XmppRelay(IMRelay):
         qDebug(b'hreere' + str(presence).encode())
 
         # qDebug(str(self.xmpp.roster))
-        qDebug(str(self.xmpp.client_roster))
+        qDebug(str(self.xmpp.client_roster).encode())
         # qDebug(str(self.xmpp.client_roster['yatseni@xmpp.jp'].resources).encode())
         qDebug(str(self.xmpp.client_roster[self.peer_user].resources).encode())
 
@@ -332,7 +335,7 @@ class XmppRelay(IMRelay):
                 user = presence['from'].user
                 self.peerEnterGroup.emit(user)
 
-        qDebug(str(self.fixrooms))
+        qDebug(str(self.fixrooms).encode())
         return
 
     def on_presence_avaliable(self, presence):
@@ -371,12 +374,12 @@ class XmppRelay(IMRelay):
 
     def muc_number_peers(self, room_jid):
         muc_name = '%s@conference.xmpp.jp' % room_jid.lower()
-        qDebug(muc_name + str(self.fixrooms))
+        qDebug((muc_name + str(self.fixrooms)).encode())
         # room_obj = self.plugin_muc.rooms[muc_name]
         room_obj = self.fixrooms[muc_name]
         qDebug(str(room_obj) + '==len==' + str(len(room_obj)))
         for e in self.fixrooms:
-            qDebug(str(e))
+            qDebug(str(e).encode())
         # qDebug(str(room_obj) + str(self.plugin_muc.rooms.keys()))
         # for room_name in self.plugin_muc.rooms:
         #    room_obj = self.plugin_muc.rooms[room_name]
@@ -387,7 +390,7 @@ class XmppRelay(IMRelay):
         mto = '%s@conference.xmpp.jp' % room_name
         mbody = msg
         mtype = 'groupchat'
-        qDebug(mto)
+        qDebug(mto.encode())
         self.xmpp.send_message(mto=mto, mbody=mbody, mtype=mtype)
         return
 
@@ -398,3 +401,22 @@ class XmppRelay(IMRelay):
         self.xmpp.send_message(mto=mto, mbody=mbody, mtype=mtype)
         return
 
+    # 把oname中的特殊字符转换为xmpp支持conference名
+    # 主要思路是把特殊的符号过滤掉，手动替换为*
+    # '"@&  => ****+
+    def _roomify_name(self, oname):
+        nname = ''
+        for ch in oname:
+            nch = ch
+            if ch in ("'", '"', '@', '&'):
+                nch = '*'
+            elif ch in (' '):
+                nch = '+'
+            elif ch in ('<', '>', '(', ')'):
+                nch = '.'
+            nname += nch
+        return nname
+
+
+if __name__ == '__main__':
+    pass

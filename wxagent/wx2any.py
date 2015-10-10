@@ -15,6 +15,7 @@ import wxagent.filestore as filestore
 from .imrelayfactory import IMRelayFactory
 from .wxcommon import *
 from .wxsession import *
+from .unimessage import *
 from .wxprotocol import *
 from .botcmd import *
 
@@ -167,9 +168,9 @@ class WX2Tox(QObject):
         return
 
     def onRelayPeerEnterGroup(self, group_number):
-        qDebug('hehee:' + group_number)
+        qDebug(('hehee:' + group_number).encode())
 
-        qDebug(str(self.toxchatmap.keys()))
+        qDebug(str(self.toxchatmap.keys()).encode())
 
         groupchat = self.toxchatmap[group_number]
         qDebug('unsend queue: %s ' % len(groupchat.unsend_queue))
@@ -200,7 +201,7 @@ class WX2Tox(QObject):
         return
 
     def onRelayGroupMessage(self, group_number, message):
-        qDebug('hehee' + str(group_number))
+        qDebug(('hehee' + str(group_number)).encode())
         groupchat = None
         if group_number in self.toxchatmap:
             groupchat = self.toxchatmap[group_number]
@@ -393,54 +394,22 @@ class WX2Tox(QObject):
 
         self.wxses.parseModContact(jsobj['ModContactList'])
 
-        # for um in jsobj['AddMsgList']:
-        #     tm = 'MT:%s,' % (um['MsgType'])   # , um['Content'])
-        #     try:
-        #         tm = ':::,MT:%s,%s' % (um['MsgType'], um['Content'])
-        #         qDebug(str(tm))
-        #     except Exception as ex:
-        #         # qDebug('can not show here')
-        #         rct = um['Content']
-        #         print('::::::::::,MT', um['MsgType'], str(type(rct)), rct)
-        #     self.uiw.plainTextEdit.appendPlainText(um['Content'])
-
         msgs = wxmsgvec.getContent()
         for msg in msgs:
             fromUser = self.wxses.getUserByName(msg.FromUserName)
             toUser = self.wxses.getUserByName(msg.ToUserName)
             qDebug(str(fromUser))
             qDebug(str(toUser))
-            fromUser_NickName = ''
-            if fromUser is not None: fromUser_NickName = fromUser.NickName
-            toUser_NickName = ''
-            if toUser is not None: toUser_NickName = toUser.NickName
 
             msg.FromUser = fromUser
             msg.ToUser = toUser
-            content = msg.UnescapedContent
 
-            # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
-            # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
-            reg = r'^(@[0-9a-f]+):<br/>'
-            mats = re.findall(reg, content)
-            if len(mats) > 0:
-                UserName = mats[0]
-                UserInfo = self.wxses.getUserInfo(UserName)
-                if UserInfo is not None:
-                    dispRealName = UserInfo.NickName + UserName[0:7]
-                    content = content.replace(UserName, dispRealName, 1)
-
-            # for eyes
-            dispFromUserName = msg.FromUserName[0:7]
-            dispToUserName = msg.ToUserName[0:7]
-
-            logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                     (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
-                      dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
-
-            logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                     (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
-                      dispToUserName, toUser_NickName, msg.MsgId, content)
+            # pmsg = PlainMessage.fromWXMessage(msg, self.wxses)
+            # logstr = pmsg.content
+            # xmsg = XmppMessage.fromWXMessage(msg, self.wxses)
+            # logstr = xmsg.get()
+            umsg = self.peerRelay.unimsgcls.fromWXMessage(msg, self.wxses)
+            logstr = umsg.get()
 
             self.sendMessageToTox(msg, logstr)
 

@@ -8,6 +8,7 @@ from PyQt5.QtCore import *
 from .qtoxkit import *
 
 from .imrelay import IMRelay
+from .unimessage import *
 
 
 class ToxRelay(IMRelay):
@@ -15,6 +16,7 @@ class ToxRelay(IMRelay):
     def __init__(self, parent=None):
         super(ToxRelay, self).__init__(parent)
 
+        self.unimsgcls = ToxMessage
         self.src_pname = ''
 
         self.self_user = ''

@@ -73,6 +73,9 @@ class WXMessage():
     def isOffpic(self):
         return self.offpic is not None
 
+    def isFileMsg(self):
+        return self.PollType == QQ_PT_FILE and self.FileMode == 'recv'
+
 
 class WXMessageList():
 

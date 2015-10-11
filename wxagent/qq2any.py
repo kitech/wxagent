@@ -478,6 +478,12 @@ class WX2Tox(QObject):
             msg.FromUser = fromUser
             msg.ToUser = toUser
 
+            # hot fix file ack
+            # {'value': {'mode': 'send_ack', 'reply_ip': 183597272, 'time': 1444550216, 'type': 101, 'to_uin': 1449732709, 'msg_type': 10, 'session_id': 27932, 'from_uin': 1449732709, 'msg_id': 47636, 'inet_ip': 0, 'msg_id2': 824152}, 'poll_type': 'file_message'}
+            if msg.FromUserName == msg.ToUserName:
+                qDebug('maybe send_ack msg, but dont known how process it, just omit.')
+                continue
+
             umsg = self.peerRelay.unimsgcls.fromQQMessage(msg, self.wxses)
             logstr = umsg.get()
             dlogstr = umsg.dget()
@@ -488,6 +494,9 @@ class WX2Tox(QObject):
             if msg.isOffpic():
                 qDebug(msg.offpic)
                 self.sendShotPicMessageToTox(msg, logstr)
+            if msg.isFileMsg():
+                qDebug(msg.FileName.encode())
+                self.sendFileMessageToTox(msg, logstr)
 
         return
 
@@ -517,6 +526,21 @@ class WX2Tox(QObject):
             return
 
         self.getMsgImgCallback(msg, get_img_reply)
+        return
+
+    def sendFileMessageToTox(self, msg, logstr):
+        def get_file_reply(data=None):
+            if data is None: return
+            if data.data().decode().startswith('{"retcode":102,"errmsg":""}'):
+                umsg = 'Get file error: ' + data.data().decode()
+                self.sendMessageToTox(msg, umsg)
+            else:
+                url = filestore.upload_file(data)
+                umsg = 'file url: ' + url
+                self.sendMessageToTox(msg, umsg)
+            return
+
+        self.getMsgFileCallback(msg, get_file_reply)
         return
 
     def dispatchToToxGroup(self, msg, fmtcc):
@@ -1448,6 +1472,41 @@ class WX2Tox(QObject):
     def getMsgImgUrl(self, msg):
         args = [msg.MsgId, False]
         return self.syncGetRpc('get_msg_img_url', args)
+
+    # @param cb(data)
+    def getMsgFileCallback(self, msg, imgcb=None):
+
+        def on_dbus_reply(watcher):
+            qDebug('replyyyyyyyyyyyyyyy')
+            pendReply = QDBusPendingReply(watcher)
+            qDebug(str(watcher))
+            qDebug(str(pendReply.isValid()))
+            if pendReply.isValid():
+                hcc = pendReply.argumentAt(0)
+                qDebug(str(type(hcc)))
+            else:
+                self.asyncWatchers.pop(watcher)
+                if imgcb is not None: imgcb(None)
+                return
+
+            message = pendReply.reply()
+            args = message.arguments()
+
+            self.asyncWatchers.pop(watcher)
+            # send img file to tox client
+            if imgcb is not None: imgcb(args[0])
+
+            return
+
+        # 还有可能超时，dbus默认timeout=25，而实现有可能达到45秒。WTF!!!
+        # TODO, msg.FileName maybe need urlencoded
+        args = [msg.MsgId, msg.FileName, msg.ToUserName]
+        pcall = self.sysiface.asyncCall('get_msg_file', *args) 
+        watcher = QDBusPendingCallWatcher(pcall)
+        watcher.finished.connect(on_dbus_reply)
+        self.asyncWatchers[watcher] = '1'
+
+        return
 
     # @param hcc QByteArray
     # @return str

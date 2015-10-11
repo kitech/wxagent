@@ -434,7 +434,7 @@ class QQAgent(QObject):
             qDebug(hcc)
             if (reply.hasRawHeader(b'Location')):
                 redir = reply.rawHeader(b'Location').data().decode()
-                # requrl:http://103.7.28.186:80/?ver=2173&rkey=a57579bda0d936f341291cbe6b1d193a6985c36db1bb84172a673df21a9a7bc02182bb5809b56051f87595a866b4abca99d10c129a1cc7b224b6a47e457e3d6f
+                # requrl: http://103.7.28.186:80/?ver=2173&rkey=a57579bda0d936f34129xxxxxxxxxxxx
                 nsurl = redir
                 nsreq = self.mkreq(nsurl)
                 nsreply = self.nam.get(nsreq)
@@ -455,6 +455,29 @@ class QQAgent(QObject):
             ########
         elif url.startswith('http://103.7.29.36:80/?ver=') and '&rkey=' in url:
             # 获取图片内容返回
+            reqno = self.asyncQueue[reply]
+            self.asyncQueue.pop(reply)
+            self.asyncRequestDone.emit(reqno, hcc)
+            ########
+        elif url.startswith('http://d.web2.qq.com/channel/get_file2?'):
+            qDebug(hcc)
+            if (reply.hasRawHeader(b'Location')):
+                redir = reply.rawHeader(b'Location').data().decode()
+                # requrl: http://file1.web.qq.com/v2/3040028095/2300061779/20868/1075/33946/0/0/1/f/16970/qt.png?psessionid=
+                nsurl = redir
+                nsreq = self.mkreq(nsurl)
+                nsreply = self.nam.get(nsreq)
+
+                reqno = self.asyncQueue[reply]
+                self.asyncQueue.pop(reply)
+                self.asyncQueue[nsreply] = reqno
+            else:
+                reqno = self.asyncQueue[reply]
+                self.asyncQueue.pop(reply)
+                self.asyncRequestDone.emit(reqno, hcc)
+            ########
+        elif url.startswith('http://file1.web.qq.com/v2/'):
+            # 获取文件内容返回
             reqno = self.asyncQueue[reply]
             self.asyncQueue.pop(reply)
             self.asyncRequestDone.emit(reqno, hcc)
@@ -1152,18 +1175,45 @@ class QQAgent(QObject):
                 (file_path, f_uin, psessionid)
         return nsurl
 
-    def getMsgFileUrl(self, sender_name, media_id, file_name, from_uin):
-        # sender_name = ''
-        # media_id = ''
-        # file_name = ''
-        # from_uin = 0
-        # file_name = urllib.parse.quote_plus(file_name)   # 对中文不太友好
-        file_name = file_name.replace(' ', '+')  # 这种可能存在bug
-        pass_ticket = self.wxPassTicket
-        data_ticket = self.wxDataTicket
-        nsurl = 'https://file2.wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia?sender=%s&mediaid=%s&filename=%s&fromuser=%s&pass_ticket=%s&webwx_data_ticket=%s'  % \
-                (sender_name, media_id, file_name, from_uin, pass_ticket, data_ticket)
-        return nsurl
+    def getMsgFileUrl(self, lcid, guid, to_uin):
+        # lcid = '20868'
+        # guid = ''
+        # to_uin = ''
+        psessionid = self.psessionid
+        nowt = self.nowTime()
+        nsurl = 'http://d.web2.qq.com/channel/get_file2?lcid=20868&guid=%s&to=%s&psessionid=%s&count=1&time=%s&clientid=53999199' % \
+                (lcid, guid, to_uin, psessionid, nowt)
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+
+        nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        self.asyncQueueIdBase = self.asyncQueueIdBase + 1
+        reqno = self.asyncQueueIdBase
+        self.asyncQueue[nsreply] = reqno
+        return reqno
+
+    def getMsgFile(self, lcid, guid, to_uin):
+        # lcid = 20868
+        # guid = ''
+        # to_uin = ''
+        psessionid = self.psessionid
+        nowt = self.nowTime()
+        nsurl = 'http://d.web2.qq.com/channel/get_file2?lcid=%s&guid=%s&to=%s&psessionid=%s&count=1&time=%s&clientid=53999199' % \
+                (lcid, guid, to_uin, psessionid, nowt)
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+
+        nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        self.asyncQueueIdBase = self.asyncQueueIdBase + 1
+        reqno = self.asyncQueueIdBase
+        self.asyncQueue[nsreply] = reqno
+        return reqno
 
     ###############
     def nextClientMsgId(self):
@@ -1795,6 +1845,44 @@ class QQAgentService(QObject):
         r = self.wxa.getMsgImgUrl(file_path, f_uin)
 
         return r
+
+    # @calltype: async
+    @pyqtSlot(QDBusMessage, result=str)
+    def get_msg_file(self, message):
+        args = message.arguments()
+        lcid = args[0]
+        guid = args[1]
+        to_uin = args[2]
+
+        s = DelayReplySession()
+        s.message = message
+        s.message.setDelayedReply(True)
+        s.busreply = s.message.createReply()
+
+        reqno = self.wxa.getMsgFile(lcid, guid, to_uin)
+        s.netreply = reqno
+
+        self.dses[reqno] = s
+        return 'can not see this.'
+
+    # @calltype: async
+    @pyqtSlot(QDBusMessage, result=str)
+    def get_msg_file_url(self, message):
+        args = message.arguments()
+        lcid = args[0]
+        guid = args[1]
+        to_uin = args[2]
+
+        s = DelayReplySession()
+        s.message = message
+        s.message.setDelayedReply(True)
+        s.busreply = s.message.createReply()
+
+        reqno = self.wxa.getMsgFileUrl(lcid, guid, to_uin)
+        s.netreply = reqno
+
+        self.dses[reqno] = s
+        return 'can not see this.'
 
     def onDelayedReply(self, reqno, hcc):
         qDebug(str(reqno))

@@ -12,6 +12,7 @@ import wxagent.filestore as filestore
 from .imrelayfactory import IMRelayFactory
 from .qqcom import *
 from .qqsession import *
+from .unimessage import *
 from .wxprotocol import *
 
 # QDBUS_DEBUG
@@ -89,6 +90,7 @@ class WX2Tox(QObject):
         #####
         self.sysbus = QDBusConnection.systemBus()
         self.sysiface = QDBusInterface(QQAGENT_SERVICE_NAME, '/io/qtc/qqagent', QQAGENT_IFACE_NAME, self.sysbus)
+        self.sysiface.setTimeout(50 * 1000)  # shit for get msg pic
 
         #                                   path   iface    name
         # sigmsg = QDBusMessage.createSignal("/", 'signals', "logined")
@@ -465,58 +467,27 @@ class WX2Tox(QObject):
 
         # self.wxses.parseModContact(jsobj['ModContactList'])
 
-        # for um in jsobj['AddMsgList']:
-        #     tm = 'MT:%s,' % (um['MsgType'])   # , um['Content'])
-        #     try:
-        #         tm = ':::,MT:%s,%s' % (um['MsgType'], um['Content'])
-        #         qDebug(str(tm))
-        #     except Exception as ex:
-        #         # qDebug('can not show here')
-        #         rct = um['Content']
-        #         print('::::::::::,MT', um['MsgType'], str(type(rct)), rct)
-        #     self.uiw.plainTextEdit.appendPlainText(um['Content'])
-
         msgs = wxmsgvec.getContent()
         for msg in msgs:
             fromUser = self.wxses.getUserByName(msg.FromUserName)
             toUser = self.wxses.getUserByName(msg.ToUserName)
-            qDebug(str(fromUser))
-            qDebug(str(toUser))
-            fromUser_NickName = ''
-            if fromUser is not None: fromUser_NickName = fromUser.NickName
-            toUser_NickName = ''
-            if toUser is not None: toUser_NickName = toUser.NickName
-
+            # qDebug(str(fromUser))
+            # qDebug(str(toUser))
+            if fromUser is None: qDebug('can not found from user object')
+            if toUser is None: qDebug('can not found to user object')
             msg.FromUser = fromUser
             msg.ToUser = toUser
-            content = msg.UnescapedContent
 
-            # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
-            # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
-            reg = r'^(@[0-9a-f]+):<br/>'
-            mats = re.findall(reg, content)
-            if len(mats) > 0:
-                qDebug(str(mats).encode())
-                UserName = mats[0]
-                UserInfo = self.wxses.getUserInfo(UserName)
-                qDebug(str(UserInfo).encode())
-                if UserInfo is not None:
-                    dispRealName = UserInfo.NickName + UserName
-                    content = content.replace(UserName, dispRealName, 1)
-
-            # for eyes
-            dispFromUserName = msg.FromUserName
-            dispToUserName = msg.ToUserName
-
-            logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                     (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
-                      dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
-
-            logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                     (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
-                      dispToUserName, toUser_NickName, msg.MsgId, content)
+            umsg = self.peerRelay.unimsgcls.fromQQMessage(msg, self.wxses)
+            logstr = umsg.get()
+            dlogstr = umsg.dget()
+            qDebug(dlogstr.encode())
 
             self.sendMessageToTox(msg, logstr)
+
+            if msg.isOffpic():
+                qDebug(msg.offpic)
+                self.sendShotPicMessageToTox(msg, logstr)
 
         return
 
@@ -535,6 +506,17 @@ class WX2Tox(QObject):
             # self.wx2tox_msg_buffer.append(msg)
             pass
 
+        return
+
+    def sendShotPicMessageToTox(self, msg, logstr):
+        def get_img_reply(data=None):
+            if data is None: return
+            url = filestore.upload_file(data)
+            umsg = 'pic url: ' + url
+            self.sendMessageToTox(msg, umsg)
+            return
+
+        self.getMsgImgCallback(msg, get_img_reply)
         return
 
     def dispatchToToxGroup(self, msg, fmtcc):
@@ -1426,6 +1408,46 @@ class WX2Tox(QObject):
 
         self.asyncWatchers.pop(watcher)
         return
+
+    # @param cb(data)
+    def getMsgImgCallback(self, msg, imgcb=None):
+
+        def on_dbus_reply(watcher):
+            qDebug('replyyyyyyyyyyyyyyy')
+            pendReply = QDBusPendingReply(watcher)
+            qDebug(str(watcher))
+            qDebug(str(pendReply.isValid()))
+            if pendReply.isValid():
+                hcc = pendReply.argumentAt(0)
+                qDebug(str(type(hcc)))
+            else:
+                self.asyncWatchers.pop(watcher)
+                if imgcb is not None: imgcb(None)
+                return
+
+            message = pendReply.reply()
+            args = message.arguments()
+
+            self.asyncWatchers.pop(watcher)
+            # send img file to tox client
+            if imgcb is not None: imgcb(args[0])
+
+            return
+
+        # 还有可能超时，dbus默认timeout=25，而实现有可能达到45秒。WTF!!!
+        args = [msg.offpic, msg.FromUserName]
+        offpic_file_path = msg.offpic.replace('/', '%2F')
+        args = [offpic_file_path, msg.FromUserName]
+        pcall = self.sysiface.asyncCall('get_msg_img', *args) 
+        watcher = QDBusPendingCallWatcher(pcall)
+        watcher.finished.connect(on_dbus_reply)
+        self.asyncWatchers[watcher] = '1'
+
+        return
+
+    def getMsgImgUrl(self, msg):
+        args = [msg.MsgId, False]
+        return self.syncGetRpc('get_msg_img_url', args)
 
     # @param hcc QByteArray
     # @return str

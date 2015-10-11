@@ -45,8 +45,8 @@ class WXMessage():
 
         self.MsgType = 0
         self.MsgId = ''
-        self.FromUserName = ''
-        self.ToUserName = ''
+        self.FromUserName = ''  # is uin
+        self.ToUserName = ''  # is uin
         self.CreateTime = 0
         self.Content = ''
         self.UnescapedContent = ''
@@ -61,12 +61,17 @@ class WXMessage():
         self.Gid = 0
         self.ServiceType = 0
 
+        self.offpic = None
+
         # for qq recv file
         self.FileName = ''
         self.FileType = ''
         self.FileMode = ''
         self.FileCancelType = 0
         return
+
+    def isOffpic(self):
+        return self.offpic is not None
 
 
 class WXMessageList():
@@ -140,6 +145,7 @@ class WXMessageList():
             for mc in mcontents:
                 if type(mc) is not str: newmcontents += str(mc)
                 else: newmcontents += mc
+                if type(mc) is not str and 'offpic' in mc: msg.offpic = mc[1]['file_path']
 
             msg.Content = newmcontents
             msg.UnescapedContent = html.unescape(msg.Content)
@@ -159,10 +165,12 @@ class WXMessageList():
             msg.FileType = umval['type']
             msg.FileMode = umval['mode']
             msg.FileCancelType = umval['cancel_type'] if 'cancel_type' in umval else 0
+        elif msg.PollType == QQ_PT_USER:
+            pass
 
         logstr = '[%s][%s] %s => %s @%s:::%s' % \
                  (msg.CreateTime, msg.MsgType, msg.FromUserName, msg.ToUserName, msg.MsgId, msg.UnescapedContent)
-        print(logstr)
+        # print(logstr)
 
         return msg
 
@@ -393,7 +401,7 @@ class WXSession():
         hcc = info
 
         strhcc = hcc.data().decode()
-        qDebug(strhcc[0:120].replace("\n", "\\n"))
+        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
         jsobj = json.JSONDecoder().decode(strhcc)
         self.GroupList = jsobj
 

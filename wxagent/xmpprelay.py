@@ -218,7 +218,7 @@ class XmppRelay(IMRelay):
             room = inv['from'].bare
             muc_nick = self.nick_name
             self.plugin_muc.joinMUC(room, muc_nick)
-            self.groupInvite.emit(room)
+            # self.groupInvite.emit(room)
         return
 
     def on_muc_online(self, presense):

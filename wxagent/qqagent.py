@@ -12,6 +12,14 @@ from .qqcom import *
 from .wxprotocol import *
 
 
+class AgentCookieJar(QNetworkCookieJar):
+    def __init__(self, parent=None):
+        super(AgentCookieJar, self).__init__(parent)
+
+    def xallCookies(self):
+        return self.allCookies()
+
+
 ######
 class QQAgent(QObject):
     qrpicGotten = pyqtSignal('QByteArray')
@@ -22,8 +30,10 @@ class QQAgent(QObject):
 
         self.asvc = asvc
 
+        self.acj = AgentCookieJar()
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+        self.nam.setCookieJar(self.acj)
 
         self.connState = CONN_STATE_NONE
         self.logined = False
@@ -52,8 +62,10 @@ class QQAgent(QObject):
 
         qDebug('see this...')
 
+        self.acj = AgentCookieJar()
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+        self.nam.setCookieJar(self.acj)
 
         self.connState = CONN_STATE_NONE
         self.logined = False
@@ -99,6 +111,7 @@ class QQAgent(QObject):
         url = reply.url().toString()
         hcc = reply.readAll()
         qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
+        self.updateCookies(reply)
 
         # statemachine by url and response content
         if url.startswith('https://ui.ptlogin2.qq.com/cgi-bin/login?'):
@@ -413,6 +426,35 @@ class QQAgent(QObject):
             ########
         elif url.startswith('http://s.web2.qq.com/api/get_friend_uin2?'):
             qDebug(hcc)
+            reqno = self.asyncQueue[reply]
+            self.asyncQueue.pop(reply)
+            self.asyncRequestDone.emit(reqno, hcc)
+            ########
+        elif url.startswith('http://w.qq.com/d/channel/get_offpic2?'):
+            qDebug(hcc)
+            if (reply.hasRawHeader(b'Location')):
+                redir = reply.rawHeader(b'Location').data().decode()
+                # requrl:http://103.7.28.186:80/?ver=2173&rkey=a57579bda0d936f341291cbe6b1d193a6985c36db1bb84172a673df21a9a7bc02182bb5809b56051f87595a866b4abca99d10c129a1cc7b224b6a47e457e3d6f
+                nsurl = redir
+                nsreq = self.mkreq(nsurl)
+                nsreply = self.nam.get(nsreq)
+
+                reqno = self.asyncQueue[reply]
+                self.asyncQueue.pop(reply)
+                self.asyncQueue[nsreply] = reqno
+            else:
+                reqno = self.asyncQueue[reply]
+                self.asyncQueue.pop(reply)
+                self.asyncRequestDone.emit(reqno, hcc)
+            ########
+        elif url.startswith('http://103.7.28.186:80/?ver=') and '&rkey=' in url:
+            # 获取图片内容返回
+            reqno = self.asyncQueue[reply]
+            self.asyncQueue.pop(reply)
+            self.asyncRequestDone.emit(reqno, hcc)
+            ########
+        elif url.startswith('http://103.7.29.36:80/?ver=') and '&rkey=' in url:
+            # 获取图片内容返回
             reqno = self.asyncQueue[reply]
             self.asyncQueue.pop(reply)
             self.asyncRequestDone.emit(reqno, hcc)
@@ -1079,6 +1121,50 @@ class QQAgent(QObject):
 
         return
 
+    def getMsgImg(self, file_path, f_uin):
+        # 目前一直响应"302"，可能是cookie不对，和浏览器上发送的cookie不一样
+        # 少了verifysession=，p_skey=
+        # 还真是cookie的问题，使用P3P，jsonp like方式让不同域名共享cookie解决。
+        # file_path = ''
+        # f_uin = ''
+        psessionid = ''
+        psessionid = self.psessionid
+        nsurl = 'http://w.qq.com/d/channel/get_offpic2?file_path=%s&f_uin=%s&clientid=53999199&psessionid=%s' % \
+                (file_path, f_uin, psessionid)
+
+        nsreq = QNetworkRequest(QUrl(nsurl))
+        nsreq = self.mkreq(nsurl)
+
+        nsreply = self.nam.get(nsreq)
+        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        self.asyncQueueIdBase = self.asyncQueueIdBase + 1
+        reqno = self.asyncQueueIdBase
+        self.asyncQueue[nsreply] = reqno
+        return reqno
+
+    def getMsgImgUrl(self, file_path, f_uin):
+        # file_path = ''
+        # f_uin = ''
+        psessionid = ''
+        psessionid = self.psessionid
+        nsurl = 'http://w.qq.com/d/channel/get_offpic2?file_path=%s&f_uin=%s&clientid=53999199&psessionid=%s' \
+                (file_path, f_uin, psessionid)
+        return nsurl
+
+    def getMsgFileUrl(self, sender_name, media_id, file_name, from_uin):
+        # sender_name = ''
+        # media_id = ''
+        # file_name = ''
+        # from_uin = 0
+        # file_name = urllib.parse.quote_plus(file_name)   # 对中文不太友好
+        file_name = file_name.replace(' ', '+')  # 这种可能存在bug
+        pass_ticket = self.wxPassTicket
+        data_ticket = self.wxDataTicket
+        nsurl = 'https://file2.wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia?sender=%s&mediaid=%s&filename=%s&fromuser=%s&pass_ticket=%s&webwx_data_ticket=%s'  % \
+                (sender_name, media_id, file_name, from_uin, pass_ticket, data_ticket)
+        return nsurl
+
     ###############
     def nextClientMsgId(self):
         now = QDateTime.currentDateTime()
@@ -1090,6 +1176,45 @@ class QQAgent(QObject):
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
         return reqno
+
+    # 把所有reply的所有cookie都记录下来
+    def updateCookies(self, reply):
+        ckjar = self.nam.cookieJar()
+        qDebug(str(ckjar))
+
+        all_cookies = ckjar.xallCookies()
+
+        for ck in all_cookies:
+            doms = ('.w.qq.com', '.qq.com', '.web2.qq.com', '.d.web2.qq.com',
+                    '.web.qq.com', '.s.web2.qq.com')
+
+            nck = QNetworkCookie(ck)
+            nck.setDomain('.w.qq.com')
+            bret1 = ckjar.insertCookie(nck)
+
+            nck = QNetworkCookie(ck)
+            nck.setDomain('.qq.com')
+            bret2 = ckjar.insertCookie(nck)
+
+            nck = QNetworkCookie(ck)
+            nck.setDomain('.web2.qq.com')
+            bret3 = ckjar.insertCookie(nck)
+
+            nck = QNetworkCookie(ck)
+            nck.setDomain('.d.web2.qq.com')
+            bret4 = ckjar.insertCookie(nck)
+
+            nck = QNetworkCookie(ck)
+            nck.setDomain('s.web.qq.com')
+            bret5 = ckjar.insertCookie(nck)
+
+            nck = QNetworkCookie(ck)
+            nck.setDomain('.web.qq.com')
+            bret6 = ckjar.insertCookie(nck)
+
+            # qDebug(str(bret1) + str(bret2) + str(bret3))
+
+        return
 
     # @return str
     def getCookie(self, name):
@@ -1639,6 +1764,37 @@ class QQAgentService(QObject):
         r = self.wxa.requrl(url)
 
         return True
+
+    # @calltype: async
+    # @param msgid str
+    # @param thumb bool
+    @pyqtSlot(QDBusMessage, result='QString')
+    def get_msg_img(self, message):
+        args = message.arguments()
+        file_path = args[0]
+        f_uin = args[1]
+
+        s = DelayReplySession()
+        s.message = message
+        s.message.setDelayedReply(True)
+        s.busreply = s.message.createReply()
+
+        reqno = self.wxa.getMsgImg(file_path, f_uin)
+        s.netreply = reqno
+
+        self.dses[reqno] = s
+        return 'can not see this.'
+
+    # @calltype: sync
+    @pyqtSlot(QDBusMessage, result=str)
+    def get_msg_img_url(self, message):
+        args = message.arguments()
+        file_path = args[0]
+        f_uin = args[1]
+
+        r = self.wxa.getMsgImgUrl(file_path, f_uin)
+
+        return r
 
     def onDelayedReply(self, reqno, hcc):
         qDebug(str(reqno))

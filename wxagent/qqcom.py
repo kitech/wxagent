@@ -27,6 +27,7 @@ QQ_PT_SHAKE = 10
 QQ_PT_AV_REQUEST = 11
 QQ_PT_AV_REFUSE = 12
 
+
 # QQ 消息 类型
 QQMSG_TYPE_9 = 9  # 收到文件消息/shake
 QQMSG_TYPE_43 = 43  # 抓图图片消息

@@ -2,3 +2,4 @@ PyQt5
 pytox
 sleekxmpp
 qiniu
+PyExecJS

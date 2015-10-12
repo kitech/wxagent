@@ -3,6 +3,7 @@
 import os, sys
 import json, re
 import enum
+import time
 import magic
 import math
 
@@ -81,7 +82,11 @@ class WX2Tox(QObject):
 
         #####
         self.sysbus = QDBusConnection.systemBus()
-        self.sysiface = QDBusInterface(WXAGENT_SERVICE_NAME, '/io/qtc/wxagent', WXAGENT_IFACE_NAME, self.sysbus)
+        if qVersion() >= '5.5':
+            self.sysiface = QDBusInterface(WXAGENT_SERVICE_NAME, '/io/qtc/wxagent', WXAGENT_IFACE_NAME, self.sysbus)
+            self.sysiface.setTimeout(50 * 1000)  # shit for get msg pic
+        else:
+            self.sysiface = QDBusInterface(WXAGENT_SERVICE_NAME, '/io/qtc/wxagent', '', self.sysbus)
 
         #                                   path   iface    name
         # sigmsg = QDBusMessage.createSignal("/", 'signals', "logined")
@@ -102,8 +107,9 @@ class WX2Tox(QObject):
         return
 
     def initRelay(self):
-        self.peerRelay = IMRelayFactory.create('xmpp')
-        # self.peerRelay = IMRelayFactory.create('tox')
+        relay_type = 'xmpp'
+        # relay_type = 'tox'
+        self.peerRelay = IMRelayFactory.create(relay_type)
         self.peerRelay.src_pname = 'WXU'
 
         relay = self.peerRelay
@@ -120,7 +126,7 @@ class WX2Tox(QObject):
     def onRelayConnected(self):
         qDebug('hehee')
 
-        if self.need_send_qrfile is True:
+        if self.need_send_qrfile is True and self.peerRelay.isPeerConnected(self.peerRelay.peer_user):
             # from .secfg import peer_xmpp_user
             url = filestore.upload_file(self.qrpic.data())
             rc = self.peerRelay.sendMessage('test qrpic url....' + url,
@@ -128,7 +134,7 @@ class WX2Tox(QObject):
             if rc is not False:
                 self.need_send_qrfile = False
 
-        if self.need_send_notify is True:
+        if self.need_send_notify is True and self.peerRelay.isPeerConnected(self.peerRelay.peer_user):
             blen = len(self.notify_buffer)
             while len(self.notify_buffer) > 0:
                 notify_msg = self.notify_buffer.pop()
@@ -145,16 +151,15 @@ class WX2Tox(QObject):
     def onRelayPeerConnected(self):
         qDebug('hehee')
 
-        if self.need_send_qrfile is True:
+        if self.need_send_qrfile is True and self.peerRelay.isPeerConnected(self.peerRelay.peer_user):
             # from .secfg import peer_xmpp_user
             url = filestore.upload_file(self.qrpic.data())
-            rc = self.peerRelay.sendMessage('test qrpic url....' + url,
-                                            self.peerRelay.peer_user)
+            rc = self.peerRelay.sendMessage('test qrpic url....' + url, self.peerRelay.peer_user)
             if rc is not False:
                 self.need_send_qrfile = False
 
         # TODO 使用dispatch方式发送消息
-        if len(self.wx2tox_msg_buffer) > 0:
+        if len(self.wx2tox_msg_buffer) > 0 and self.peerRelay.isPeerConnected(self.peerRelay.peer_user):
             blen = len(self.wx2tox_msg_buffer)
             while len(self.wx2tox_msg_buffer) > 0:
                 msg = self.wx2tox_msg_buffer.pop()
@@ -301,11 +306,10 @@ class WX2Tox(QObject):
             self.qrfile = fname
 
             tkc = False
-            tkc = self.peerRelay.isConnected()
+            tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
             if tkc is True:
                 url = filestore.upload_file(self.qrpic)
-                self.peerRelay.sendMessage('qrcode url:' + url,
-                                           self.peerRelay.peer_user)
+                self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
             else:
                 self.need_send_qrfile = True
 
@@ -332,11 +336,10 @@ class WX2Tox(QObject):
         self.qrfile = fname
 
         tkc = False
-        tkc = self.peerRelay.isConnected()
+        tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
         if tkc is True:
             url = filestore.upload_file(self.qrpic)
-            self.peerRelay.sendMessage('qrpic url:' + url,
-                                       self.peerRelay.peer_user)
+            self.peerRelay.sendMessage('qrpic url:' + url, self.peerRelay.peer_user)
         else:
             self.need_send_qrfile = True
 

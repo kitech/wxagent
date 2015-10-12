@@ -139,3 +139,5 @@ https://github.com/xhan/qqbot/blob/master/protocol.md
 
 https://github.com/zeruniverse/GnomeQQ/blob/master/PROTOCOL.md
 
+https://github.com/Yinzo/SmartQQBot
+

@@ -237,6 +237,13 @@ class QToxKit(QThread):
         self.bootstrapTimer = None
 
         self.start()
+
+        # Fix race condition
+        # confirm self.tox is not None after this class's __init__
+        wcnt = 0
+        while self.tox is None:
+            wcnt += 1
+            time.sleep(0.003)
         return
 
     def run(self):

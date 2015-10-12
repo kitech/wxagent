@@ -1267,7 +1267,11 @@ def register_dbus_service(wxasvc):
 
     sysbus = QDBusConnection.systemBus()
     # bret = sysbus.registerObject("/io/qtc/wxagent", wxasvc, QDBusConnection.ExportAllSlots)
-    bret = sysbus.registerObject("/io/qtc/wxagent", WXAGENT_IFACE_NAME, wxasvc, QDBusConnection.ExportAllSlots)
+    bret = False
+    if qVersion() >= '5.5':
+        bret = sysbus.registerObject("/io/qtc/wxagent", WXAGENT_IFACE_NAME, wxasvc, QDBusConnection.ExportAllSlots)
+    else:
+        bret = sysbus.registerObject("/io/qtc/wxagent", wxasvc, QDBusConnection.ExportAllSlots)
     qDebug(str(sysbus))
     if bret is False:
         err = sysbus.lastError()

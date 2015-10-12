@@ -1964,7 +1964,11 @@ def init_dbus_service():
 def register_dbus_service(asvc):
 
     sysbus = QDBusConnection.systemBus()
-    bret = sysbus.registerObject("/io/qtc/qqagent", QQAGENT_IFACE_NAME, asvc, QDBusConnection.ExportAllSlots)
+    bret = False
+    if qVersion() >= '5.5':
+        bret = sysbus.registerObject("/io/qtc/qqagent", QQAGENT_IFACE_NAME, asvc, QDBusConnection.ExportAllSlots)
+    else:
+        bret = sysbus.registerObject("/io/qtc/qqagent", asvc, QDBusConnection.ExportAllSlots)
     qDebug(str(sysbus))
     if bret is False:
         err = sysbus.lastError()

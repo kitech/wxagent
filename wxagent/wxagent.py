@@ -124,6 +124,9 @@ class WXAgent(QObject):
         hcc = reply.readAll()
         qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
 
+        if status_code is None and error_no in [99]:
+            qDebug('maybe logout for timeout.')
+
         # statemachine by url and response content
         if url.startswith('https://login.weixin.qq.com/jslogin?'):
             qDebug("qr login code/uuic:" + str(hcc))
@@ -196,10 +199,10 @@ class WXAgent(QObject):
                 self.redirect_url = redir_url
 
                 nsurl = redir_url
-                if nsurl.find('wx.qq.com') > 0 :
+                if nsurl.find('wx.qq.com') > 0:
                     self.urlStart = 'https://wx.qq.com'
                     self.webpushUrlStart = 'https://webpush.weixin.qq.com'
-                else :
+                else:
                     self.urlStart = 'https://wx2.qq.com'
                     self.webpushUrlStart = 'https://webpush2.weixin.qq.com'
                 qDebug(nsurl)
@@ -312,10 +315,10 @@ class WXAgent(QObject):
                 elif selector == '2':
                     self.webSync()
                     pass
-                elif selector == '4':  ### TODO,confirm this，像是群成员列表有变化
+                elif selector == '4':  # TODO,confirm this，像是群成员列表有变化
                     self.webSync()
                     pass
-                elif selector == '6':  ### TODO,confirm this
+                elif selector == '6':  # TODO,confirm this
                     self.webSync()
                     pass
                 elif selector == '7':
@@ -389,7 +392,7 @@ class WXAgent(QObject):
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
         elif url.startswith('http://emoji.qpic.cn/wx_emoji'):
-            qDebug('get the picture url that you saved : '+str(len(hcc)))
+            qDebug('get the picture url that you saved : ' + str(len(hcc)))
             self.msgimage = hcc
             self.createMsgImage(hcc)
         else:
@@ -400,12 +403,12 @@ class WXAgent(QObject):
 
     def createMsgImage(self, hcc):
         randnum = str(int(time.time()))
-        self.msgimagename = 'img/mgs_image'+randnum+'.json'
+        self.msgimagename = 'img/mgs_image' + randnum + '.json'
         fp = QFile(self.msgimagename)
         fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
         fp.write(hcc)
         fp.close()
-        
+
     def onReplyError(self, errcode):
         qDebug('reply error:' + str(errcode))
         reply = self.sender()
@@ -537,7 +540,6 @@ class WXAgent(QObject):
         nsurl = self.urlStart+'/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=en_US&pass_ticket=%s' % \
                 (self.wxsid, skey, self.wxPassTicket)
 
-
         # {"BaseRequest":{"Uin":979270107,"Sid":"9qxNHGgi9VP4/Tx6","Skey":"@crypt_3ea2fe08_723d1e1bd7b4171657b58c6d2849b367","DeviceID":"e740613595349714"},"SyncKey":{"Count":7,"List":[{"Key":1,"Val":638162182},{"Key":2,"Val":638162328},{"Key":3,"Val":638162098},{"Key":11,"Val":638162315},{"Key":201,"Val":1440036879},{"Key":203,"Val":1440034958},{"Key":1000,"Val":1440031958}]},"rr":-1222840202}
         post_data = 'BaseRequest":{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s"},"SyncKey":%s,"rr":%s}'
         post_data_obj = {
@@ -588,7 +590,7 @@ class WXAgent(QObject):
     # @param to_username str
     # @param msg_type int
     # @param content str
-    def sendmessage(self, from_username, to_username, content, msg_type = 1):
+    def sendmessage(self, from_username, to_username, content, msg_type=1):
 
         # url v1:
         # https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?sid=QfLp+Z+FePzvOFoG&r=1377482079876
@@ -639,7 +641,7 @@ class WXAgent(QObject):
         return
 
     #
-    def requrl(self, url, method = 'GET', data = ''):
+    def requrl(self, url, method='GET', data=''):
         nsurl = url
 
         nsreq = QNetworkRequest(QUrl(nsurl))
@@ -825,7 +827,7 @@ class WXAgent(QObject):
         qDebug("\ngggggggg===========")
         qDebug(str(reply))
         req = reply.request()
-        qDebug(str(req.url()))
+        qDebug(str(req.url()).encode())
         stcode = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
         qDebug(str(stcode))
         cookies = reply.header(QNetworkRequest.SetCookieHeader)
@@ -1016,6 +1018,7 @@ class WXAgentService(QObject):
         rstr = qrpic64.data().decode('utf8')
         return rstr
 
+    # TODO all network should be async
     @pyqtSlot(QDBusMessage, result='QString')
     def getmsgimage(self, message):
         imgurls = message.arguments()

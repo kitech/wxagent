@@ -8,7 +8,7 @@ from PyQt5.QtCore import *
 from .qtoxkit import *
 
 from .imrelay import IMRelay
-from .unimessage import *
+from .unimessage import ToxMessage
 
 
 class ToxRelay(IMRelay):

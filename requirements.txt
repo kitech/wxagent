@@ -3,3 +3,4 @@ pytox
 sleekxmpp
 qiniu
 PyExecJS
+pycurl

@@ -113,6 +113,9 @@ class QQAgent(QObject):
         qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
         self.updateCookies(reply)
 
+        if status_code is None and error_no in [99]:
+            qDebug('maybe logout for timeout.')
+
         # statemachine by url and response content
         if url.startswith('https://ui.ptlogin2.qq.com/cgi-bin/login?'):
 
@@ -1341,7 +1344,7 @@ class QQAgent(QObject):
         qDebug("\ngggggggg===========")
         qDebug(str(reply))
         req = reply.request()
-        qDebug(str(req.url()))
+        qDebug(str(req.url()).encode())
         stcode = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
         qDebug(str(stcode))
         cookies = reply.header(QNetworkRequest.SetCookieHeader)

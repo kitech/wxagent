@@ -12,14 +12,13 @@ from PyQt5.QtNetwork import *
 from PyQt5.QtDBus import *
 
 
-import wxagent.filestore as filestore
 from .imrelayfactory import IMRelayFactory
 from .wxcommon import *
 from .wxsession import *
 from .unimessage import *
 from .wxprotocol import *
 from .botcmd import *
-
+from .filestore import QiniuFileStore, VnFileStore
 
 # QDBUS_DEBUG
 
@@ -107,7 +106,10 @@ class WX2Tox(QObject):
         return
 
     def initRelay(self):
-        relay_type = 'xmpp'
+        from .secfg import relay_type
+        if relay_type is None or relay_type == '' or relay_type not in ('xmpp', 'tox'):
+            raise 'relay type not set or invalid relay type. see secfg.py.'
+        # relay_type = 'xmpp'
         # relay_type = 'tox'
         self.peerRelay = IMRelayFactory.create(relay_type)
         self.peerRelay.src_pname = 'WXU'
@@ -128,7 +130,10 @@ class WX2Tox(QObject):
 
         if self.need_send_qrfile is True and self.peerRelay.isPeerConnected(self.peerRelay.peer_user):
             # from .secfg import peer_xmpp_user
-            url = filestore.upload_file(self.qrpic.data())
+            # url = filestore.upload_file(self.qrpic.data())
+            url1 = QiniuFileStore.uploadData(self.qrpic.data())
+            url2 = VnFileStore.uploadData(self.qrpic.data())
+            url = url1 + "\n" + url2
             rc = self.peerRelay.sendMessage('test qrpic url....' + url,
                                             self.peerRelay.peer_user)
             if rc is not False:
@@ -153,7 +158,10 @@ class WX2Tox(QObject):
 
         if self.need_send_qrfile is True and self.peerRelay.isPeerConnected(self.peerRelay.peer_user):
             # from .secfg import peer_xmpp_user
-            url = filestore.upload_file(self.qrpic.data())
+            # url = filestore.upload_file(self.qrpic.data())
+            url1 = QiniuFileStore.uploadData(self.qrpic.data())
+            url2 = VnFileStore.uploadData(self.qrpic.data())
+            url = url1 + "\n" + url2
             rc = self.peerRelay.sendMessage('test qrpic url....' + url, self.peerRelay.peer_user)
             if rc is not False:
                 self.need_send_qrfile = False
@@ -308,7 +316,10 @@ class WX2Tox(QObject):
             tkc = False
             tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
             if tkc is True:
-                url = filestore.upload_file(self.qrpic)
+                # url = filestore.upload_file(self.qrpic)
+                url1 = QiniuFileStore.uploadData(self.qrpic)
+                url2 = VnFileStore.uploadData(self.qrpic)
+                url = url1 + "\n" + url2
                 self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
             else:
                 self.need_send_qrfile = True
@@ -338,7 +349,10 @@ class WX2Tox(QObject):
         tkc = False
         tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
         if tkc is True:
-            url = filestore.upload_file(self.qrpic)
+            # url = filestore.upload_file(self.qrpic)
+            url1 = QiniuFileStore.uploadData(self.qrpic)
+            url2 = VnFileStore.uploadData(self.qrpic)
+            url = url1 + "\n" + url2
             self.peerRelay.sendMessage('qrpic url:' + url, self.peerRelay.peer_user)
         else:
             self.need_send_qrfile = True
@@ -460,7 +474,10 @@ class WX2Tox(QObject):
     def sendShotPicMessageToTox(self, msg, logstr):
         def get_img_reply(data=None):
             if data is None: return
-            url = filestore.upload_file(data)
+            # url = filestore.upload_file(data)
+            url1 = QiniuFileStore.uploadData(data)
+            url2 = VnFileStore.uploadData(data)
+            url = url1 + "\n" + url2
             umsg = 'pic url: ' + url
             self.sendMessageToTox(msg, umsg)
             return
@@ -471,7 +488,10 @@ class WX2Tox(QObject):
     def sendVoiceMessageToTox(self, msg, logstr):
         def get_voice_reply(data=None):
             if data is None: return
-            url = filestore.upload_file(data)
+            # url = filestore.upload_file(data)
+            url1 = QiniuFileStore.uploadData(data)
+            url2 = VnFileStore.uploadData(data)
+            url = url1 + "\n" + url2
             umsg = 'voice url: ' + url
             self.sendMessageToTox(msg, umsg)
             return

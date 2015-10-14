@@ -10,12 +10,18 @@ setup(
     description="A weixin agent daemon and client",
     author='kitech',
     author_email='yatseni@gmail.com',
-    url='http://contrix.tk/',
+    url='https://github.com/kitech/wxagent',
     packages=find_packages(),
     package_data={
         'wxagent': ['readme.md']
     },
-    install_requires=[],
+    install_requires=[
+        'pytox',
+        'sleekxmpp',
+        'qiniu',
+        'pycurl',
+        'PyExecJS',
+    ],
     entry_points="""
     [console_scripts]
     wxagent = wxagent.wxagent:main

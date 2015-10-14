@@ -2,9 +2,6 @@
 
 import os, sys
 import json, re
-import enum
-import math
-import hashlib
 import logging
 from collections import defaultdict
 
@@ -13,7 +10,7 @@ from PyQt5.QtCore import *
 import sleekxmpp
 
 from .imrelay import IMRelay
-from .unimessage import *
+from .unimessage import XmppMessage
 
 
 class XmppRelay(IMRelay):
@@ -413,6 +410,10 @@ class XmppRelay(IMRelay):
             elif ch in (' '):
                 nch = '+'
             elif ch in ('<', '>', '(', ')'):
+                nch = '.'
+            elif ch in ('，'):  # 全角标点
+                nch = ','
+            elif ch in ('。'):
                 nch = '.'
             nname += nch
         return nname

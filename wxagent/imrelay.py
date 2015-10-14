@@ -26,6 +26,8 @@ class IMRelay(QThread):
         self.unimsgcls = UniMessage  # 为foo2bar主控逻辑做消息转换时使用
         self.src_pname = 'WXU.or.WQU'  # src proto name
         self.relay_tail = ''  # like  -- from tox/xmpp
+
+        self.support_file_transfer = False  # 支持inline方式传递文件，而不是使用第三方存储
         return
 
     # @return True|False

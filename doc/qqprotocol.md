@@ -71,6 +71,20 @@ w.qq与手机qq能够保证都收到消息，但是手机上发送的消息不�
 *
 * 
 
+##### long poll
+
+POST
+http://d.web2.qq.com/channel/poll2?
+
+
+返回值：
+
+{"retcode":102,"errmsg":""}  poll 正常超时，再次poll即可。
+
+{"retcode":121,"t":""}  掉线
+
+
+
 ##### 被迫下载
 您的帐号在另一地点登录，您已被迫下线。如有疑问，请登录 safe.qq.com 了解更多。
 

@@ -83,9 +83,11 @@ class XmppRelay(IMRelay):
 
     # raw xmpp protocol handler
     def initXmpp(self):
-        from .secfg import xmpp_user, xmpp_pass, peer_xmpp_user
+        from .secfg import xmpp_user, xmpp_pass, peer_xmpp_user, xmpp_server
         self.self_user = xmpp_user
         self.peer_user = peer_xmpp_user
+        self.xmpp_server = xmpp_server
+        self.xmpp_conference_host = 'conference.' + xmpp_user.split('@')[1]
 
         loglevel = logging.DEBUG
         loglevel = logging.WARNING
@@ -126,10 +128,14 @@ class XmppRelay(IMRelay):
 
     def run(self):
         qDebug('hhehehe')
+        server = None
         # server = ('xmpp.jp', 5222)
-        if self.xmpp.connect():
+        # server = ('b.xmpp.jp', 5222)
+        if self.xmpp_server is not None and len(self.xmpp_server) > 0:
+            server = tuple(self.xmpp_server.split(':'))
+        if self.xmpp.connect(server):
             self.xmpp.process(block=True)
-            qDebug('Done.')
+            qDebug('Xmpp instance Done.')
         else:
             qDebug('unable to connect,' + str(self.jid))
         return
@@ -340,17 +346,17 @@ class XmppRelay(IMRelay):
         return
 
     def create_muc(self, name):
-        muc_name = '%s@conference.xmpp.jp' % name
+        muc_name = '%s@%s' % (name, self.xmpp_conference_host)
         muc_nick = self.nick_name
         self.plugin_muc.joinMUC(muc_name, muc_nick)
         print(self.plugin_muc.rooms)
         return
 
     def create_muc2(self, room_jid, nick_name):
-        muc_name = '%s@conference.xmpp.jp' % room_jid
+        muc_name = '%s@%s' % (room_jid, self.xmpp_conference_host)
         muc_nick = nick_name
         self.xmpp.add_event_handler('muc::%s::presence' % muc_name, self.on_muc_room_presence)
-        qDebug((muc_name+',,,'+muc_nick).encode())
+        qDebug((muc_name + ',,,' + muc_nick).encode())
         self.plugin_muc.joinMUC(muc_name, muc_nick)
         print(self.plugin_muc.rooms, muc_name, self.xmpp.boundjid.bare)
         qDebug(str(self.plugin_muc.jidInRoom(muc_name, self.xmpp.boundjid.bare)))
@@ -364,13 +370,13 @@ class XmppRelay(IMRelay):
 
     def muc_invite(self, room_name, peer_jid):
         qDebug('heree')
-        room_jid = '%s@conference.xmpp.jp' % room_name
+        room_jid = '%s@%s' % (room_name, self.xmpp_conference_host)
         reason = 'hello come here:' + room_jid
         self.plugin_muc.invite(room_jid, peer_jid, reason=reason)  # , mfrom=mfrom)
         return
 
     def muc_number_peers(self, room_jid):
-        muc_name = '%s@conference.xmpp.jp' % room_jid.lower()
+        muc_name = '%s@%s' % (room_jid.lower(), self.xmpp_conference_host)
         qDebug((muc_name + str(self.fixrooms)).encode())
         # room_obj = self.plugin_muc.rooms[muc_name]
         room_obj = self.fixrooms[muc_name]
@@ -384,7 +390,7 @@ class XmppRelay(IMRelay):
         return len(room_obj)
 
     def muc_send_message(self, room_name, msg):
-        mto = '%s@conference.xmpp.jp' % room_name
+        mto = '%s@%s' % (room_name, self.xmpp_conference_host)
         mbody = msg
         mtype = 'groupchat'
         qDebug(mto.encode())

@@ -1,6 +1,8 @@
 PyQt5
 pytox
 sleekxmpp
+dnspython
+pyasn1
 qiniu
 PyExecJS
 pycurl

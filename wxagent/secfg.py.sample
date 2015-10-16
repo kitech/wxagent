@@ -1,17 +1,24 @@
 
 # secret config for wx2xmpp, change to your fit.
 
+# for xmpp protocol
 xmpp_user = 'abcefg@xmpp.jp'
 xmpp_pass = '1234567'
 peer_xmpp_user = 'kjsifse@xmpp.jp'
+xmpp_server = 'b.xmpp.jp:5222'  # optional, empty for auto
+# xmpp_conference_host = 'conference.' + xmpp_user.split('@')[1]  # 这个有可能能够动态取出来。
 
+
+# for file storage
 qiniu_acckey = ''
 qiniu_seckey = ''
 qiniu_bucket_name = 'xpim'
 
 
+# for toxcore protocol
 # for ToxRelay, this is relay dest's toxid.
 # 398C8161D03xx...........
 peer_tox_user = ''
 
+# global
 relay_type = ''  # tox/xmpp

@@ -81,7 +81,10 @@ http://d.web2.qq.com/channel/poll2?
 
 {"retcode":102,"errmsg":""}  poll 正常超时，再次poll即可。
 
+{"retcode":103,"t":""} 登录异常，可能只能刷新重新登陆了
+
 {"retcode":121,"t":""}  掉线
+
 
 
 

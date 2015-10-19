@@ -21,4 +21,5 @@ qiniu_bucket_name = 'xpim'
 peer_tox_user = ''
 
 # global
-relay_type = ''  # tox/xmpp
+relay_type = ''  # tox/xmpp  # TODO maybe change to relay_proto_type
+file_relay_type = ''  # none/direct/thirdparty

@@ -20,6 +20,12 @@ class AgentCookieJar(QNetworkCookieJar):
         return self.allCookies()
 
 
+class AgentStats:
+    def __init__(self):
+        self.refresh_count = 0
+        return
+
+
 ######
 class QQAgent(QObject):
     qrpicGotten = pyqtSignal('QByteArray')
@@ -29,6 +35,7 @@ class QQAgent(QObject):
         super(QQAgent, self).__init__(parent)
 
         self.asvc = asvc
+        self.asts = AgentStats()
 
         self.acj = AgentCookieJar()
         self.nam = QNetworkAccessManager()
@@ -332,7 +339,7 @@ class QQAgent(QObject):
             strhcc = self.hcc2str(hcc)
             jshcc = json.JSONDecoder().decode(strhcc)
 
-            # retcode: 0/102/109/116/120/121
+            # retcode: 0/102/103/109/116/120/121
             retcode = int(jshcc['retcode'])
 
             if retcode == 0:
@@ -356,6 +363,10 @@ class QQAgent(QObject):
                 qDebug(self.ptwebqq)
 
                 self.eventPoll()
+            elif retcode in [103]:
+                qDebug('login exception, refresh...')
+                QTimer.singleShot(123, self.refresh)
+                pass
             elif retcode in [120, 121]:
                 qDebug('relink not impled')
                 pass

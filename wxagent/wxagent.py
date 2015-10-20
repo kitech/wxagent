@@ -126,7 +126,8 @@ class WXAgent(QObject):
 
         if status_code is None and error_no in [99]:
             qDebug('maybe logout for timeout.')
-            QTimer.singleShot(123, self.webSync)
+            # QTimer.singleShot(123, self.webSync)
+            QTimer.singleShot(123, self.refresh)
             return
 
         # statemachine by url and response content

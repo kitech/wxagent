@@ -58,7 +58,7 @@ class Chatroom():
         self.Gid = 0
         self.ServiceType = 0
 
-        ### fix some bugs
+        ### fixme some bugs
         self.FromUserName = ''  # case for newsapp/xxx
         return
 
@@ -90,7 +90,7 @@ class TX2Any(QObject):
         self.tx2relay_msg_buffer = []  # 存储未转发到relay的消息
 
         self.txchatmap = {}  # Uin => Chatroom
-        self.toxchatmap = {}  # group_number => Chatroom
+        self.relaychatmap = {}  # group_number => Chatroom
         # self.wxproto = WXProtocol()
         self.pendingGroupMessages = {}  # group name => msg
 
@@ -276,6 +276,7 @@ class TX2Any(QObject):
 
     # @param msg str
     def uicmdHandler(self, msg):
+        if True: raise 'must impl in sub class'
 
         if msg[0] != "'":
             qDebug('not a uicmd, normal msg, omit for now.')
@@ -304,7 +305,7 @@ class TX2Any(QObject):
 
     # sub class impl
     def startTXBot(self):
-        if True: raise 'not impled'
+        if True: raise 'must impl in impled'
 
         # below just sample
         cstate = self.getConnState()
@@ -316,7 +317,7 @@ class TX2Any(QObject):
         if cstate == CONN_STATE_NONE:
             # do nothing
             qDebug('wait for qqagent bootup...')
-            QTimer.singleShot(2345, self.startWXBot)
+            QTimer.singleShot(2345, self.startTXBot)
             pass
         elif cstate == CONN_STATE_WANT_USERNAME:
             need_send_notify = True
@@ -334,10 +335,10 @@ class TX2Any(QObject):
             qDebug('not possible.')
             pass
 
-        self.startTXBot_extra(need_send_notify)
+        self.startTXBot_extra(need_send_notify, notify_msg)
         return
 
-    def startTXBot_extra(self, need_send_notify):
+    def startTXBot_extra(self, need_send_notify, notify_msg):
         if need_send_notify is True:
             # TODO 这里有一个时序问题，有可能self.peerRelay为None，即relay还没有完全启动
             # time.sleep(1)  # hotfix lsself.peerRelay's toxkit is None sometime.
@@ -393,7 +394,7 @@ class TX2Any(QObject):
     @pyqtSlot(QDBusMessage)
     def onDBusWantQQNum(self, message):
         qDebug(str(message.arguments()))
-        self.startWXBot()  # TODO 替换成登陆状态机方法
+        self.startTXBot()  # TODO 替换成登陆状态机方法
         return
 
     # @param a0=needvfc
@@ -459,7 +460,7 @@ class TX2Any(QObject):
     def onDBusLoginSuccess(self, message):
         qDebug(str(message.arguments()))
 
-        self.startWXBot()
+        self.startTXBot()
 
         # TODO send success message to UI peer
         return
@@ -597,6 +598,7 @@ class TX2Any(QObject):
         return
 
     def dispatchToToxGroup(self, msg, fmtcc):
+        if True: raise 'must impl in sub class'
 
         if msg.FromUserName == 'newsapp':
             qDebug('special chat: newsapp')
@@ -1079,6 +1081,8 @@ class TX2Any(QObject):
         return
 
     def createWXSession(self):
+        if True: raise 'must impl in sub class'
+
         if self.txses is not None:
             return
 
@@ -1166,6 +1170,7 @@ class TX2Any(QObject):
         return True
 
     def getConnState(self):
+        if True: raise 'must impl in subclass'
         reply = self.sysiface.call('connstate', 'a0', 123, 'a1')
         qDebug(str(reply))
         rr = QDBusReply(reply)
@@ -1193,298 +1198,6 @@ class TX2Any(QObject):
     def getBaseFileName(self, fname):
         bfname = QFileInfo(fname).fileName()
         return bfname
-
-    def sendQQNum(self, num):
-        reply = self.sysiface.call('inputqqnum', num, 'a0', 123, 'a1')
-        qDebug(str(reply))
-        rr = QDBusReply(reply)
-        qDebug(str(rr.value()) + ',' + str(type(rr.value())))
-        return
-
-    def sendPasswordAndVerify(self, password, verify_code):
-        reply = self.sysiface.call('inputverify', password, verify_code, 'a0', 123, 'a1')
-        qDebug(str(reply))
-        rr = QDBusReply(reply)
-        qDebug(str(rr.value()) + ',' + str(type(rr.value())))
-        return
-
-    def getGroupsFromDBus(self):
-
-        reply = self.sysiface.call('getgroups', 123, 'a1', 456)
-        rr = QDBusReply(reply)
-
-        # TODO check reply valid
-        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        GroupNames = json.JSONDecoder().decode(rr.value())
-
-        return GroupNames
-
-    def onGetContactDone(self, watcher):
-        pendReply = QDBusPendingReply(watcher)
-        qDebug(str(watcher))
-        qDebug(str(pendReply.isValid()))
-        if pendReply.isValid():
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(type(hcc)))
-        else:
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(len(hcc)))
-            qDebug(str(hcc))
-            return
-
-        message = pendReply.reply()
-        args = message.arguments()
-        qDebug(str(args))
-        extrainfo = self.asyncWatchers[watcher]
-        self.saveContent('dr.'+extrainfo+'.json', args[0])
-
-        ######
-        hcc = args[0]  # QByteArray
-        strhcc = self.hcc2str(hcc)
-        qDebug(strhcc.encode())
-        hccjs = json.JSONDecoder().decode(strhcc)
-        print(extrainfo, ':::', strhcc)
-
-
-        if extrainfo == 'getuserfriends':
-            self.txses.setUserFriends(hcc)
-
-        if extrainfo == 'getgroupnamelist':
-            self.txses.setGroupList(hcc)
-            for um in hccjs['result']['gnamelist']:
-                gcode = um['code']
-                gname = um['name']
-                qDebug(b'get group detail...' + str(um).encode())
-                pcall = self.sysiface.asyncCall('get_group_detail', gcode, 'a0', 123, 'a1')
-                twatcher = QDBusPendingCallWatcher(pcall)
-                twatcher.finished.connect(self.onGetGroupOrDiscusDetailDone, Qt.QueuedConnection)
-                self.asyncWatchers[twatcher] = 'get_group_detail'
-                qDebug(b'get group detail...' + str(um).encode() + str(twatcher).encode())
-
-        if extrainfo == 'getdiscuslist':
-            self.txses.setDiscusList(hcc)
-            for um in hccjs['result']['dnamelist']:
-                did = um['did']
-                dname = um['name']
-                qDebug(b'get discus detail...' + str(um).encode())
-                pcall = self.sysiface.asyncCall('get_discus_detail', did, 'a0', 123, 'a1')
-                twatcher = QDBusPendingCallWatcher(pcall)
-                twatcher.finished.connect(self.onGetGroupOrDiscusDetailDone, Qt.QueuedConnection)
-                self.asyncWatchers[twatcher] = 'get_discus_detail'
-                qDebug(b'get discus detail...' + str(um).encode() + str(twatcher).encode())
-
-        self.asyncWatchers.pop(watcher)
-        return
-
-    # TODO delay dbus 请求响应合并处理
-    def onGetGroupOrDiscusDetailDone(self, watcher):
-        pendReply = QDBusPendingReply(watcher)
-        qDebug(str(watcher))
-        qDebug(str(pendReply.isValid()))
-        if pendReply.isValid():
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(type(hcc)))
-        else:
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(len(hcc)))
-            qDebug(str(hcc))
-            return
-
-        message = pendReply.reply()
-        args = message.arguments()
-        qDebug(str(args))
-        extrainfo = self.asyncWatchers[watcher]
-        self.saveContent('dr.'+extrainfo+'.json', args[0])
-
-        ######
-        hcc = args[0]  # QByteArray
-        strhcc = self.hcc2str(hcc)
-        hccjs = json.JSONDecoder().decode(strhcc)
-        print(extrainfo, ':::', strhcc)
-
-        if extrainfo == 'get_group_detail':
-            qDebug('gooooooooot')
-            self.txses.setGroupDetail(hcc)
-            pass
-
-        if extrainfo == 'get_discus_detail':
-            qDebug('gooooooooot')
-            self.txses.setDiscusDetail(hcc)
-            pass
-
-        self.asyncWatchers.pop(watcher)
-        return
-
-    def getBatchGroupAll(self):
-        groups2 = self.getGroupsFromDBus()
-        self.txses.addGroupNames(groups2)
-        groups = self.txses.getICGroups()
-        qDebug(str(groups))
-
-        reqcnt = 0
-        arg0 = []
-        for grname in groups:
-             melem = {'UserName': grname, 'ChatRoomId': ''}
-             arg0.append(melem)
-
-        argjs = json.JSONEncoder().encode(arg0)
-        pcall = self.sysiface.asyncCall('getbatchcontact', argjs)
-        watcher = QDBusPendingCallWatcher(pcall)
-        # watcher.finished.connect(self.onGetBatchContactDone)
-        watcher.finished.connect(self.onGetBatchGroupDone)
-        self.asyncWatchers[watcher] = arg0
-        reqcnt += 1
-
-        qDebug('async reqcnt: ' + str(reqcnt))
-
-        return
-
-    # @param message QDBusPengindCallWatcher
-    def onGetBatchGroupDone(self, watcher):
-        pendReply = QDBusPendingReply(watcher)
-        qDebug(str(watcher))
-        qDebug(str(pendReply.isValid()))
-        if pendReply.isValid():
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(type(hcc)))
-        else:
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(len(hcc)))
-            qDebug(str(hcc))
-            return
-
-        message = pendReply.reply()
-        args = message.arguments()
-        # qDebug(str(len(args)))
-
-        hcc = args[0]  # QByteArray
-        strhcc = self.hcc2str(hcc)
-        hccjs = json.JSONDecoder().decode(strhcc)
-
-        # print(strhcc)
-
-        memcnt = 0
-        for contact in hccjs['ContactList']:
-            memcnt += 1
-            # print(contact)
-            # self.txses.addMember(contact)
-            grname = contact['UserName']
-            if not WXUser.isGroup(grname): continue
-
-            print('uid=%s,un=%s,nn=%s\n' % (contact['Uin'], contact['UserName'], contact['NickName']))
-            self.txses.addGroupUser(grname, contact)
-            if grname in self.pendingGroupMessages and len(self.pendingGroupMessages[grname]) > 0:
-                while len(self.pendingGroupMessages[grname]) > 0:
-                    msgobj = self.pendingGroupMessages[grname].pop()
-                    GroupUser = self.txses.getGroupByName(grname)
-                    self.dispatchWXGroupChatToTox2(msgobj[0], msgobj[1], GroupUser)
-
-        qDebug('got memcnt: %s/%s' % (memcnt, len(self.txses.ICGroups)))
-
-        ### flow next
-        # QTimer.singleShot(12, self.getBatchContactAll)
-
-        return
-
-    def getBatchContactAll(self):
-
-        groups = self.txses.getICGroups()
-        qDebug(str(groups))
-        reqcnt = 0
-        for grname in groups:
-            members = self.txses.getGroupMembers(grname)
-            arg0 = []
-            for member in members:
-                melem = {'UserName': member, 'EncryChatRoomId': group.UserName}
-                arg0.append(melem)
-
-            cntpertime = 50
-            while len(arg0) > 0:
-                subarg = arg0[0:cntpertime]
-                subargjs = json.JSONEncoder().encode(subarg)
-                pcall = self.sysiface.asyncCall('getbatchcontact', subargjs)
-                watcher = QDBusPendingCallWatcher(pcall)
-                watcher.finished.connect(self.onGetBatchContactDone)
-                self.asyncWatchers[watcher] = subarg
-                arg0 = arg0[cntpertime:]
-                reqcnt += 1
-                break
-            break
-
-        qDebug('async reqcnt: ' + str(reqcnt))
-
-        return
-
-    # @param message QDBusPengindCallWatcher
-    def onGetBatchContactDone(self, watcher):
-        pendReply = QDBusPendingReply(watcher)
-        qDebug(str(watcher))
-        qDebug(str(pendReply.isValid()))
-        if pendReply.isValid():
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(type(hcc)))
-        else:
-            return
-
-        message = pendReply.reply()
-        args = message.arguments()
-        # qDebug(str(len(args)))
-
-        hcc = args[0]  # QByteArray
-        strhcc = self.hcc2str(hcc)
-        hccjs = json.JSONDecoder().decode(strhcc)
-
-        # qDebug(str(self.txses.getGroups()))
-        print(strhcc)
-
-        memcnt = 0
-        for contact in hccjs['ContactList']:
-            memcnt += 1
-            # print(contact)
-            self.txses.addMember(contact)
-
-        qDebug('got memcnt: %s/%s' % (memcnt, len(self.txses.ICUsers)))
-        return
-
-    def onGetFriendInfoDone(self, watcher):
-        pendReply = QDBusPendingReply(watcher)
-        qDebug(str(watcher))
-        qDebug(str(pendReply.isValid()))
-        if pendReply.isValid():
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(type(hcc)))
-        else:
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(len(hcc)))
-            qDebug(str(hcc))
-            return
-
-        message = pendReply.reply()
-        args = message.arguments()
-        qDebug(str(args))
-        msg, fmtcc = self.asyncWatchers[watcher]
-
-        ######
-        hcc = args[0]  # QByteArray
-        strhcc = self.hcc2str(hcc)
-        hccjs = json.JSONDecoder().decode(strhcc)
-        print(':::', strhcc)
-
-        self.txses.addFriendInfo(hcc)
-        if msg.FromUser is None:
-            msg.FromUser = self.txses.getUserByName(msg.FromUserName)
-        elif msg.ToUser is None:
-            msg.ToUser = self.txses.getUserByName(msg.ToUserName)
-        else:
-            pass
-
-        assert(msg.FromUser is not None)
-        assert(msg.ToUser is not None)
-
-        self.dispatchQQSessChatToTox(msg, fmtcc)
-
-        self.asyncWatchers.pop(watcher)
-        return
 
     # @param cb(data)
     def getMsgImgCallback(self, msg, imgcb=None):
@@ -1524,7 +1237,7 @@ class TX2Any(QObject):
 
     def getMsgImgUrl(self, msg):
         args = [msg.MsgId, False]
-        return self.syncGetRpc('get_msg_img_url', args)
+        return self.syncGetRpc('get_msg_img_url', *args)
 
     # @param cb(data)
     def getMsgFileCallback(self, msg, imgcb=None):
@@ -1601,34 +1314,3 @@ class TX2Any(QObject):
         fp.close()
 
         return
-
-
-# hot fix
-g_tx2r = None
-
-
-def on_app_about_close():
-    qDebug('hereee')
-    global g_w2t
-
-    # TODO 也许可以检测一下是否有这个方法
-    g_tx2r.peerRelay.disconnectIt()
-    return
-
-
-def main():
-    app = QCoreApplication(sys.argv)
-    import wxagent.qtutil as qtutil
-    qtutil.pyctrl()
-
-    tx2r = TX2Any()
-
-    global g_tx2r
-    g_tx2r = tx2r
-    app.aboutToQuit.connect(on_app_about_close)
-
-    app.exec_()
-    return
-
-
-if __name__ == '__main__': main()

@@ -6,10 +6,20 @@ QQAGENT_IFACE_NAME = 'io.qtc.qqagent.iface'
 QQAGENT_EVENT_BUS_PATH = '/io/qtc/qqagent/signals'
 QQAGENT_EVENT_BUS_IFACE = 'io.qtc.qqagent.signals'
 
+
+# TODO 交换CONNECTED值为1，其他值延后
 CONN_STATE_NONE = 0
 CONN_STATE_WANT_USERNAME = 1
 CONN_STATE_WANT_PASSWORD = 2
 CONN_STATE_CONNECTED = 3
+
+
+# QQ聊天会话类型
+CHAT_TYPE_NONE = 0
+CHAT_TYPE_U2U = 1
+CHAT_TYPE_QUN = 2
+CHAT_TYPE_DISCUS = 3
+CHAT_TYPE_SESS = 4
 
 
 # QQ 消息 poll_type类型

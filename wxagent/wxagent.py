@@ -124,8 +124,9 @@ class WXAgent(QObject):
         hcc = reply.readAll()
         qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
 
-        if status_code is None and error_no in [99]:
-            qDebug('maybe logout for timeout.')
+        # TODO 考虑添加个retry_times_before_refresh
+        if status_code is None and error_no in [99, 8]:
+            qDebug('maybe logout for timeout.' + str(error_no))
             # QTimer.singleShot(123, self.webSync)
             QTimer.singleShot(123, self.refresh)
             return

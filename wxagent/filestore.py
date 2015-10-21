@@ -78,6 +78,7 @@ class VnFileStore(FileStore):
         return
 
     def uploadData(data):
+        return 'nourl'
         if type(data) == QByteArray:
             data = data.data()
 

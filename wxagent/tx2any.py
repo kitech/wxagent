@@ -74,8 +74,10 @@ class TX2Any(QObject):
 
         ##### fill at sub class
         self.agent_service = ''
-        self.agent_path = ''
-        self.agent_iface = ''
+        self.agent_service_path = ''
+        self.agent_service_iface = ''
+        self.agent_event_path = ''
+        self.agent_event_iface = ''
         self.relay_src_pname = ''
 
         self.txses = None
@@ -95,11 +97,6 @@ class TX2Any(QObject):
         self.pendingGroupMessages = {}  # group name => msg
 
         self.sysbus = QDBusConnection.systemBus()
-        if qVersion() >= '5.5':
-            self.sysiface = QDBusInterface(QQAGENT_SERVICE_NAME, '/io/qtc/qqagent', QQAGENT_IFACE_NAME, self.sysbus)
-            self.sysiface.setTimeout(50 * 1000)  # shit for get msg pic
-        else:
-            self.sysiface = QDBusInterface(QQAGENT_SERVICE_NAME, '/io/qtc/qqagent', '', self.sysbus)
 
         #                                   path   iface    name
         # sigmsg = QDBusMessage.createSignal("/", 'signals', "logined")
@@ -115,14 +112,21 @@ class TX2Any(QObject):
     # call from sub class's __init__
     def initBase(self):
 
-        self.initDBus(self.agent_service, self.agent_path, self.agent_iface)
+        self.initDBus()
         self.initRelay()
         self.startTXBot()
         return
 
-    def initDBus(self, service, path, iface):
-        if len(service) == 0: raise 'need set self.agent_service value.'
-        if len(path) == 0: raise 'need set self.agent_path value.'
+    def initDBus(self):
+        if len(self.agent_service) == 0: raise 'need set self.agent_service value.'
+        if len(self.agent_service_path) == 0: raise 'need set self.agent_service_path value.'
+
+        if qVersion() >= '5.5':
+            self.sysiface = QDBusInterface(self.agent_service, self.agent_service_path,
+                                           self.agent_service_iface, self.sysbus)
+            self.sysiface.setTimeout(50 * 1000)  # shit for get msg pic
+        else:
+            self.sysiface = QDBusInterface(self.agent_service, self.agent_service_path, '', self.sysbus)
 
         # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'wantqqnum', self.onDBusWantQQNum)
         # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'wantverify', self.onDBusWantPasswordAndVerifyCode)
@@ -131,6 +135,9 @@ class TX2Any(QObject):
         # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'beginlogin', self.onDBusBeginLogin)
         # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'gotqrcode', self.onDBusGotQRCode)
         # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'loginsuccess', self.onDBusLoginSuccess)
+        service = self.agent_service
+        path = self.agent_event_path
+        iface = self.agent_event_iface
         self.sysbus.connect(service, path, iface, 'newmessage', self.onDBusNewMessage)
         self.sysbus.connect(service, path, iface, 'beginlogin', self.onDBusBeginLogin)
         self.sysbus.connect(service, path, iface, 'gotqrcode', self.onDBusGotQRCode)
@@ -829,7 +836,7 @@ class TX2Any(QObject):
 
     def createChatroom(self, msg, mkey, title):
 
-        group_number = ('WQU.%s' % mkey).lower()
+        group_number = ('%s.%s' % (self.relaychatmap, mkey)).lower()
         group_number = self.peerRelay.createChatroom(mkey, title)
         groupchat = Chatroom()
         groupchat.group_number = group_number
@@ -840,23 +847,15 @@ class TX2Any(QObject):
         self.relaychatmap[group_number] = groupchat
         groupchat.title = title
 
-        if msg.PollType == QQ_PT_DISCUS:
-            groupchat.chat_type = CHAT_TYPE_DISCUS
-        elif msg.PollType == QQ_PT_QUN:
-            groupchat.chat_type = CHAT_TYPE_QUN
-        elif msg.PollType == QQ_PT_SESSION:
-            groupchat.chat_type = CHAT_TYPE_SESS 
-        elif msg.PollType == QQ_PT_USER:
-            groupchat.chat_type = CHAT_TYPE_U2U
-        else:
-            qDebug('undefined behavior')
-
-        groupchat.Gid = msg.Gid
-        groupchat.ServiceType = msg.ServiceType
+        self.createChatroom_set_extra(msg, mkey, title, groupchat)
 
         self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
 
         return groupchat
+
+    def createChatroom_set_extra(self, msg, mkey, title, groupchat):
+        if True: raise 'must impl in subclass'
+        return
 
     def sendMessageToWX(self, groupchat, mcc):
         qDebug('here')

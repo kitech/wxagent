@@ -45,6 +45,7 @@ class QiniuFileStore(FileStore):
         # data = 'hello qiniu!'
         # data = load_from_file(PATH)
         token = q.upload_token(bucket_name)
+        print('uploading file:', key)
         ret, info = qiniu.put_data(token, key, data)
         if ret is not None:
             print('upload file All is OK', ret)

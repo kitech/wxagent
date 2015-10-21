@@ -24,10 +24,12 @@ class QQ2Any(TX2Any):
     def __init__(self, parent=None):
         super(QQ2Any, self).__init__(parent)
 
-        self.agent_service = QQAGENT_SERVICE_NAME
-        self.agent_path = QQAGENT_EVENT_BUS_PATH
-        self.agent_iface = QQAGENT_EVENT_BUS_IFACE
+        self.agent_service_path = QQAGENT_SEND_PATH
+        self.agent_service_iface = QQAGENT_IFACE_NAME
+        self.agent_event_path = QQAGENT_EVENT_BUS_PATH
+        self.agent_event_iface = QQAGENT_EVENT_BUS_IFACE
 
+        self.relay_src_pname = 'WQU'
         self.initBase()
         return
 
@@ -144,6 +146,22 @@ class QQ2Any(TX2Any):
         qDebug(str(reply))
         rr = QDBusReply(reply)
         qDebug(str(rr.value()) + ',' + str(type(rr.value())))
+        return
+
+    def createChatroom_set_extra(self, msg, mkey, title, groupchat):
+        if msg.PollType == QQ_PT_DISCUS:
+            groupchat.chat_type = CHAT_TYPE_DISCUS
+        elif msg.PollType == QQ_PT_QUN:
+            groupchat.chat_type = CHAT_TYPE_QUN
+        elif msg.PollType == QQ_PT_SESSION:
+            groupchat.chat_type = CHAT_TYPE_SESS
+        elif msg.PollType == QQ_PT_USER:
+            groupchat.chat_type = CHAT_TYPE_U2U
+        else:
+            qDebug('undefined behavior')
+
+        groupchat.Gid = msg.Gid
+        groupchat.ServiceType = msg.ServiceType
         return
 
     def getGroupsFromDBus(self):

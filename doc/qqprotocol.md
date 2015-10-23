@@ -93,6 +93,14 @@ http://d.web2.qq.com/channel/poll2?
 
     {"retcode":0,"result":[{"poll_type":"kick_message","value":{"msg_id":53125,"from_uin":10000,"to_uin":1449732709,"msg_id2":53126,"msg_type":48,"reply_ip":0,"show_reason":1,"reason":"\u60A8\u7684\u5E10\u53F7\u5728\u53E6\u4E00\u5730\u70B9\u767B\u5F55\uFF0C\u60A8\u5DF2\u88AB\u8FEB\u4E0B\u7EBF\u3002\u5982\u6709\u7591\u95EE\uFF0C\u8BF7\u767B\u5F55 safe.qq.com \u4E86\u89E3\u66F4\u591A\u3002"}}]}
 
+##### 定时下线
+
+web QQ在2-3天会自动cookie失效一次，所以默认无法实现永久在线。
+
+参考这个讨论，也许可以定时刷新一下现有的登陆cookie，实现永久在线的功能。
+
+https://github.com/sjdy521/Mojo-Webqq/issues/7#issuecomment-149608429
+
 
 ##### 发送好友消息
 

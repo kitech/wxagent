@@ -73,6 +73,57 @@ class TX2Any(QObject):
         self.txses = None   # XXSession
         self.peerRelay = None  # IMRelay subclass
 
+        self.sysbus = QDBusConnection.systemBus()
+        return
+
+    def initDBus(self):
+        if len(self.agent_service) == 0: raise 'need set self.agent_service value.'
+        if len(self.agent_service_path) == 0: raise 'need set self.agent_service_path value.'
+
+        if qVersion() >= '5.5':
+            self.sysiface = QDBusInterface(self.agent_service, self.agent_service_path,
+                                           self.agent_service_iface, self.sysbus)
+            self.sysiface.setTimeout(50 * 1000)  # shit for get msg pic
+        else:
+            self.sysiface = QDBusInterface(self.agent_service, self.agent_service_path, '', self.sysbus)
+
+        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'wantqqnum', self.onDBusWantQQNum)
+        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'wantverify', self.onDBusWantPasswordAndVerifyCode)
+        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'newmessage', self.onDBusNewMessage)
+
+        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'beginlogin', self.onDBusBeginLogin)
+        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'gotqrcode', self.onDBusGotQRCode)
+        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'loginsuccess', self.onDBusLoginSuccess)
+        service = self.agent_service
+        path = self.agent_event_path
+        iface = self.agent_event_iface
+        self.sysbus.connect(service, path, iface, 'newmessage', self.onDBusNewMessage)
+        self.sysbus.connect(service, path, iface, 'beginlogin', self.onDBusBeginLogin)
+        self.sysbus.connect(service, path, iface, 'gotqrcode', self.onDBusGotQRCode)
+        self.sysbus.connect(service, path, iface, 'loginsuccess', self.onDBusLoginSuccess)
+        return
+
+
+#
+#
+#
+class TX2Any_dep(QObject):
+
+    def __init__(self, parent=None):
+        "docstring"
+        super(TX2Any, self).__init__(parent)
+
+        ##### fill at sub class
+        self.agent_service = ''
+        self.agent_service_path = ''
+        self.agent_service_iface = ''
+        self.agent_event_path = ''
+        self.agent_event_iface = ''
+        self.relay_src_pname = ''
+
+        self.txses = None   # XXSession
+        self.peerRelay = None  # IMRelay subclass
+
         # #### state
         self.qrpic = None  # QByteArray
         self.qrfile = ''
@@ -104,33 +155,6 @@ class TX2Any(QObject):
         self.initDBus()
         self.initRelay()
         self.startTXBot()
-        return
-
-    def initDBus(self):
-        if len(self.agent_service) == 0: raise 'need set self.agent_service value.'
-        if len(self.agent_service_path) == 0: raise 'need set self.agent_service_path value.'
-
-        if qVersion() >= '5.5':
-            self.sysiface = QDBusInterface(self.agent_service, self.agent_service_path,
-                                           self.agent_service_iface, self.sysbus)
-            self.sysiface.setTimeout(50 * 1000)  # shit for get msg pic
-        else:
-            self.sysiface = QDBusInterface(self.agent_service, self.agent_service_path, '', self.sysbus)
-
-        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'wantqqnum', self.onDBusWantQQNum)
-        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'wantverify', self.onDBusWantPasswordAndVerifyCode)
-        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'newmessage', self.onDBusNewMessage)
-
-        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'beginlogin', self.onDBusBeginLogin)
-        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'gotqrcode', self.onDBusGotQRCode)
-        # self.sysbus.connect(QQAGENT_SERVICE_NAME, "/io/qtc/qqagent/signals", 'io.qtc.qqagent.signals', 'loginsuccess', self.onDBusLoginSuccess)
-        service = self.agent_service
-        path = self.agent_event_path
-        iface = self.agent_event_iface
-        self.sysbus.connect(service, path, iface, 'newmessage', self.onDBusNewMessage)
-        self.sysbus.connect(service, path, iface, 'beginlogin', self.onDBusBeginLogin)
-        self.sysbus.connect(service, path, iface, 'gotqrcode', self.onDBusGotQRCode)
-        self.sysbus.connect(service, path, iface, 'loginsuccess', self.onDBusLoginSuccess)
         return
 
     def initRelay(self):

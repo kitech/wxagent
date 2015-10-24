@@ -10,10 +10,7 @@ from PyQt5.QtNetwork import *
 from PyQt5.QtDBus import *
 
 from .imrelayfactory import IMRelayFactory
-from .qqcom import *
-from .qqsession import *
 from .unimessage import *
-from .wxprotocol import *
 from .filestore import QiniuFileStore, VnFileStore
 
 # QDBUS_DEBUG
@@ -31,13 +28,6 @@ class ToxDispatcher(QObject):
         return
 
 
-CHAT_TYPE_NONE = 0
-CHAT_TYPE_U2U = 1
-CHAT_TYPE_QUN = 2
-CHAT_TYPE_DISCUS = 3
-CHAT_TYPE_SESS = 4
-
-
 class Chatroom():
     def __init__(self):
         "docstring"
@@ -53,7 +43,7 @@ class Chatroom():
 
         self.unsend_queue = []
 
-        self.chat_type = CHAT_TYPE_NONE
+        self.chat_type = 0  # CHAT_TYPE_NONE
         self.group_sig = None
         self.Gid = 0
         self.ServiceType = 0
@@ -80,8 +70,8 @@ class TX2Any(QObject):
         self.agent_event_iface = ''
         self.relay_src_pname = ''
 
-        self.txses = None
-        self.peerRelay = None
+        self.txses = None   # XXSession
+        self.peerRelay = None  # IMRelay subclass
 
         # #### state
         self.qrpic = None  # QByteArray
@@ -93,7 +83,6 @@ class TX2Any(QObject):
 
         self.txchatmap = {}  # Uin => Chatroom
         self.relaychatmap = {}  # group_number => Chatroom
-        # self.wxproto = WXProtocol()
         self.pendingGroupMessages = {}  # group name => msg
 
         self.sysbus = QDBusConnection.systemBus()
@@ -218,9 +207,9 @@ class TX2Any(QObject):
         return
 
     def onRelayPeerEnterGroup(self, group_number):
-        qDebug('hehee:' + group_number)
+        qDebug(b'hehee:' + group_number.encode())
 
-        qDebug(str(self.relaychatmap.keys()))
+        qDebug(str(self.relaychatmap.keys()).encode())
 
         groupchat = self.relaychatmap[group_number]
         qDebug('unsend queue: %s ' % len(groupchat.unsend_queue))
@@ -250,7 +239,7 @@ class TX2Any(QObject):
         return
 
     def onRelayGroupMessage(self, group_number, message):
-        qDebug('hehee' + str(group_number))
+        qDebug(b'hehee' + str(group_number).encode())
         groupchat = None
         if group_number in self.relaychatmap:
             groupchat = self.relaychatmap[group_number]
@@ -258,12 +247,11 @@ class TX2Any(QObject):
             qDebug('can not find assoc chatroom')
             return
 
-        qDebug('nextline...')
-        print('will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.ToUser.NickName))
+        qDebug(('will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.ToUser.NickName)).encode())
         if groupchat.FromUser is not None:
-            print('or will send wx msg:%s,%s' % (groupchat.FromUser.Uin, groupchat.FromUser.NickName))
+            qDebug(('or will send wx msg:%s,%s' % (groupchat.FromUser.Uin, groupchat.FromUser.NickName)).encode())
         else:
-            print('or will send wx msg:%s' % (groupchat.FromUserName))
+            qDebug(('or will send wx msg:%s' % (groupchat.FromUserName)).encode())
 
         peer_number = 'jaoijfiwafaewf'
         # TODO 把从各群组来的发给WX端的消息，同步再发送给tox汇总端一份。也就是tox的唯一peer端。
@@ -498,15 +486,16 @@ class TX2Any(QObject):
                 qDebug(str(type(arg)) + ',' + str(arg)[0:120])
 
         hcc64_str = args[1]
-        hcc64 = hcc64_str.encode('utf8')
+        hcc64 = hcc64_str.encode()
         hcc = QByteArray.fromBase64(hcc64)
 
         self.saveContent('qqmsgfromdbus.json', hcc)
 
-        wxmsgvec = WXMessageList()
+        # wxmsgvec = WXMessageList()
+        wxmsgvec = self.createMessageList()
         wxmsgvec.setMessage(hcc)
 
-        strhcc = hcc.data().decode('utf8')
+        strhcc = hcc.data().decode()
         qDebug(strhcc[0:120].replace("\n", "\\n"))
         jsobj = json.JSONDecoder().decode(strhcc)
 
@@ -546,6 +535,7 @@ class TX2Any(QObject):
 
             self.sendMessageToTox(msg, logstr)
 
+            # this for qq
             if msg.isOffpic():
                 qDebug(msg.offpic)
                 self.sendShotPicMessageToTox(msg, logstr)
@@ -553,6 +543,10 @@ class TX2Any(QObject):
                 qDebug(msg.FileName.encode())
                 self.sendFileMessageToTox(msg, logstr)
 
+        return
+
+    def createMessageList(self):
+        if True: raise 'must impl in subclass'
         return
 
     def sendMessageToTox(self, msg, fmtcc):

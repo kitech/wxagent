@@ -60,7 +60,9 @@ class WXAgent(QObject):
         self.webpushUrlStart = ''
         self.msgimage= b''   # QByteArray
         self.msgimagename = ''  #str 
-        
+
+        self.retry_times_before_refresh = 0
+
         return
 
     def refresh(self):
@@ -87,15 +89,16 @@ class WXAgent(QObject):
         self.wxFriendRawData = b''  # QByteArray
         self.wxFriendData = None  #
         self.wxWebSyncRawData = b''  # QByteArray
-        self.wxWebSyncData = None  # 
+        self.wxWebSyncData = None  #
         self.wxSyncKey = None  # {[]}
         self.syncTimer = None  # QTimer
 
         self.asyncQueueIdBase = qrand()
-        self.asyncQueue = {} # {reply => id}
+        self.asyncQueue = {}  # {reply => id}
+
+        self.retry_times_before_refresh = 0
 
         self.doboot()
-
         self.refresh_count += 1
         return
 
@@ -126,10 +129,10 @@ class WXAgent(QObject):
 
         # TODO 考虑添加个retry_times_before_refresh
         if status_code is None and error_no in [99, 8]:
-            qDebug('maybe logout for timeout.' + str(error_no))
+            qDebug('maybe temporary network offline.' + str(error_no))
             # QTimer.singleShot(123, self.webSync)
-            QTimer.singleShot(123, self.refresh)
-            return
+            # QTimer.singleShot(123, self.refresh)
+            # return
 
         # statemachine by url and response content
         if url.startswith('https://login.weixin.qq.com/jslogin?'):
@@ -282,6 +285,21 @@ class WXAgent(QObject):
         #elif url.startswith('https://webpush2.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?'):
         elif url.startswith(self.webpushUrlStart+'/cgi-bin/mmwebwx-bin/synccheck?'):
             qDebug('sync check result:' + str(hcc))
+
+            if status_code is None and error_no in [99]:  # QNetworkReply.UnknownNetworkError
+                if self.retry_times_before_refresh > 3:
+                    qDebug('really need refresh')
+                    self.retry_times_before_refresh = 0
+                    QTimer.singleShot(456, self.refresh)
+                else:
+                    self.retry_times_before_refresh += 1
+                    QTimer.singleShot(12340, self.syncCheck)
+                return
+            else:
+                if self.retry_times_before_refresh > 0:
+                    qDebug('retry before refresh useful, ' + str(self.retry_times_before_refresh))
+                    self.retry_times_before_refresh = 0  # reset zero
+
             # window.synccheck={retcode:”0”,selector:”0”}
             # selector: 6: 表示有新消息
             # selector: 7: ??? 打开了某项，如群，好友，是一个事件
@@ -336,7 +354,7 @@ class WXAgent(QObject):
             qDebug('web sync result:' + str(len(hcc)) + str(status_code))
 
             # TODO check no reply case and rerun synccheck.
-            if status_code == '' and len(hcc) == 0:
+            if status_code == '' and l:
                 qDebug('maybe need rerun synccheck')
 
             self.wxWebSyncRawData = hcc

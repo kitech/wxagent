@@ -442,6 +442,10 @@ class QQ2Any(TX2Any):
         self.asyncWatchers.pop(watcher)
         return
 
+    def createMessageList(self):
+        mv = WXMessageList()
+        return mv
+
 
 class ToxDispatcher(QObject):
     def __init__(self):

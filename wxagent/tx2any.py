@@ -263,3 +263,251 @@ class TX2Any(QObject):
         else:
             self.sendMessageToWX(groupchat, message)
         return
+
+    @pyqtSlot(QDBusMessage)
+    def onDBusBeginLogin(self, message):
+        qDebug(str(message.arguments()))
+        # clear smth.
+        return
+
+
+    @pyqtSlot(QDBusMessage)
+    def onDBusGotQRCode(self, message):
+        args = message.arguments()
+        # qDebug(str(message.arguments()))
+        qrpic64str = args[1]
+        qrpic = QByteArray.fromBase64(qrpic64str.encode())
+
+        self.qrpic = qrpic
+        fname = self.genQRCodeSaveFileName()
+        self.saveContent(fname, qrpic)
+        self.qrfile = fname
+
+        tkc = False
+        tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
+        if tkc is True:
+            # url = filestore.upload_file(self.qrpic)
+            url1 = QiniuFileStore.uploadData(self.qrpic)
+            url2 = VnFileStore.uploadData(self.qrpic)
+            url = url1 + "\n" + url2
+            self.peerRelay.sendMessage('qrpic url:' + url, self.peerRelay.peer_user)
+        else:
+            self.need_send_qrfile = True
+
+        return
+
+    @pyqtSlot(QDBusMessage)
+    def onDBusLoginSuccess(self, message):
+        qDebug(str(message.arguments()))
+        self.startWXBot()
+
+        # TODO send success message to UI peer
+        return
+
+    @pyqtSlot(QDBusMessage)
+    def onDBusLogined(self, message):
+        qDebug(str(message.arguments()))
+        return
+
+    @pyqtSlot(QDBusMessage)
+    def onDBusLogouted(self, message):
+        qDebug(str(message.arguments()))
+        return
+
+    # def onDBusNewMessage(self, message)
+
+    def sendMessageToTox(self, msg, fmtcc):
+        fstatus = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
+        if fstatus is True:
+            try:
+                # 把收到的消息发送到汇总tox端
+                self.peerRelay.sendMessage(fmtcc, self.peerRelay.peer_user)
+            except Exception as ex:
+                qDebug(b'tox send msg error: ' + str(ex).encode())
+            ### dispatch by MsgType
+            self.dispatchToToxGroup(msg, fmtcc)
+        else:
+            # self.tx2relay_msg_buffer.append(msg)
+            pass
+
+        return
+
+    # wx and qq both use
+    def sendShotPicMessageToTox(self, msg, logstr):
+        def get_img_reply(data=None):
+            if data is None: return
+            # url = filestore.upload_file(data)
+            url1 = QiniuFileStore.uploadData(data)
+            url2 = VnFileStore.uploadData(data)
+            url = url1 + "\n" + url2
+            umsg = 'pic url: ' + url
+            self.sendMessageToTox(msg, umsg)
+            return
+
+        self.getMsgImgCallback(msg, get_img_reply)
+        return
+
+    # wx use now
+    def sendVoiceMessageToTox(self, msg, logstr):
+        def get_voice_reply(data=None):
+            if data is None: return
+            # url = filestore.upload_file(data)
+            url1 = QiniuFileStore.uploadData(data)
+            url2 = VnFileStore.uploadData(data)
+            url = url1 + "\n" + url2
+            umsg = 'voice url: ' + url
+            self.sendMessageToTox(msg, umsg)
+            return
+
+        self.getMsgVoiceCallback(msg, get_voice_reply)
+        return
+
+    # qq use now，也许wx也会用到。
+    def sendFileMessageToTox(self, msg, logstr):
+        def get_file_reply(data=None):
+            if data is None: return
+            # fix qq protocol error return
+            if data.data().decode().startswith('{"retcode":102,"errmsg":""}'):
+                umsg = 'Get file error: ' + data.data().decode()
+                self.sendMessageToTox(msg, umsg)
+            else:
+                # url = filestore.upload_file(data)
+                url1 = QiniuFileStore.uploadData(data)
+                url2 = VnFileStore.uploadData(data)
+                url = url1 + "\n" + url2
+                umsg = 'file url: ' + url
+                self.sendMessageToTox(msg, umsg)
+            return
+
+        self.getMsgFileCallback(msg, get_file_reply)
+        return
+
+    # def dispatchToToxGroup(self, msg, fmtcc):
+    # def dispatchNewsappChatToTox(self, msg, fmtcc):
+    # def dispatchFileHelperChatToTox(self, msg, fmtcc):
+    # def dispatchWXGroupChatToTox(self, msg, fmtcc):
+    #    需要一个公共的判断用户是否是群组的方法TXUser.isGroup()
+    # def dispatchU2UChatToTox(self, msg, fmtcc):
+    # def dispatchxxxChatToTox(self, msg, fmtcc):
+
+    # def createChatroom(self, msg, mkey, title):
+    #    需要统一判断chatroom类型的方法
+
+    # def sendMessageToWX(self, groupchat, mcc):
+    #    这个方法好像不抽像不出来
+
+    # def sendxxxMessageToWX(self, groupchat, mcc):
+    #    从reply 敵得到的消息，发回给wx/qq端
+
+    # def createWXSession(self):
+    #    目前抽象不出来，需要把取初始化数据分离出来
+
+    # def checkWXLogin(self):
+    #    需要和getconnstate想办法合并统一一下
+    # def getConnState(self):
+
+    def getQRCode(self):
+        reply = self.sysiface.call('getqrpic', 123, 'a1', 456)
+        rr = QDBusReply(reply)
+
+        if not rr.isValid(): return None
+
+        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
+        qrpic64 = rr.value().encode('utf8')   # to bytes
+        qrpic = QByteArray.fromBase64(qrpic64)
+
+        return qrpic
+
+    def genQRCodeSaveFileName(self):
+        now = QDateTime.currentDateTime()
+        fname = '/tmp/wxqrcode_%s.jpg' % now.toString('yyyyMMddHHmmsszzz')
+        return fname
+
+    # @param data QByteArray | bytes
+    def genMsgImgSaveFileName(self, data):
+        now = QDateTime.currentDateTime()
+
+        m = magic.open(magic.MAGIC_MIME_TYPE)
+        m.load()
+        mty = m.buffer(data.data()) if type(data) == QByteArray else m.buffer(data)
+        m.close()
+
+        suffix = mty.split('/')[1]
+        suffix = 'jpg' if suffix == 'jpeg' else suffix
+        suffix = 'bmp' if suffix == 'x-ms-bmp' else suffix
+
+        fname = '/tmp/wxpic_%s.%s' % (now.toString('yyyyMMddHHmmsszzz'), suffix)
+        return fname
+
+    def getBaseFileName(self, fname):
+        bfname = QFileInfo(fname).fileName()
+        return bfname
+
+    # def group/friend info methods...
+
+    # def getMsgImgCallback(self, msg, imgcb=None):
+    #    需要统一处理图片源地址信息
+
+    def getMsgImgUrl(self, msg):
+        args = [msg.MsgId, False]
+        return self.syncGetRpc('get_msg_img_url', args)
+
+    # def getMsgFileUrl(self, msg):
+    # def getMsgFileCallback(self, msg, imgcb=None):
+    # @param cb(data)
+    # def getMsgVoiceCallback(self, msg, imgcb=None):
+
+    # @param name str
+    # @param args list
+    # @param return None | mixed
+    def syncGetRpc(self, name, args):
+        reply = self.sysiface.call(name, *args)
+        rr = QDBusReply(reply)
+
+        # TODO check reply valid
+        qDebug(name + ':' + str(len(rr.value())) + ',' + str(type(rr.value())))
+        if rr.isValid():
+            return rr.value()
+        return None
+
+    # @param hcc QByteArray
+    # @return str
+    def hcc2str(self, hcc):
+        strhcc = ''
+
+        try:
+            astr = hcc.data().decode('gkb')
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
+            strhcc = astr
+        except Exception as ex:
+            qDebug('decode gbk error:')
+
+        try:
+            astr = hcc.data().decode('utf16')
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
+            strhcc = astr
+        except Exception as ex:
+            qDebug('decode utf16 error:')
+
+        try:
+            astr = hcc.data().decode('utf8')
+            qDebug(astr[0:120].replace("\n", "\\n").encode())
+            strhcc = astr
+        except Exception as ex:
+            qDebug('decode utf8 error:')
+
+        return strhcc
+
+    # @param name str
+    # @param hcc QByteArray
+    # @return None
+    def saveContent(self, name, hcc):
+        # fp = QFile("baseinfo.json")
+        fp = QFile(name)
+        fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
+        # fp.resize(0)
+        fp.write(hcc)
+        fp.close()
+
+        return
+

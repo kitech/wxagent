@@ -8,7 +8,7 @@
     # 启动agent端
     git clone https://github.com/kitech/wxagent.git
     cd wxagent
-    sudo cp -v archlinux/wxagent.conf /etc/dbus-1/system.d/
+    sudo cp -v archlinux/txagent.conf /etc/dbus-1/system.d/
     python3 -m wxagent.wxagent
 
     # 启动转发端，目前支持xmpp协议与toxcore协议

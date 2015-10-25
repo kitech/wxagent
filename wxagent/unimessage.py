@@ -256,7 +256,7 @@ class XmppMessage(UniMessage):
         umsg.dconent = logstr
 
         # ●•·
-        ccmsg = "\n   •   " + content
+        ccmsg = "\n   •  " + content
         if len(content) < 27: ccmsg = '  ' + content
         umsg.content = ccmsg
         return umsg

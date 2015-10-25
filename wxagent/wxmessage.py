@@ -13,6 +13,7 @@ class WXUser():
     def __init__(self):
         "docstring"
 
+        self.Uin = 0  # temporary use
         self.UserName = ''
         self.NickName = ''
         self.HeadImgUrl = ''
@@ -66,6 +67,12 @@ class WXMessage():
         self.VoiceLength = 0
 
         return
+
+    def isOffpic(self):
+        return False
+
+    def isFileMsg(self):
+        return False
 
 
 class WXMessageList():

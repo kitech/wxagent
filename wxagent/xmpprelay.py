@@ -121,7 +121,7 @@ class XmppRelay(IMRelay):
         self.xmpp.add_event_handler('presence', self.on_presence)
         self.xmpp.add_event_handler('presence_available', self.on_presence_avaliable)
 
-        qDebug(str(self.xmpp.server) + '...........')
+        qDebug(str(self.xmpp.boundjid.host) + '...........')
         self.start()
 
         return

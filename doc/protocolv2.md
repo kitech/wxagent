@@ -197,6 +197,11 @@ https://webpush.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?callback=jQuery18308
 
 window.synccheck={retcode:"0",selector:"0"}
 
+### 未知返回结果
+
+window.synccheck={retcode:"0",selector:"1"}
+
+好像有时是群组更新，有时像是用户配置项变化。不太确定。
 
 ### 有消息返回结果
 
@@ -226,6 +231,11 @@ https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=e75TXbI7TnKUevmI&r=138897758
 https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=e75TXbI7TnKUevmI&r=1388977660750
 
 {"BaseRequest":{"Uin":750366800,"Sid":"e75TXbI7TnKUevmI"},"SyncKey":{"Count":5,"List":[{"Key":1,"Val":620916854},{"Key":2,"Val":620917982},{"Key":3,"Val":620917975},{"Key":201,"Val":1388977585},{"Key":1000,"Val":1388967977}]},"rr":1388977660750}
+
+返回值：
+0: 正常返回消息结果
+-1: ???
+
 
 ## post 发送消息
 

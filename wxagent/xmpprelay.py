@@ -133,7 +133,7 @@ class XmppRelay(IMRelay):
         # server = ('b.xmpp.jp', 5222)
         if self.xmpp_server is not None and len(self.xmpp_server) > 0:
             server = tuple(self.xmpp_server.split(':'))
-        if self.xmpp.connect(server):
+        if self.xmpp.connect(server, use_tls=True):
             self.xmpp.process(block=True)
             qDebug('Xmpp instance Done.')
         else:

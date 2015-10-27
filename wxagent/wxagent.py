@@ -290,7 +290,7 @@ class WXAgent(QObject):
                 if self.retry_times_before_refresh > 3:
                     qDebug('really need refresh')
                     self.retry_times_before_refresh = 0
-                    QTimer.singleShot(456, self.refresh)
+                    QTimer.singleShot(3456, self.refresh)
                 else:
                     self.retry_times_before_refresh += 1
                     QTimer.singleShot(12340, self.syncCheck)
@@ -305,6 +305,8 @@ class WXAgent(QObject):
             # selector: 7: ??? 打开了某项，如群，好友，是一个事件
             # selector: 2: ??? 有新消息
             # selector: 4: ???
+            # selector: 1: ???
+            # selector: 0: 无新消息
             # retcode: 1100:???
             # retcode: 1101:??? 会话已退出/结束
             # retcode: 1102: 用户在手机端主动退出
@@ -334,6 +336,9 @@ class WXAgent(QObject):
                 if selector == '0':
                     self.syncCheck()
                     pass
+                elif selector == '1':  # 不确定是什么事件，先试试能否收到事件内容
+                    self.webSync()
+                    pass
                 elif selector == '2':
                     self.webSync()
                     pass
@@ -346,7 +351,7 @@ class WXAgent(QObject):
                 elif selector == '7':
                     self.webSync()
                     pass
-                else: qDebug('Unknown selctor value:')
+                else: qDebug('Unknown selector value:')
 
         ##############
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?'):
@@ -376,6 +381,9 @@ class WXAgent(QObject):
 
                 ### => synccheck()
                 if jsobj['BaseResponse']['Ret'] == 0: self.syncCheck()
+                elif jsobj['BaseResponse']['Ret'] == -1:
+                    qDebug('whywhy?')
+                    self.syncCheck()
                 else: qDebug('web sync error:' + str(jsobj['BaseResponse']['Ret'])
                              + ',' + str(jsobj['BaseResponse']['ErrMsg']))
             else:

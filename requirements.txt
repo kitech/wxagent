@@ -1,8 +1,12 @@
-PyQt5
-pytox
+PyQt5>=5.4.0
+pytox>=0.1.0
 sleekxmpp
-dnspython
-pyasn1
 qiniu
 PyExecJS
 pycurl
+python-magic>=0.4.8
+
+# below is optional dependencies
+dnspython
+# pyasn1-modules
+# pyasn1

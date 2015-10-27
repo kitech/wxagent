@@ -68,7 +68,7 @@ class Chatroom():
 #
 class WX2Tox(TX2Any):
 
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         "docstring"
         super(WX2Tox, self).__init__(parent)
 

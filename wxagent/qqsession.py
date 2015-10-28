@@ -7,54 +7,14 @@ import html
 from PyQt5.QtCore import *
 from .qqcom import *
 
-UT_USER = 0
-UT_GROUP = 1
-UT_SESSION = 2
-UT_DISCUS = 3
+from .txmessage import *
 
 
-class WXUser():
-    def __init__(self):
-        "docstring"
-
-        self.Uin = 0
-        self.UserName = ''  # qqnum
-        self.NickName = ''
-        self.HeadImgUrl = ''
-
-        self.members = {}  # user name -> WXUser
-        self.UserType = UT_USER
-        return
-
-    # signature1: u.isGroup()
-    # signature1: WXUser.isGroup(name)
-    def isGroup(p0, p1 = None):
-        if type(p0) is WXUser:  # self = p0
-            return p0.UserName.startswith('@@')
-        return False
-        return p0.startswith('@@')
-
-    def isMPSub(self):
-        return self.Uin == 0 and self.HeadImgUrl == ''
-
-
-class WXMessage():
+class QQMessage(TXMessage):
 
     def __init__(self):
         "docstring"
-
-        self.MsgType = 0
-        self.MsgId = ''
-        self.FromUserName = ''  # is uin
-        self.ToUserName = ''  # is uin
-        self.CreateTime = 0
-        self.Content = ''
-        self.UnescapedContent = ''
-
-        self.FromUser = None
-        self.ToUser = None
-
-        self.jsonContent = {}
+        super(QQMessage, self).__init__()
 
         # for qq group mess
         self.PollType = QQ_PT_NONE
@@ -77,10 +37,12 @@ class WXMessage():
         return self.PollType == QQ_PT_FILE and self.FileMode == 'recv'
 
 
-class WXMessageList():
+class QQMessageList(TXMessageList):
 
     def __init__(self):
         "docstring"
+        super(QQMessageList, self).__init__()
+
         self.rawMessage = b''  # QByteArray
         self.jsonMessage = {}
         return
@@ -130,7 +92,7 @@ class WXMessageList():
     # 'reply_ip': 176884841, 'time': 1441451443, 'from_uin': 2905310716, 'seq': 2086,
     # 'msg_id': 4970, 'info_seq': 143094421}, 'poll_type': 'group_message'}
     def parseMessageUnit(self, um):
-        msg = WXMessage()
+        msg = QQMessage()
         msg.jsonContent = um
 
         qDebug('here')
@@ -210,12 +172,12 @@ class WXSession():
         self.ContactRawData = b''  # QByteArray
         self.ContactData = {}
 
-        self.me = None   # WXUser
-        self.Users = {}  # user name => WXUser
+        self.me = None   # QQUser
+        self.Users = {}  # user name => QQUser
 
         # incomplete information
-        self.ICUsers = {}  # user name => WXUser，信息不完全的的用户
-        self.ICGroups = {}  # user name = > WXUser, 信息不完全的组
+        self.ICUsers = {}  # user name => QQUser，信息不完全的的用户
+        self.ICGroups = {}  # user name = > QQUser, 信息不完全的组
 
         return
 
@@ -253,11 +215,12 @@ class WXSession():
     def _parseInitAboutMe(self):
 
         uo = self.SelfInfo['result']
-        user = WXUser()
+        user = QQUser()
         user.Uin = uo['uin']
         user.UserName = str(uo['uin'])
         user.NickName = uo['nick']
         user.HeadImgUrl = uo['face']
+        user.UserType = USER_TYPE_USER
 
         self.me = user
         self.Users[user.Uin] = user
@@ -298,16 +261,19 @@ class WXSession():
         if len(f.UserName) > 0: t.UserName = f.UserName
         if len(f.NickName) > 0: t.NickName = f.NickName
         if len(f.HeadImgUrl) > 0: t.HeadImgUrl = f.HeadImgUrl
+        t.UserType = f.UserType
+
         return
 
     def _contactElemToUser(self, elem):
         uo = elem
 
-        user = WXUser()
+        user = QQUser()
         if 'uin' in uo: user.Uin = uo['uin']
         else: print('warning contact has not Uin: %s:%s' % (uo['nick'][0:8], uo['nick']))
         user.UserName = str(uo['uin'])
         user.NickName = uo['nick']
+        user.UserType = USER_TYPE_USER
         if 'HeadImgUrl' in uo: user.HeadImgUrl = uo['HeadImgUrl']
 
         return user
@@ -322,7 +288,8 @@ class WXSession():
 
     # @param name str  UserName, like @xxx
     def getUserByName(self, name):
-        if WXUser.isGroup(name): return self.getUserByGroupName(name)
+        # TODO 对QQ来说，这是不必须的判断，也判断不出来
+        if QQUser.isGroup(name): return self.getUserByGroupName(name)
 
         mc = len(self.friendsData['result']['info'])
         qDebug(str(mc))
@@ -361,11 +328,11 @@ class WXSession():
         self.GroupList = jsobj
 
         for grp in jsobj['result']['gnamelist']:
-            user = WXUser()
+            user = QQUser()
             user.Uin = grp['code']
             user.UserName = str(grp['gid'])
             user.NickName = grp['name']
-            user.UserType = UT_GROUP
+            user.UserType = USER_TYPE_GROUP
             qDebug(b'got group:' + str(user.NickName).encode())
 
             self.Users[user.Uin] = user
@@ -388,11 +355,11 @@ class WXSession():
         self.GroupList = jsobj
 
         for grp in jsobj['result']['dnamelist']:
-            user = WXUser()
+            user = QQUser()
             user.Uin = grp['did']
             user.UserName = str(grp['did'])
             user.NickName = grp['name']
-            user.UserType = UT_DISCUS
+            user.UserType = USER_TYPE_DISCUS
             qDebug(b'got discus:' + str(user.NickName).encode())
 
             self.Users[user.Uin] = user
@@ -409,11 +376,11 @@ class WXSession():
         self.GroupList = jsobj
 
         for um in jsobj['result']['minfo']:
-            user = WXUser()
+            user = QQUser()
             user.Uin = um['uin']
             user.UserName = str(um['uin'])
             user.NickName = um['nick']
-            user.UserType = UT_USER
+            user.UserType = USER_TYPE_USER
             qDebug('got user:' + str(user.NickName))
 
             if user.Uin not in self.Users:
@@ -434,11 +401,11 @@ class WXSession():
         self.GroupList = jsobj
 
         for um in jsobj['result']['mem_info']:
-            user = WXUser()
+            user = QQUser()
             user.Uin = um['uin']
             user.UserName = str(um['uin'])
             user.NickName = um['nick']
-            user.UserType = UT_USER
+            user.UserType = USER_TYPE_USER
             qDebug('got user:' + str(user.NickName))
 
             if user.Uin not in self.Users:
@@ -452,8 +419,9 @@ class WXSession():
 
     def addGroupNames(self, GroupNames):
         for name in GroupNames:
-            user = WXUser()
+            user = QQUser()
             user.UserName = name
+            user.UserType = USER_TYPE_GROUP
             self.ICGroups[name] = user
         return
 
@@ -461,7 +429,7 @@ class WXSession():
         grnames = []
         gkeys = self.ICGroups.keys()
         for k in gkeys:
-            if WXUser.isGroup(k):
+            if QQUser.isGroup(k):
                 grnames.append(k)
         return grnames
 
@@ -486,10 +454,11 @@ class WXSession():
         return self.Users[GroupName]
 
     def addGroupUser(self, GroupName, obj):
-        user = WXUser()
+        user = QQUser()
         user.Uin = obj['Uin']
         user.UserName = obj['UserName']
         user.NickName = obj['NickName']
+        user.UserType = USER_TYPE_GROUP
 
         if user.Uin not in self.Users:
             self.Users[user.Uin] = user
@@ -513,10 +482,11 @@ class WXSession():
 
     # @param member json's member node
     def addMember(self, member):
-        user = WXUser()
+        user = QQUser()
         user.Uin = member['Uin']
         user.UserName = member['UserName']
         user.NickName = member['NickName']
+        user.UserType = USER_TYPE_USER
 
         if user.Uin not in self.Users:
             self.Users[user.UserName] = user
@@ -533,12 +503,12 @@ class WXSession():
         hccjs = json.JSONDecoder().decode(strhcc)
 
         res = hccjs['result']
-        user = WXUser()
+        user = QQUser()
         user.Uin = res['tuin']
         user.UserName = str(res['tuin'])
         user.NickName = res['nick']
         user.HeadImgUrl = res['face']
-        user.UserType = UT_USER
+        user.UserType = USER_TYPE_USER
 
         self.Users[user.Uin] = user
         self.Users[user.UserName] = user

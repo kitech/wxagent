@@ -26,7 +26,7 @@ class ToxDispatcher(QObject):
 
         return
 
-    # @param msg WXMessage
+    # @param msg QQMessage
     def send(self, msg):
         return
 
@@ -72,6 +72,7 @@ class WX2Tox(TX2Any):
         "docstring"
         super(WX2Tox, self).__init__(parent)
 
+        self.agent_service = QQAGENT_SERVICE_NAME
         self.agent_service_path = QQAGENT_SEND_PATH
         self.agent_service_iface = QQAGENT_IFACE_NAME
         self.agent_event_path = QQAGENT_EVENT_BUS_PATH
@@ -264,7 +265,7 @@ class WX2Tox(TX2Any):
 
         self.saveContent('qqmsgfromdbus.json', hcc)
 
-        wxmsgvec = WXMessageList()
+        wxmsgvec = QQMessageList()
         wxmsgvec.setMessage(hcc)
 
         strhcc = hcc.data().decode('utf8')
@@ -330,7 +331,7 @@ class WX2Tox(TX2Any):
             qDebug('qq sess chat')
             self.dispatchQQSessChatToTox(msg, fmtcc)
             pass
-        elif msg.FromUser.UserType == UT_GROUP or msg.ToUser.UserType == UT_GROUP:
+        elif msg.FromUser.isGroup() or msg.ToUser.isGroup():
             # msg.ToUserName.startswith('@@') or msg.FromUserName.startswith('@@'):
             qDebug('wx group chat:')
             # wx group chat
@@ -404,7 +405,7 @@ class WX2Tox(TX2Any):
         title = ''
 
         # TODO 这段代码好烂，在外层直接用的变量，到内层又检测是否为None，晕了
-        if msg.FromUser.UserType == UT_GROUP:
+        if msg.FromUser.isGroup():
             if msg.FromUser is None:
                 # message pending and try get group info
                 qDebug('warning FromUser not found, wxgroup not found:' + msg.FromUserName)
@@ -606,12 +607,12 @@ class WX2Tox(TX2Any):
             # user <=> user
             self.sendU2UMessageToWX(groupchat, mcc)
             pass
-        elif ToUser.UserType == UT_GROUP or FromUser.UserType == UT_GROUP:
+        elif ToUser.isGroup() or FromUser.isGroup():
             qDebug('send wx group chat:')
             # wx group chat
             self.sendWXGroupChatMessageToWX(groupchat, mcc)
             pass
-        elif ToUser.UserType == UT_DISCUS or FromUser.UserType == UT_DISCUS:
+        elif ToUser.isDiscus() or FromUser.isDiscus():
             qDebug('send wx discus chat:')
             # wx group chat
             self.sendWXDiscusChatMessageToWX(groupchat, mcc)
@@ -1068,7 +1069,7 @@ class WX2Tox(TX2Any):
             # print(contact)
             # self.txses.addMember(contact)
             grname = contact['UserName']
-            if not WXUser.isGroup(grname): continue
+            if not QQUser.isGroup(grname): continue
 
             print('uid=%s,un=%s,nn=%s\n' % (contact['Uin'], contact['UserName'], contact['NickName']))
             self.txses.addGroupUser(grname, contact)

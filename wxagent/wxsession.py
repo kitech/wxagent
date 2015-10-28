@@ -214,7 +214,7 @@ class WXSession():
 
     # @param name str  UserName, like @xxx
     def getUserByName(self, name):
-        if WXUser.isGroup(name): return self.getUserByGroupName(name)
+        if WXUser.isGroupName(name): return self.getUserByGroupName(name)
 
         mc = self.ContactData['MemberCount']
         qDebug(str(mc))
@@ -254,7 +254,7 @@ class WXSession():
         grnames = []
         gkeys = self.ICGroups.keys()
         for k in gkeys:
-            if WXUser.isGroup(k):
+            if WXUser.isGroupName(k):
                 grnames.append(k)
 
         return grnames

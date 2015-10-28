@@ -209,9 +209,9 @@ class XmppMessage(UniMessage):
                 (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
                  dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
 
-        # 这个格式，类似QQ，用户名信息独占一行，消息新起一行，行首空几个格。
-        ccmsg = "\n        " + content
-
+        # ●•·
+        ccmsg = "\n   •  " + content
+        if len(content) < 27: ccmsg = '  ' + content
         umsg.content = ccmsg
         return umsg
 

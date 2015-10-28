@@ -8,54 +8,14 @@ from PyQt5.QtCore import *
 
 from .wxcommon import *
 
-
-class WXUser():
-    def __init__(self):
-        "docstring"
-
-        self.Uin = 0  # temporary use
-        self.UserName = ''
-        self.NickName = ''
-        self.HeadImgUrl = ''
-
-        self.members = {}  # user name -> WXUser
-        return
-
-    # signature1: u.isGroup()
-    # signature1: WXUser.isGroup(name)
-    def isGroup(p0, p1 = None):
-        if type(p0) is WXUser:  # self = p0
-            return p0.UserName.startswith('@@')
-        return p0.startswith('@@')
-
-    def isMPSub(self):
-        return self.HeadImgUrl == ''
-
-    def cname(self):
-        if self.UserName in ['filehelper', 'newsapp', 'fmessage']:
-            return self.UserName
-        if len(self.UserName) < 16:  # maybe a special name
-            return self.UserName
-        return self.UserName.strip('@')[0:7]
+from .txmessage import *
 
 
-class WXMessage():
+class WXMessage(TXMessage):
 
     def __init__(self):
         "docstring"
-
-        self.MsgType = 0
-        self.MsgId = ''
-        self.FromUserName = ''
-        self.ToUserName = ''
-        self.CreateTime = 0
-        self.Content = ''
-        self.UnescapedContent = ''
-
-        self.FromUser = None
-        self.ToUser = None
-
-        self.jsonContent = {}
+        super(WXMessage, self).__init__()
 
         # for file field
         self.FileName = ''
@@ -68,14 +28,8 @@ class WXMessage():
 
         return
 
-    def isOffpic(self):
-        return False
 
-    def isFileMsg(self):
-        return False
-
-
-class WXMessageList():
+class WXMessageList(TXMessageList):
 
     def __init__(self):
         "docstring"

@@ -132,7 +132,8 @@ class WXSession():
             if user.UserName in self.ICUsers: self.ICUsers.pop(user.UserName)
 
             if user.UserName in self.Users:
-                self._assignUser(self.Users[user.UserName], user)
+                user.assignTo(self.Users[user.UserName])
+
                 upcnt += 1
             else:
                 self.Users[user.UserName] = user
@@ -146,7 +147,7 @@ class WXSession():
     # @param contact  jsobj['ModContactList']
     def parseModContact(self, modcontact):
         for contact in modcontact:
-            user = self._contactElemToUser(contact)
+            user = WXUser.fromJson(contact)
 
             # ## 准备下次获取该群组信息
             if user.UserName not in self.Users:
@@ -157,7 +158,7 @@ class WXSession():
             if user.UserName not in self.Users:
                 self.Users[user.UserName] = user
             else:
-                self._assignUser(self.Users[user.UserName], user)
+                user.assignTo(self.Users[user.UserName])
 
             #########
             guser = self.Users[user.UserName]
@@ -168,7 +169,7 @@ class WXSession():
                 if subuser.UserName not in self.Users:
                     self.Users[subuser.UserName] = subuser
                 else:
-                    self._assignUser(self.Users[subuser.UserName], subuser)
+                    subuser.assignTo(self.Users[subuser.UserName])
 
                 # 加入到group的members列表中
                 if subuser.UserName not in guser.members:
@@ -188,26 +189,10 @@ class WXSession():
 
         return
 
-    def _assignUser(self, t, f):
-        if len(f.UserName) > 0: t.UserName = f.UserName
-        if len(f.NickName) > 0: t.NickName = f.NickName
-        if len(f.HeadImgUrl) > 0: t.HeadImgUrl = f.HeadImgUrl
-        return
-
-    def _contactElemToUser(self, elem):
-        uo = elem
-
-        user = WXUser()
-        user.UserName = uo['UserName']
-        user.NickName = uo['NickName']
-        if 'HeadImgUrl' in uo: user.HeadImgUrl = uo['HeadImgUrl']
-
-        return user
-
     # @param contact, hccjs['ContactList'] or hccjs['MemberList']
     def parseUsers(self, contact):
         for uo in contact:
-            user = self._contactElemToUser(uo)
+            user = WXUser.fromJson(uo)
             yield user
 
         return

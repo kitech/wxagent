@@ -58,9 +58,6 @@ class TXUser():
         return self.UserName.strip('@')[0:7]
 
 
-class WXUser(TXUser): pass
-
-
 class QQUser(TXUser): pass
 
 

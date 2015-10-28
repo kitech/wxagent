@@ -194,22 +194,25 @@ class WX2Tox(TX2Any):
 
         self.saveContent('msgfromdbus.json', hcc)
 
-        wxmsgvec = WXMessageList()
-        wxmsgvec.setMessage(hcc)
+        wxmsgvec = WXMessageList().parseit(hcc)
 
-        strhcc = hcc.data().decode('utf8')
-        qDebug(strhcc[0:120].replace("\n", "\\n"))
-        jsobj = json.JSONDecoder().decode(strhcc)
+        # strhcc = hcc.data().decode('utf8')
+        # qDebug(strhcc[0:120].replace("\n", "\\n"))
+        # jsobj = json.JSONDecoder().decode(strhcc)
 
-        AddMsgCount = jsobj['AddMsgCount']
-        ModContactCount = jsobj['ModContactCount']
+        # AddMsgCount = jsobj['AddMsgCount']
+        # ModContactCount = jsobj['ModContactCount']
 
+        # 有可能有需要获取的群组信息
         grnames = self.wxproto.parseWebSyncNotifyGroups(hcc)
         self.txses.addGroupNames(grnames)
 
+        # 有可能有需要获取的群组信息
         self.txses.parseModContact(jsobj['ModContactList'])
+        # 也许改成process更好，WXSession不应该做过多的parse
+        # self.txses.processModContact(jsobj['ModContactList'])
 
-        msgs = wxmsgvec.getContent()
+        msgs = wxmsgvec.getAddMsgList()
         for msg in msgs:
             fromUser = self.txses.getUserByName(msg.FromUserName)
             toUser = self.txses.getUserByName(msg.ToUserName)
@@ -219,37 +222,45 @@ class WX2Tox(TX2Any):
             msg.FromUser = fromUser
             msg.ToUser = toUser
 
-            # pmsg = PlainMessage.fromWXMessage(msg, self.txses)
-            # logstr = pmsg.content
-            # xmsg = XmppMessage.fromWXMessage(msg, self.txses)
-            # logstr = xmsg.get()
-            umsg = self.peerRelay.unimsgcls.fromWXMessage(msg, self.txses)
-            logstr = umsg.get()
+            self.sendMessageToToxByType(msg)
 
+        return
+
+    def sendMessageToToxByType(self, msg):
+        # pmsg = PlainMessage.fromWXMessage(msg, self.txses)
+        # logstr = pmsg.content
+        # xmsg = XmppMessage.fromWXMessage(msg, self.txses)
+        # logstr = xmsg.get()
+        umsg = self.peerRelay.unimsgcls.fromWXMessage(msg, self.txses)
+
+        # multimedia 消息处理
+        if msg.MsgType == WXMsgType.MT_SHOT or msg.MsgType == WXMsgType.MT_X47_CARTOON:
+            imgurl = self.getMsgImgUrl(msg)
+            logstr += '\n> %s' % imgurl
             self.sendMessageToTox(msg, logstr)
-
-            logstr = ''
-            # multimedia 消息处理
-            if msg.MsgType == WXMsgType.MT_SHOT or msg.MsgType == WXMsgType.MT_X47:
-                imgurl = self.getMsgImgUrl(msg)
-                logstr += '\n> %s' % imgurl
-                self.sendMessageToTox(msg, logstr)
-                self.sendShotPicMessageToTox(msg, logstr)
-            elif msg.MsgType == WXMsgType.MT_X49:
-                if len(msg.MediaId) > 0:
-                    fileurl = self.getMsgFileUrl(msg)
-                    logstr += '> %s' % fileurl
-                    logstr += '\n\nname: %s' % msg.FileName
-                    logstr += '\nsize: %s' % msg.FileSize
-                else:
-                    fileurl = msg.Url
-                    logstr += '> %s' % fileurl
-                    logstr += '\n\nname: %s' % msg.FileName
-                self.sendMessageToTox(msg, logstr)
-            elif msg.MsgType == WXMsgType.MT_VOICE:
-                logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength/1000)
-                self.sendMessageToTox(msg, logstr)
-                self.sendVoiceMessageToTox(msg, logstr)
+            self.sendShotPicMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_X49_FILE_OR_ARTICLE:
+            if len(msg.MediaId) > 0:
+                fileurl = self.getMsgFileUrl(msg)
+                logstr += '> %s' % fileurl
+                logstr += '\n\nname: %s' % msg.FileName
+                logstr += '\nsize: %s' % msg.FileSize
+            else:
+                fileurl = msg.Url
+                logstr += '> %s' % fileurl
+                logstr += '\n\nname: %s' % msg.FileName
+            self.sendMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_VOICE:
+            logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength / 1000)
+            self.sendMessageToTox(msg, logstr)
+            self.sendVoiceMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_TEXT:
+            logstr = umsg.get()
+            self.sendMessageToTox(msg, logstr)
+        else:
+            qDebug('Unknown msg type:' + str(msg.MsgType))
+            logstr = 'Unknown -- ' + umsg.get() + ' -- Unknown'
+            self.sendMessageToTox(msg, logstr)
 
         return
 

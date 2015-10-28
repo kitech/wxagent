@@ -11,6 +11,25 @@ from .wxcommon import *
 from .txmessage import *
 
 
+class WXUser(TXUser):
+
+    @staticmethod
+    def fromJson(juser):
+        user = WXUser()
+        user.UserName = juser['UserName']
+        user.NickName = juser['NickName']
+        if 'HeadImgUrl' in uo: user.HeadImgUrl = uo['HeadImgUrl']
+
+        return user
+
+    def assignTo(self, to):
+        f = self
+        if len(f.UserName) > 0: to.UserName = f.UserName
+        if len(f.NickName) > 0: to.NickName = f.NickName
+        if len(f.HeadImgUrl) > 0: to.HeadImgUrl = f.HeadImgUrl
+        return
+
+
 class WXMessage(TXMessage):
 
     def __init__(self):
@@ -29,34 +48,54 @@ class WXMessage(TXMessage):
         return
 
 
+# usage: WXMessageList().parse(rawmsg)
 class WXMessageList(TXMessageList):
 
     def __init__(self):
         "docstring"
         self.rawMessage = b''  # QByteArray
         self.jsonMessage = {}
+
         return
 
     # @param message QByteArray
-    def setMessage(self, message):
-        self.rawMessage = message
-        self.parseMessageList()
-        return
+    def parseit(self, rawmsg):
+        self.rawMessage = rawmsg
 
-    def parseMessageList(self):
         hcc = self.rawMessage
-
-        strhcc = hcc.data().decode('utf8')
+        strhcc = hcc.data().decode()
         qDebug(strhcc[0:120].replace("\n", "\\n"))
         jsobj = json.JSONDecoder().decode(strhcc)
         self.jsonMessage = jsobj
 
-        AddMsgCount = jsobj['AddMsgCount']
-        ModContactCount = jsobj['ModContactCount']
+        return self
 
-        return
+    def isValid(self):
+        if self.jsonMessage['BaseResponse']['Ret'] == 0:
+            return True
+        return False
 
-    def getContent(self):
+    def hasAddMsg(self):
+        if self.jsonMessage['AddMsgCount'] > 0:
+            return True
+        return False
+
+    def hasModContact(self):
+        if self.jsonMessage['ModContactCount'] > 0:
+            return True
+        return False
+
+    def hasDelContact(self):
+        if self.jsonMessage['DelContactCount'] > 0:
+            return True
+        return False
+
+    def hasModChatRoomMember(self):
+        if self.jsonMessage['ModChatRoomMemberCount'] > 0:
+            return True
+        return False
+
+    def getAddMsgList(self):
         jsobj = self.jsonMessage
 
         msgs = []
@@ -71,12 +110,12 @@ class WXMessageList(TXMessageList):
             #     print('::::::::::,MT', um['MsgType'], str(type(rct)), rct)
 
             #######
-            msg = self.parseMessageUnit(um)
+            msg = self._parseMessageUnit(um)
             msgs.append(msg)
 
         return msgs
 
-    def parseMessageUnit(self, um):
+    def _parseMessageUnit(self, um):
         msg = WXMessage()
         msg.jsonContent = um
 
@@ -102,3 +141,11 @@ class WXMessageList(TXMessageList):
 
         return msg
 
+    def getModContactList(self):
+        return
+
+    def getDelContactList(self):
+        return
+
+    def getModChatRoomMemberList(self):
+        return

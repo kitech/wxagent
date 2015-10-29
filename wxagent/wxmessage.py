@@ -18,7 +18,7 @@ class WXUser(TXUser):
         user = WXUser()
         user.UserName = juser['UserName']
         user.NickName = juser['NickName']
-        if 'HeadImgUrl' in uo: user.HeadImgUrl = uo['HeadImgUrl']
+        if 'HeadImgUrl' in juser: user.HeadImgUrl = juser['HeadImgUrl']
 
         return user
 

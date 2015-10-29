@@ -20,7 +20,7 @@ from .unimessage import *
 from .botcmd import *
 from .filestore import QiniuFileStore, VnFileStore
 
-from .tx2any import TX2Any
+from .tx2any import TX2Any, Chatroom
 
 
 #
@@ -38,22 +38,6 @@ class WX2Tox(TX2Any):
         self.agent_event_path = WXAGENT_EVENT_BUS_PATH
         self.agent_event_iface = WXAGENT_EVENT_BUS_IFACE
         self.relay_src_pname = 'WXU'
-
-        self.txses = None
-        self.peerRelay = None
-
-        ##### state
-        self.qrpic = None  # QByteArray
-        self.qrfile = ''
-        self.need_send_qrfile = False   # 有可能peerRelay还未上线
-        self.need_send_notify = False   # 有可能peerRelay还未上线
-        self.tx2relay_msg_buffer = []  # 存储未转发到tox的消息
-
-        self.txchatmap = {}  # cname => Chatroom
-        self.relaychatmap = {}  # group_number => Chatroom
-        self.pendingGroupMessages = {}  # group name => msg
-
-        self.asyncWatchers = {}   # watcher => arg0
 
         self.initDBus()
         self.initRelay()
@@ -114,29 +98,7 @@ class WX2Tox(TX2Any):
             logined = True
             qDebug('wxagent already logined.')
 
-        ### 无论是否登陆，启动的都发送一次qrcode文件
-        qrpic = self.getQRCode()
-        if qrpic is None:
-            qDebug('maybe wxagent not run...')
-            pass
-        else:
-            fname = self.genQRCodeSaveFileName()
-            self.saveContent(fname, qrpic)
-
-            self.qrpic = qrpic
-            self.qrfile = fname
-
-            tkc = False
-            tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
-            if tkc is True:
-                # url = filestore.upload_file(self.qrpic)
-                url1 = QiniuFileStore.uploadData(self.qrpic)
-                url2 = VnFileStore.uploadData(self.qrpic)
-                url = url1 + "\n" + url2
-                self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
-            else:
-                self.need_send_qrfile = True
-
+        self.sendQRToRelayPeer()
         if logined is True: self.createWXSession()
         return
 
@@ -732,35 +694,8 @@ class WX2Tox(TX2Any):
 
     # @param cb(data)
     def getMsgImgCallback(self, msg, imgcb=None):
-
-        def on_dbus_reply(watcher):
-            qDebug('replyyyyyyyyyyyyyyy')
-            pendReply = QDBusPendingReply(watcher)
-            qDebug(str(watcher))
-            qDebug(str(pendReply.isValid()))
-            if pendReply.isValid():
-                hcc = pendReply.argumentAt(0)
-                qDebug(str(type(hcc)))
-            else:
-                self.asyncWatchers.pop(watcher)
-                if imgcb is not None: imgcb(None)
-                return
-
-            message = pendReply.reply()
-            args = message.arguments()
-
-            self.asyncWatchers.pop(watcher)
-            # send img file to tox client
-            if imgcb is not None: imgcb(args[0])
-
-            return
-
         args = [msg.MsgId, False]
-        pcall = self.sysiface.asyncCall('get_msg_img', *args)
-        watcher = QDBusPendingCallWatcher(pcall)
-        watcher.finished.connect(on_dbus_reply)
-        self.asyncWatchers[watcher] = '1'
-
+        self.asyncGetRpc('get_msg_img', args, imgcb)
         return
 
     def getMsgFileUrl(self, msg):
@@ -770,35 +705,8 @@ class WX2Tox(TX2Any):
 
     # @param cb(data)
     def getMsgVoiceCallback(self, msg, imgcb=None):
-
-        def on_dbus_reply(watcher):
-            qDebug('replyyyyyyyyyyyyyyy')
-            pendReply = QDBusPendingReply(watcher)
-            qDebug(str(watcher))
-            qDebug(str(pendReply.isValid()))
-            if pendReply.isValid():
-                hcc = pendReply.argumentAt(0)
-                qDebug(str(type(hcc)))
-            else:
-                self.asyncWatchers.pop(watcher)
-                if imgcb is not None: imgcb(None)
-                return
-
-            message = pendReply.reply()
-            args = message.arguments()
-
-            self.asyncWatchers.pop(watcher)
-            # send img file to tox client
-            if imgcb is not None: imgcb(args[0])
-
-            return
-
         args = [msg.MsgId]
-        pcall = self.sysiface.asyncCall('get_msg_voice', *args)
-        watcher = QDBusPendingCallWatcher(pcall)
-        watcher.finished.connect(on_dbus_reply)
-        self.asyncWatchers[watcher] = '1'
-
+        self.asyncGetRpc('get_msg_voice', args, imgcb)
         return
 
     # TODO 合并抽象该方法与createChatroom方法

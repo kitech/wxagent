@@ -57,7 +57,14 @@ class WXSession():
 
     # @param initData QByteArray
     def processContactData(self, contactData):
-        self._setContact(contactData)
+        self.ContactRawData = contactData
+        hcc = self.ContactRawData
+
+        strhcc = hcc.data().decode()
+        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
+        jsobj = json.JSONDecoder().decode(strhcc)
+        self.ContactData = jsobj
+
         self._parseContact()
         return
 
@@ -145,12 +152,7 @@ class WXSession():
         return
 
     def _parseContact(self):
-        hcc = self.ContactRawData
-
-        strhcc = hcc.data().decode()
-        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
-        jsobj = json.JSONDecoder().decode(strhcc)
-        self.ContactData = jsobj
+        jsobj = self.ContactData
 
         #######
         upcnt = 0

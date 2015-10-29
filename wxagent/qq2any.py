@@ -13,10 +13,9 @@ from .imrelayfactory import IMRelayFactory
 from .qqcom import *
 from .qqsession import *
 from .unimessage import *
-from .wxprotocol import *
 from .filestore import QiniuFileStore, VnFileStore
 
-from .tx2any import TX2Any
+from .tx2any import TX2Any, Chatroom
 
 
 #
@@ -34,24 +33,6 @@ class WX2Tox(TX2Any):
         self.agent_event_path = QQAGENT_EVENT_BUS_PATH
         self.agent_event_iface = QQAGENT_EVENT_BUS_IFACE
         self.relay_src_pname = 'WQU'
-
-        self.txses = None
-        self.peerRelay = None
-
-        # #### state
-        self.qrpic = None  # QByteArray
-        self.qrfile = ''
-        self.need_send_qrfile = False   # 有可能peerRelay还未上线
-        self.need_send_notify = False   # 有可能peerRelay还未上线
-        self.notify_buffer = []
-        self.tx2relay_msg_buffer = []  # 存储未转发到tox的消息
-
-        self.txchatmap = {}  # Uin => Chatroom
-        self.relaychatmap = {}  # group_number => Chatroom
-        self.wxproto = WXProtocol()
-        self.pendingGroupMessages = {}  # group name => msg
-
-        self.asyncWatchers = {}   # watcher => arg0
 
         self.initDBus()
         self.initRelay()
@@ -125,45 +106,7 @@ class WX2Tox(TX2Any):
                 self.notify_buffer.append(notify_msg)
                 self.need_send_notify = True
 
-        # logined = False
-        # if not self.checkWXLogin():
-        #     qDebug('wxagent not logined.')
-        # else:
-        #     logined = True
-        #     qDebug('wxagent already logined.')
-
-        # if logined is False:
-        #     tkc = False
-        #     if self.toxkit is not None:  tkc = self.toxkit.isConnected()
-        #     if tkc is True:
-        #         friendId = self.peerToxId
-        #         self.toxkit.sendMessage(friendId, 'login username:')
-        #     else:
-        #         self.need_send_request_username = True
-
-        ### 无论是否登陆，启动的都发送一次qrcode文件
-        qrpic = self.getQRCode()
-        if qrpic is None:
-            qDebug('maybe wxagent not run...')
-            pass
-        else:
-            fname = self.genQRCodeSaveFileName()
-            self.saveContent(fname, qrpic)
-
-            self.qrpic = qrpic
-            self.qrfile = fname
-
-            tkc = False
-            tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
-            if tkc is True:
-                # url = filestore.upload_file(self.qrpic)
-                url1 = QiniuFileStore.uploadData(self.qrpic)
-                url2 = VnFileStore.uploadData(self.qrpic)
-                url = url1 + "\n" + url2
-                self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
-            else:
-                self.need_send_qrfile = True
-
+        self.sendQRToRelayPeer()
         # if logined is True: self.createWXSession()
         return
 
@@ -257,20 +200,24 @@ class WX2Tox(TX2Any):
                 qDebug('maybe send_ack msg, but dont known how process it, just omit.')
                 continue
 
-            umsg = self.peerRelay.unimsgcls.fromQQMessage(msg, self.txses)
-            logstr = umsg.get()
-            dlogstr = umsg.dget()
-            qDebug(dlogstr.encode())
+            self.sendMessageToToxByType(msg)
+        return
 
+    def sendMessageToToxByType(self, msg):
+
+        umsg = self.peerRelay.unimsgcls.fromQQMessage(msg, self.txses)
+        logstr = umsg.get()
+        dlogstr = umsg.dget()
+        qDebug(dlogstr.encode())
+
+        if msg.isOffpic():
+            qDebug(msg.offpic)
+            self.sendShotPicMessageToTox(msg, logstr)
+        elif msg.isFileMsg():
+            qDebug(msg.FileName.encode())
+            self.sendFileMessageToTox(msg, logstr)
+        else:
             self.sendMessageToTox(msg, logstr)
-
-            if msg.isOffpic():
-                qDebug(msg.offpic)
-                self.sendShotPicMessageToTox(msg, logstr)
-            if msg.isFileMsg():
-                qDebug(msg.FileName.encode())
-                self.sendFileMessageToTox(msg, logstr)
-
         return
 
     def dispatchToToxGroup(self, msg, fmtcc):
@@ -539,11 +486,7 @@ class WX2Tox(TX2Any):
         FromUser = groupchat.FromUser
         ToUser = groupchat.ToUser
 
-        if ToUser.UserName == 'filehelper' or FromUser.UserName == 'filehelper':
-            qDebug('send special chat: filehelper')
-            self.sendFileHelperMessageToWX(groupchat, mcc)
-            pass
-        elif groupchat.chat_type == CHAT_TYPE_QUN:
+        if groupchat.chat_type == CHAT_TYPE_QUN:
             qDebug('send wx group chat:')
             # wx group chat
             self.sendWXGroupChatMessageToWX(groupchat, mcc)
@@ -595,61 +538,6 @@ class WX2Tox(TX2Any):
 
         return
 
-    def sendFileHelperMessageToWX(self, groupchat, mcc):
-
-        from_username = groupchat.FromUser.UserName
-        to_username = groupchat.ToUser.UserName
-
-        qDebug('cc type:, ' + str(type(mcc)))
-        qDebug('cc len:, ' + str(len(mcc)))
-
-        try:
-            mcc_u8 = mcc.decode('utf8')
-            mcc_u16 = mcc_u8.encode('utf16')
-
-            qDebug(mcc_u16)
-        except Exception as ex:
-            qDebug('str as u8 => u16 error')
-
-        try:
-            mcc_u16 = mcc.decode('utf16')
-            mcc_u8 = mcc_u16.encode('utf8')
-
-            qDebug(mcc_u8)
-        except Exception as ex:
-            qDebug('str as u16 => u8 error')
-
-        try:
-            qDebug(mcc)
-        except Exception as ex:
-            qDebug('str as u8 error')
-
-        try:
-            bcc = bytes(mcc, 'utf8')
-            qDebug(bcc)
-        except Exception as ex:
-            qDebug('str as bytes u8 error')
-
-        try:
-            bcc = bytes(mcc, 'utf8')
-            qdebug(bcc)
-        except Exception as ex:
-            qDebug('str as bytes u8 error')
-
-        # return
-        args = [from_username, to_username, mcc, 1, 'more', 'even more']
-        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
-
-        rr = QDBusReply(reply)
-        if rr.isValid():
-            qDebug(str(rr.value()) + ',' + str(type(rr.value())))
-        else:
-            qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
-
-        ### TODO send message faild
-
-        return
-
     def sendWXGroupChatMessageToWX(self, groupchat, mcc):
 
         from_username = groupchat.FromUser.UserName
@@ -687,6 +575,7 @@ class WX2Tox(TX2Any):
 
         return
 
+    # TODO 修改为调用asyncGetRpc
     def sendWXSessionChatMessageToWX(self, groupchat, mcc):
         def on_dbus_reply(watcher):
             groupchat, mcc = self.asyncWatchers[watcher]
@@ -1144,73 +1033,19 @@ class WX2Tox(TX2Any):
 
     # @param cb(data)
     def getMsgImgCallback(self, msg, imgcb=None):
-
-        def on_dbus_reply(watcher):
-            qDebug('replyyyyyyyyyyyyyyy')
-            pendReply = QDBusPendingReply(watcher)
-            qDebug(str(watcher))
-            qDebug(str(pendReply.isValid()))
-            if pendReply.isValid():
-                hcc = pendReply.argumentAt(0)
-                qDebug(str(type(hcc)))
-            else:
-                self.asyncWatchers.pop(watcher)
-                if imgcb is not None: imgcb(None)
-                return
-
-            message = pendReply.reply()
-            args = message.arguments()
-
-            self.asyncWatchers.pop(watcher)
-            # send img file to tox client
-            if imgcb is not None: imgcb(args[0])
-
-            return
-
         # 还有可能超时，dbus默认timeout=25，而实现有可能达到45秒。WTF!!!
         args = [msg.offpic, msg.FromUserName]
         offpic_file_path = msg.offpic.replace('/', '%2F')
         args = [offpic_file_path, msg.FromUserName]
-        pcall = self.sysiface.asyncCall('get_msg_img', *args) 
-        watcher = QDBusPendingCallWatcher(pcall)
-        watcher.finished.connect(on_dbus_reply)
-        self.asyncWatchers[watcher] = '1'
-
+        self.asyncGetRpc('get_msg_img', args, imgcb)
         return
 
     # @param cb(data)
     def getMsgFileCallback(self, msg, imgcb=None):
-
-        def on_dbus_reply(watcher):
-            qDebug('replyyyyyyyyyyyyyyy')
-            pendReply = QDBusPendingReply(watcher)
-            qDebug(str(watcher))
-            qDebug(str(pendReply.isValid()))
-            if pendReply.isValid():
-                hcc = pendReply.argumentAt(0)
-                qDebug(str(type(hcc)))
-            else:
-                self.asyncWatchers.pop(watcher)
-                if imgcb is not None: imgcb(None)
-                return
-
-            message = pendReply.reply()
-            args = message.arguments()
-
-            self.asyncWatchers.pop(watcher)
-            # send img file to tox client
-            if imgcb is not None: imgcb(args[0])
-
-            return
-
         # 还有可能超时，dbus默认timeout=25，而实现有可能达到45秒。WTF!!!
         # TODO, msg.FileName maybe need urlencoded
         args = [msg.MsgId, msg.FileName, msg.ToUserName]
-        pcall = self.sysiface.asyncCall('get_msg_file', *args) 
-        watcher = QDBusPendingCallWatcher(pcall)
-        watcher.finished.connect(on_dbus_reply)
-        self.asyncWatchers[watcher] = '1'
-
+        self.asyncGetRpc('get_msg_file', args, imgcb)
         return
 
 

@@ -83,6 +83,7 @@ class TX2Any(QObject):
 
         self.txchatmap = {}  # Uin => Chatroom
         self.relaychatmap = {}  # group_number => Chatroom
+        self.pendingGroupMessages = {}  # group name => msg
 
         self.asyncWatchers = {}   # watcher => arg0
         self.sysbus = QDBusConnection.systemBus()
@@ -264,6 +265,31 @@ class TX2Any(QObject):
             self.sendMessageToWX(groupchat, message)
         return
 
+    def sendQRToRelayPeer(self):
+        ### 无论是否登陆，启动的都发送一次qrcode文件
+        qrpic = self.getQRCode()
+        if qrpic is None:
+            qDebug('maybe wxagent not run...')
+            pass
+        else:
+            fname = self.genQRCodeSaveFileName()
+            self.saveContent(fname, qrpic)
+
+            self.qrpic = qrpic
+            self.qrfile = fname
+
+            tkc = False
+            tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
+            if tkc is True:
+                # url = filestore.upload_file(self.qrpic)
+                url1 = QiniuFileStore.uploadData(self.qrpic)
+                url2 = VnFileStore.uploadData(self.qrpic)
+                url = url1 + "\n" + url2
+                self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
+            else:
+                self.need_send_qrfile = True
+        return
+
     @pyqtSlot(QDBusMessage)
     def onDBusBeginLogin(self, message):
         qDebug(str(message.arguments()))
@@ -315,6 +341,11 @@ class TX2Any(QObject):
         return
 
     # def onDBusNewMessage(self, message)
+
+    # @param msg TXMessage
+    def sendMessageToToxByType(self, msg):
+        raise 'must impled in subclass'
+        return
 
     def sendMessageToTox(self, msg, fmtcc):
         fstatus = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
@@ -470,31 +501,44 @@ class TX2Any(QObject):
             return rr.value()
         return None
 
+    def asyncGetRpc(self, name, args, callback):
+        pcall = self.sysiface.asyncCall(name, *args)
+        watcher = QDBusPendingCallWatcher(pcall)
+        # watcher.finished.connect(callback)
+        watcher.finished.connect(self.onAsyncGetRpcFinished)
+        self.asyncWatchers[watcher] = callback
+        return
+
+    def onAsyncGetRpcFinished(self, watcher):
+        qDebug('replyyyyyyyyyyyyyyy')
+        pendReply = QDBusPendingReply(watcher)
+        qDebug(str(watcher))
+        qDebug(str(pendReply.isValid()))
+        if pendReply.isValid():
+            hcc = pendReply.argumentAt(0)
+            qDebug(str(type(hcc)))
+        else:
+            callback = self.asyncWatchers.pop(watcher)
+            if callback is not None: callback(None)
+            return
+
+        message = pendReply.reply()
+        args = message.arguments()
+
+        callback = self.asyncWatchers.pop(watcher)
+        # send img file to tox client
+        if callback is not None: callback(args[0])
+
+        return
+
     # @param hcc QByteArray
     # @return str
     def hcc2str(self, hcc):
         strhcc = ''
 
-        try:
-            astr = hcc.data().decode('gkb')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode gbk error:')
-
-        try:
-            astr = hcc.data().decode('utf16')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode utf16 error:')
-
-        try:
-            astr = hcc.data().decode('utf8')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode utf8 error:')
+        astr = hcc.data().decode()
+        qDebug(astr[0:120].replace("\n", "\\n").encode())
+        strhcc = astr
 
         return strhcc
 
@@ -502,12 +546,8 @@ class TX2Any(QObject):
     # @param hcc QByteArray
     # @return None
     def saveContent(self, name, hcc):
-        # fp = QFile("baseinfo.json")
         fp = QFile(name)
         fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
-        # fp.resize(0)
         fp.write(hcc)
         fp.close()
-
         return
-

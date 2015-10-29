@@ -1,11 +1,4 @@
-# 由于所有用户、群组信息都使用同一个类TXUser表示，
-# 使用这个值表示其确切类型。适用于tx、qq两种协议。
-USER_TYPE_UNKNOWN = 0
-USER_TYPE_USER = 1
-USER_TYPE_GROUP = 2
-USER_TYPE_SESSION = 3
-USER_TYPE_DISCUS = 4
-USER_TYPE_SUBSCRIBE = 5
+from .txcom import *
 
 
 # user classes

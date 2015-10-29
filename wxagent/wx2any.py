@@ -21,38 +21,6 @@ from .botcmd import *
 from .filestore import QiniuFileStore, VnFileStore
 
 from .tx2any import TX2Any
-# QDBUS_DEBUG
-
-
-class ToxDispatcher(QObject):
-    def __init__(self):
-        "docstring"
-
-        return
-
-    # @param msg WXMessage
-    def send(self, msg):
-        return
-
-
-class Chatroom():
-    def __init__(self):
-        "docstring"
-
-        self.group_number = -1
-        self.peer_number = -1
-
-        # 以收到消息创建聊天群组时的from/to定义
-        self.FromUser = None
-        self.ToUser = None
-
-        self.title = ''
-
-        self.unsend_queue = []
-
-        # temporary fix some bugs
-        self.FromUserName = ''  # case for newsapp/xxx
-        return
 
 
 #

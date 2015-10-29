@@ -17,50 +17,6 @@ from .wxprotocol import *
 from .filestore import QiniuFileStore, VnFileStore
 
 from .tx2any import TX2Any
-# QDBUS_DEBUG
-
-
-class ToxDispatcher(QObject):
-    def __init__(self):
-        "docstring"
-
-        return
-
-    # @param msg QQMessage
-    def send(self, msg):
-        return
-
-
-CHAT_TYPE_NONE = 0
-CHAT_TYPE_U2U = 1
-CHAT_TYPE_QUN = 2
-CHAT_TYPE_DISCUS = 3
-CHAT_TYPE_SESS = 4
-
-
-class Chatroom():
-    def __init__(self):
-        "docstring"
-
-        self.group_number = -1
-        self.peer_number = -1
-
-        # 以收到消息创建聊天群组时的from/to定义
-        self.FromUser = None
-        self.ToUser = None
-
-        self.title = ''
-
-        self.unsend_queue = []
-
-        self.chat_type = CHAT_TYPE_NONE
-        self.group_sig = None
-        self.Gid = 0
-        self.ServiceType = 0
-
-        ### fix some bugs
-        self.FromUserName = ''  # case for newsapp/xxx
-        return
 
 
 #

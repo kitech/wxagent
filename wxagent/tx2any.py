@@ -12,7 +12,7 @@ from PyQt5.QtDBus import *
 from .imrelayfactory import IMRelayFactory
 from .unimessage import *
 from .filestore import QiniuFileStore, VnFileStore
-
+from .txcom import *
 # QDBUS_DEBUG
 
 
@@ -43,12 +43,12 @@ class Chatroom():
 
         self.unsend_queue = []
 
-        self.chat_type = 0  # CHAT_TYPE_NONE
+        self.chat_type = CHAT_TYPE_NONE
         self.group_sig = None
         self.Gid = 0
         self.ServiceType = 0
 
-        ### fixme some bugs
+        # fixme some bugs
         self.FromUserName = ''  # case for newsapp/xxx
         return
 

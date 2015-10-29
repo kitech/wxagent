@@ -17,7 +17,6 @@ from .wxcommon import *
 from .wxmessage import *
 from .wxsession import *
 from .unimessage import *
-from .wxprotocol import *
 from .botcmd import *
 from .filestore import QiniuFileStore, VnFileStore
 
@@ -84,7 +83,6 @@ class WX2Tox(TX2Any):
 
         self.txchatmap = {}  # cname => Chatroom
         self.relaychatmap = {}  # group_number => Chatroom
-        self.wxproto = WXProtocol()
         self.pendingGroupMessages = {}  # group name => msg
 
         self.asyncWatchers = {}   # watcher => arg0
@@ -100,7 +98,6 @@ class WX2Tox(TX2Any):
         # islogined
         # 等待，总之是wxagent支持的命令，
 
-        #
         cmd = BotCmder.parseCmd(msg)
         if cmd is False:
             qDebug('not a cmd: %s' % msg[0:120])
@@ -114,8 +111,8 @@ class WX2Tox(TX2Any):
         elif cmd[0] == 'invite':
             if cmd[1] == '':  # 发送所有的好友，注意是真正的已添加的好友，不是在群组里面的。
                 nnlst = self.txses.getInviteCompleteList()
-                self.peerRelay.sendMessage(', '.join(nnlst), self.peerRelay.peer_user)
-                pass
+                nnlst = list(map(lambda x: '*) ' + x, nnlst))
+                self.peerRelay.sendMessage('    '.join(nnlst), self.peerRelay.peer_user)
             else:
                 # 查找是否有该好友，
                 # 如果有，则创建与该好友的聊天室
@@ -125,15 +122,17 @@ class WX2Tox(TX2Any):
                 nnlen = len(nnlst)
                 if nnlen == 0:
                     qDebug(('not found:' + cmd[1]).encode())
+                    rpstr = 'no user named: ' + cmd[1]
+                    self.peerRelay.sendMessage(rpstr, self.peerRelay.peer_user)
                 elif nnlen == 1:
-                    qDebug(('exact match found:' + cmd[1] +',' + str(nnlst[0])).encode())
+                    qDebug(('exact match found:' + cmd[1] + ',' + str(nnlst[0])).encode())
                     rpstr = 'inviteing %s......' % nnlst[0]
                     self.peerRelay.sendMessage(rpstr, self.peerRelay.peer_user)
                     self.inviteFriendToChat(nnlst[0])
                 else:
                     qDebug(('multi match found:' + cmd[1]).encode())
-                    self.peerRelay.sendMessage(','.join(nnlst), self.peerRelay.peer_user)
-                pass
+                    nnlst = list(map(lambda x: '*) ' + x, nnlst))
+                    self.peerRelay.sendMessage('    '.join(nnlst), self.peerRelay.peer_user)
         else:
             qDebug('unknown cmd:' + str(cmd))
 
@@ -177,8 +176,7 @@ class WX2Tox(TX2Any):
     def onDBusNewMessage(self, message):
         # qDebug(str(message.arguments()))
         args = message.arguments()
-        msglen = args[0]
-        msghcc = args[1]
+        msglen, msghcc, *others = args
 
         if self.txses is None: self.createWXSession()
 
@@ -189,28 +187,12 @@ class WX2Tox(TX2Any):
                 qDebug(str(type(arg)) + ',' + str(arg)[0:120])
 
         hcc64_str = args[1]
-        hcc64 = hcc64_str.encode('utf8')
+        hcc64 = hcc64_str.encode()
         hcc = QByteArray.fromBase64(hcc64)
 
         self.saveContent('msgfromdbus.json', hcc)
 
-        wxmsgvec = WXMessageList().parseit(hcc)
-
-        # strhcc = hcc.data().decode('utf8')
-        # qDebug(strhcc[0:120].replace("\n", "\\n"))
-        # jsobj = json.JSONDecoder().decode(strhcc)
-
-        # AddMsgCount = jsobj['AddMsgCount']
-        # ModContactCount = jsobj['ModContactCount']
-
-        # 有可能有需要获取的群组信息
-        grnames = self.wxproto.parseWebSyncNotifyGroups(hcc)
-        self.txses.addGroupNames(grnames)
-
-        # 有可能有需要获取的群组信息
-        self.txses.parseModContact(jsobj['ModContactList'])
-        # 也许改成process更好，WXSession不应该做过多的parse
-        # self.txses.processModContact(jsobj['ModContactList'])
+        wxmsgvec = self.txses.processMessage(hcc)
 
         msgs = wxmsgvec.getAddMsgList()
         for msg in msgs:
@@ -234,6 +216,7 @@ class WX2Tox(TX2Any):
         umsg = self.peerRelay.unimsgcls.fromWXMessage(msg, self.txses)
 
         # multimedia 消息处理
+        logstr = ''
         if msg.MsgType == WXMsgType.MT_SHOT or msg.MsgType == WXMsgType.MT_X47_CARTOON:
             imgurl = self.getMsgImgUrl(msg)
             logstr += '\n> %s' % imgurl
@@ -512,41 +495,8 @@ class WX2Tox(TX2Any):
 
         qDebug('cc type:, ' + str(type(mcc)))
         qDebug('cc len:, ' + str(len(mcc)))
+        # qDebug(mcc.decode())
 
-        try:
-            mcc_u8 = mcc.decode('utf8')
-            mcc_u16 = mcc_u8.encode('utf16')
-
-            qDebug(mcc_u16)
-        except Exception as ex:
-            qDebug('str as u8 => u16 error')
-
-        try:
-            mcc_u16 = mcc.decode('utf16')
-            mcc_u8 = mcc_u16.encode('utf8')
-
-            qDebug(mcc_u8)
-        except Exception as ex:
-            qDebug('str as u16 => u8 error')
-
-        try:
-            qDebug(mcc)
-        except Exception as ex:
-            qDebug('str as u8 error')
-
-        try:
-            bcc = bytes(mcc, 'utf8')
-            qDebug(bcc)
-        except Exception as ex:
-            qDebug('str as bytes u8 error')
-
-        try:
-            bcc = bytes(mcc, 'utf8')
-            qdebug(bcc)
-        except Exception as ex:
-            qDebug('str as bytes u8 error')
-
-        # return
         args = [from_username, to_username, mcc, 1, 'more', 'even more']
         reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
 
@@ -556,7 +506,7 @@ class WX2Tox(TX2Any):
         else:
             qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
 
-        ### TODO send message faild
+        # TODO send message faild
 
         return
 
@@ -574,7 +524,7 @@ class WX2Tox(TX2Any):
         else:
             qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
 
-        ### TODO send message faild
+        # TODO send message faild
 
         return
 
@@ -619,9 +569,9 @@ class WX2Tox(TX2Any):
         # TODO check reply valid
 
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        data64 = rr.value().encode('utf8')   # to bytes
+        data64 = rr.value().encode()   # to bytes
         data = QByteArray.fromBase64(data64)
-        self.txses.setInitData(data)
+        self.txses.processInitData(data)
         self.saveContent('initdata.json', data)
 
         reply = self.sysiface.call('getcontact', 123, 'a1', 456)
@@ -629,9 +579,9 @@ class WX2Tox(TX2Any):
 
         # TODO check reply valid
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        data64 = rr.value().encode('utf8')   # to bytes
+        data64 = rr.value().encode()   # to bytes
         data = QByteArray.fromBase64(data64)
-        self.txses.setContact(data)
+        self.txses.processContactData(data)
         self.saveContent('contact.json', data)
 
         reply = self.sysiface.call('getgroups', 123, 'a1', 456)

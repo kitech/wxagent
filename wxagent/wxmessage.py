@@ -127,7 +127,7 @@ class WXMessageList(TXMessageList):
         msg.ToUserName = um['ToUserName']
         msg.FromUserName = um['FromUserName']
 
-        if msg.MsgType == WXMsgType.MT_X49:
+        if msg.MsgType == WXMsgType.MT_X49_FILE_OR_ARTICLE:
             msg.FileName = um['FileName']
             msg.FileSize = um['FileSize']
             msg.MediaId = um['MediaId']

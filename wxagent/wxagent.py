@@ -11,13 +11,14 @@ from PyQt5.QtDBus import *
 from .wxcommon import *
 from .wxsession import *
 from .wxprotocol import *
+from .txagent import TXAgent
 
 # from dbus.mainloop.pyqt5 import DBusQtMainLoop
 # DBusQtMainLoop(set_as_default = True)
 
 
 ######
-class WXAgent(QObject):
+class WXAgent(TXAgent):
     qrpicGotten = pyqtSignal('QByteArray')
     asyncRequestDone = pyqtSignal(int, 'QByteArray')
 
@@ -45,7 +46,7 @@ class WXAgent(QObject):
         self.wxFriendRawData = b''  # QByteArray
         self.wxFriendData = None  #
         self.wxWebSyncRawData = b''  # QByteArray
-        self.wxWebSyncData = None  # 
+        self.wxWebSyncData = None  #
         self.wxSyncKey = None  # {[]}
         self.syncTimer = None  # QTimer
         self.clientMsgIdBase = qrand()
@@ -54,14 +55,12 @@ class WXAgent(QObject):
         self.wxGroupUserNames = {}  # 来自websync:AddMsgList:StatusNotifyUserName，以@@开头的
 
         self.asyncQueueIdBase = qrand()
-        self.asyncQueue = {} # {reply => id}
+        self.asyncQueue = {}  # {reply => id}
         self.refresh_count = 0
         self.urlStart = ''
         self.webpushUrlStart = ''
-        self.msgimage= b''   # QByteArray
-        self.msgimagename = ''  #str 
-
-        self.retry_times_before_refresh = 0
+        self.msgimage = b''   # QByteArray
+        self.msgimagename = ''  # str
 
         return
 
@@ -287,18 +286,10 @@ class WXAgent(QObject):
             qDebug('sync check result:' + str(hcc))
 
             if status_code is None and error_no in [99]:  # QNetworkReply.UnknownNetworkError
-                if self.retry_times_before_refresh > 3:
-                    qDebug('really need refresh')
-                    self.retry_times_before_refresh = 0
-                    QTimer.singleShot(3456, self.refresh)
-                else:
-                    self.retry_times_before_refresh += 1
-                    QTimer.singleShot(12340, self.syncCheck)
+                if self.canReconnect(): self.tryReconnect(self.syncCheck)
                 return
             else:
-                if self.retry_times_before_refresh > 0:
-                    qDebug('retry before refresh useful, ' + str(self.retry_times_before_refresh))
-                    self.retry_times_before_refresh = 0  # reset zero
+                if self.inReconnect(): self.finishReconnect()
 
             # window.synccheck={retcode:”0”,selector:”0”}
             # selector: 6: 表示有新消息
@@ -878,26 +869,9 @@ class WXAgent(QObject):
     def hcc2str(self, hcc):
         strhcc = ''
 
-        try:
-            astr = hcc.data().decode('gkb')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode gbk error:')
-
-        try:
-            astr = hcc.data().decode('utf16')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode utf16 error:')
-
-        try:
-            astr = hcc.data().decode('utf8')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode utf8 error:')
+        astr = hcc.data().decode('utf8')
+        qDebug(astr[0:120].replace("\n", "\\n").encode())
+        strhcc = astr
 
         return strhcc
 

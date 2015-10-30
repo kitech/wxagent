@@ -313,7 +313,6 @@ class WXSession():
 
     # user对象还无NickName的，这种的无法在UI上正常显示NickName
     def checkUncompleteUsers(self):
-
         cnt = 0
         for uname in self.Users:
             if type(uname) is not str: continue
@@ -332,18 +331,11 @@ class WXSession():
 
         #######
         nnlst = []
-        if prefix is not None:
-            prefix = prefix.strip()
-        for user in self.parseUsers(jsobj['MemberList']):
-            if prefix is not None:
-                if user.NickName.startswith(prefix):
-                    nnlst.append(user.NickName)
-            else:
-                nnlst.append(user.NickName)
+        if prefix is not None: prefix = prefix.strip()
 
         # use filter
         nnlst = list(map(lambda x: x.NickName, self.parseUsers(jsobj['MemberList'])))
         if prefix is not None:
-            nnlst = list(filter(lambda x: x.artswitch(prefix), nnlst))
+            nnlst = list(filter(lambda x: x.startswith(prefix), nnlst))
 
         return nnlst

@@ -6,6 +6,7 @@ import html
 
 from PyQt5.QtCore import *
 
+from .wxprotocol import *
 from .wxcommon import *
 from .wxmessage import *
 
@@ -29,45 +30,67 @@ class WXSession():
         self.ICGroups = {}  # user name = > WXUser, 信息不完全的组
 
         # ## maybe temporary
+        self.lastMsgList = WXMessageList()
 
         return
 
     # @param initData QByteArray
-    def setInitData(self, initData):
+    def processInitData(self, initData):
         self.InitRawData = initData
-        self.parseInitData()
-        return
 
-    def parseInitData(self):
         hcc = self.InitRawData
 
-        strhcc = hcc.data().decode('utf8')
+        strhcc = hcc.data().decode()
         qDebug(strhcc[0:120].replace("\n", "\\n").encode())
         jsobj = json.JSONDecoder().decode(strhcc)
         self.InitData = jsobj
+        # mc = self.InitData['Count']  # 应该指的是ContactList个数
+        # qDebug(str(mc))
 
         self._parseInitAboutMe()
         self._parseInitGroups()
         self._parseInitGroupMembers()
+
+        self._processMPSubscribe()
+
         return
 
-    def _parseInitAboutMe(self):
-        mc = self.InitData['Count']
-        qDebug(str(mc))
+    # @param initData QByteArray
+    def processContactData(self, contactData):
+        self.ContactRawData = contactData
+        hcc = self.ContactRawData
 
+        strhcc = hcc.data().decode()
+        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
+        jsobj = json.JSONDecoder().decode(strhcc)
+        self.ContactData = jsobj
+
+        self._parseContact()
+        return
+
+    # @param msgData QByteArray
+    # 返回AddMsgList
+    def processMessage(self, msgData):
+        hcc = msgData
+        msgvec = WXMessageList().parseit(hcc)
+        self.lastMsgList = msgvec
+
+        # more process
+        self._processModContact()
+        self._processDelContact()
+        self._processModChatRoomMember()
+        self._processStatusNotify(hcc)
+
+        return msgvec
+
+    def _parseInitAboutMe(self):
         uo = self.InitData['User']
-        user = WXUser()
-        user.UserName = uo['UserName']
-        user.NickName = uo['NickName']
-        user.HeadImgUrl = uo['HeadImgUrl']
+        user = WXUser.fromJson(uo)
 
         self.me = user
         return
 
     def _parseInitGroups(self):
-        mc = self.InitData['Count']
-        qDebug(str(mc))
-
         # ## InitData中的group都是有info的记录，直接存储在Users中
         cnt = 0
         for user in self.parseUsers(self.InitData['ContactList']):
@@ -81,9 +104,6 @@ class WXSession():
         return
 
     def _parseInitGroupMembers(self):
-        mc = self.InitData['Count']
-        qDebug(str(mc))
-
         cnt = 0
         # ## InitData中的group都是有info的记录，直接存储在Users中
         for uo in self.InitData['ContactList']:
@@ -97,32 +117,42 @@ class WXSession():
         return
 
     def _parseInitMPSubs(self):
-        mc = self.InitData['Count']
-        qDebug(str(mc))
-
         # ## InitData中的group都是有info的记录，直接存储在Users中
         for uo in self.InitData['MPSubscribeMsgList']:
-            user = WXUser()
-            user.UserName = uo['UserName']
-            user.NickName = uo['NickName']
+            user = WXUser.fromJson(uo)
+            user.UserType = USER_TYPE_SUBSCRIBE
 
             self.Users[user.UserName] = user
 
         return
 
-    # @param contact QByteArray
-    def setContact(self, contact):
-        self.ContactRawData = contact
-        self.parseContact()
+    # 订阅的微信号
+    def _processMPSubscribe(self):
         return
 
-    def parseContact(self):
-        hcc = self.ContactRawData
+    # 有可能有需要获取的群组信息
+    # TODO _parseModContact code move here and cleanup
+    def _processModContact(self):
+        self._parseModContact(self.lastMsgList.jsonMessage['ModContactList'])
+        return
 
-        strhcc = hcc.data().decode('utf8')
-        qDebug(strhcc[0:120].replace("\n", "\\n").encode())
-        jsobj = json.JSONDecoder().decode(strhcc)
-        self.ContactData = jsobj
+    def _processModChatRoomMember(self):
+        cts = self.lastMsgList.jsonMessage['ModChatRoomMemberList']
+        return
+
+    def _processDelContact(self):
+        cts = self.lastMsgList.jsonMessage['DelContactList']
+        return
+
+    # 有可能有需要获取的群组信息
+    def _processStatusNotify(self, hcc):
+        wxproto = WXProtocol()
+        grnames = wxproto.parseWebSyncNotifyGroups(hcc)
+        self.addGroupNames(grnames)
+        return
+
+    def _parseContact(self):
+        jsobj = self.ContactData
 
         #######
         upcnt = 0
@@ -132,7 +162,8 @@ class WXSession():
             if user.UserName in self.ICUsers: self.ICUsers.pop(user.UserName)
 
             if user.UserName in self.Users:
-                self._assignUser(self.Users[user.UserName], user)
+                user.assignTo(self.Users[user.UserName])
+
                 upcnt += 1
             else:
                 self.Users[user.UserName] = user
@@ -144,9 +175,9 @@ class WXSession():
         return
 
     # @param contact  jsobj['ModContactList']
-    def parseModContact(self, modcontact):
+    def _parseModContact(self, modcontact):
         for contact in modcontact:
-            user = self._contactElemToUser(contact)
+            user = WXUser.fromJson(contact)
 
             # ## 准备下次获取该群组信息
             if user.UserName not in self.Users:
@@ -157,7 +188,7 @@ class WXSession():
             if user.UserName not in self.Users:
                 self.Users[user.UserName] = user
             else:
-                self._assignUser(self.Users[user.UserName], user)
+                user.assignTo(self.Users[user.UserName])
 
             #########
             guser = self.Users[user.UserName]
@@ -168,7 +199,7 @@ class WXSession():
                 if subuser.UserName not in self.Users:
                     self.Users[subuser.UserName] = subuser
                 else:
-                    self._assignUser(self.Users[subuser.UserName], subuser)
+                    subuser.assignTo(self.Users[subuser.UserName])
 
                 # 加入到group的members列表中
                 if subuser.UserName not in guser.members:
@@ -176,38 +207,10 @@ class WXSession():
 
         return
 
-    # TODO
-    # @param contact  jsobj['DelContactList']
-    def parseDelContact(self, delcontact):
-
-        return
-
-    # TODO
-    # @param contact  jsobj['ModChatRoomMemberList']
-    def parseModChatRoomMemberList(self, modmembers):
-
-        return
-
-    def _assignUser(self, t, f):
-        if len(f.UserName) > 0: t.UserName = f.UserName
-        if len(f.NickName) > 0: t.NickName = f.NickName
-        if len(f.HeadImgUrl) > 0: t.HeadImgUrl = f.HeadImgUrl
-        return
-
-    def _contactElemToUser(self, elem):
-        uo = elem
-
-        user = WXUser()
-        user.UserName = uo['UserName']
-        user.NickName = uo['NickName']
-        if 'HeadImgUrl' in uo: user.HeadImgUrl = uo['HeadImgUrl']
-
-        return user
-
     # @param contact, hccjs['ContactList'] or hccjs['MemberList']
     def parseUsers(self, contact):
         for uo in contact:
-            user = self._contactElemToUser(uo)
+            user = WXUser.fromJson(uo)
             yield user
 
         return
@@ -225,9 +228,6 @@ class WXSession():
 
     # @param name str  UserName, like @@xxx
     def getUserByGroupName(self, name):
-        mc = self.InitData['Count']
-        qDebug(str(mc))
-
         if name in self.Users: return self.Users[name]
         qDebug("can not find user:" + str(name))
         return
@@ -280,9 +280,7 @@ class WXSession():
         return self.Users[GroupName]
 
     def addGroupUser(self, GroupName, obj):
-        user = WXUser()
-        user.UserName = obj['UserName']
-        user.NickName = obj['NickName']
+        user = WXUser.fromJson(obj)
 
         if user.UserName not in self.Users:
             self.Users[user.UserName] = user
@@ -305,9 +303,7 @@ class WXSession():
 
     # @param member json's member node
     def addMember(self, member):
-        user = WXUser()
-        user.UserName = member['UserName']
-        user.NickName = member['NickName']
+        user = WXUser.fromJson(member)
 
         if user.UserName not in self.Users:
             self.Users[user.UserName] = user
@@ -317,7 +313,6 @@ class WXSession():
 
     # user对象还无NickName的，这种的无法在UI上正常显示NickName
     def checkUncompleteUsers(self):
-
         cnt = 0
         for uname in self.Users:
             if type(uname) is not str: continue
@@ -336,13 +331,11 @@ class WXSession():
 
         #######
         nnlst = []
+        if prefix is not None: prefix = prefix.strip()
+
+        # use filter
+        nnlst = list(map(lambda x: x.NickName, self.parseUsers(jsobj['MemberList'])))
         if prefix is not None:
-            prefix = prefix.strip()
-        for user in self.parseUsers(jsobj['MemberList']):
-            if prefix is not None:
-                if user.NickName.startswith(prefix):
-                    nnlst.append(user.NickName)
-            else:
-                nnlst.append(user.NickName)
+            nnlst = list(filter(lambda x: x.startswith(prefix), nnlst))
 
         return nnlst

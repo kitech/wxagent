@@ -10,24 +10,11 @@ from PyQt5.QtDBus import *
 
 from .qqcom import *
 from .wxprotocol import *
-
-
-class AgentCookieJar(QNetworkCookieJar):
-    def __init__(self, parent=None):
-        super(AgentCookieJar, self).__init__(parent)
-
-    def xallCookies(self):
-        return self.allCookies()
-
-
-class AgentStats:
-    def __init__(self):
-        self.refresh_count = 0
-        return
+from .txagent import TXAgent, AgentCookieJar, AgentStats
 
 
 ######
-class QQAgent(QObject):
+class QQAgent(TXAgent):
     qrpicGotten = pyqtSignal('QByteArray')
     asyncRequestDone = pyqtSignal(int, 'QByteArray')
 
@@ -37,9 +24,9 @@ class QQAgent(QObject):
         self.asvc = asvc
         self.asts = AgentStats()
 
-        self.acj = AgentCookieJar()
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+        self.acj = AgentCookieJar()
         self.nam.setCookieJar(self.acj)
 
         self.connState = CONN_STATE_NONE
@@ -69,9 +56,9 @@ class QQAgent(QObject):
 
         qDebug('see this...')
 
-        self.acj = AgentCookieJar()
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+        self.acj = AgentCookieJar()
         self.nam.setCookieJar(self.acj)
 
         self.connState = CONN_STATE_NONE
@@ -329,6 +316,14 @@ class QQAgent(QObject):
         elif url.startswith('http://d.web2.qq.com/channel/poll2?'):
             qDebug('msgpoll2 done.')
             qDebug(hcc)
+
+            if status_code is None and error_no == 99:
+                # 尝试重新建立新连接， 使用当前的会话信息再次发起请求
+                # QTimer.singleShot(5678, self.tryReconnect)
+                if self.canReconnect(): self.tryReconnect(self.eventPoll)
+                return
+            else:
+                if self.inReconnect(): self.finishReconnect()
 
             if status_code == 502:
                 qDebug('server unavliable...')
@@ -1376,26 +1371,9 @@ class QQAgent(QObject):
     def hcc2str(self, hcc):
         strhcc = ''
 
-        try:
-            astr = hcc.data().decode('gkb')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode gbk error:')
-
-        try:
-            astr = hcc.data().decode('utf16')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode utf16 error:')
-
-        try:
-            astr = hcc.data().decode('utf8')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode utf8 error:' + str(ex))
+        astr = hcc.data().decode('utf8')
+        qDebug(astr[0:120].replace("\n", "\\n").encode())
+        strhcc = astr
 
         return strhcc
 

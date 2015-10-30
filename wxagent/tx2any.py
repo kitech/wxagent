@@ -12,7 +12,7 @@ from PyQt5.QtDBus import *
 from .imrelayfactory import IMRelayFactory
 from .unimessage import *
 from .filestore import QiniuFileStore, VnFileStore
-
+from .txcom import *
 # QDBUS_DEBUG
 
 
@@ -43,12 +43,12 @@ class Chatroom():
 
         self.unsend_queue = []
 
-        self.chat_type = 0  # CHAT_TYPE_NONE
+        self.chat_type = CHAT_TYPE_NONE
         self.group_sig = None
         self.Gid = 0
         self.ServiceType = 0
 
-        ### fixme some bugs
+        # fixme some bugs
         self.FromUserName = ''  # case for newsapp/xxx
         return
 
@@ -83,6 +83,7 @@ class TX2Any(QObject):
 
         self.txchatmap = {}  # Uin => Chatroom
         self.relaychatmap = {}  # group_number => Chatroom
+        self.pendingGroupMessages = {}  # group name => msg
 
         self.asyncWatchers = {}   # watcher => arg0
         self.sysbus = QDBusConnection.systemBus()
@@ -248,20 +249,49 @@ class TX2Any(QObject):
         else:
             print('or will send wx msg:%s' % (groupchat.FromUserName))
 
-        peer_number = 'jaoijfiwafaewf'
+        peer_number = 'magicxxxjaoijfiwafaewf'
         # TODO 把从各群组来的发给WX端的消息，同步再发送给tox汇总端一份。也就是tox的唯一peer端。
         # TODO 如果是从wx2tox转过去的消息，这里也会再次收到，所以，会向tox汇总端重复发一份了，需要处理。
         try:
             if peer_number == 0: pass  # it myself sent message, omit
             else:
-                self.peerRelay.sendMessage(message, self.peerRelay.peer_user)
+                if groupchat.FromUserName == self.txses.me.UserName:
+                    newmsg = '(To: %s) %s' % (groupchat.ToUser.NickName, message)
+                else:
+                    newmsg = '(To: %s) %s' % (groupchat.FromUser.NickName, message)
+                ret = self.peerRelay.sendMessage(newmsg, self.peerRelay.peer_user)
         except Exception as ex:
             qDebug('send msg error: %s' % str(ex))
 
-        if peer_number == 0:  # it myself sent message, omit
+        if peer_number == 0: pass  # it myself sent message, omit
+        else:
+            ret = self.sendMessageToWX(groupchat, message)
+            if ret: pass
+        return
+
+    def sendQRToRelayPeer(self):
+        ### 无论是否登陆，启动的都发送一次qrcode文件
+        qrpic = self.getQRCode()
+        if qrpic is None:
+            qDebug('maybe wxagent not run...')
             pass
         else:
-            self.sendMessageToWX(groupchat, message)
+            fname = self.genQRCodeSaveFileName()
+            self.saveContent(fname, qrpic)
+
+            self.qrpic = qrpic
+            self.qrfile = fname
+
+            tkc = False
+            tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
+            if tkc is True:
+                # url = filestore.upload_file(self.qrpic)
+                url1 = QiniuFileStore.uploadData(self.qrpic)
+                url2 = VnFileStore.uploadData(self.qrpic)
+                url = url1 + "\n" + url2
+                self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
+            else:
+                self.need_send_qrfile = True
         return
 
     @pyqtSlot(QDBusMessage)
@@ -316,16 +346,28 @@ class TX2Any(QObject):
 
     # def onDBusNewMessage(self, message)
 
+    # @param msg TXMessage
+    def sendMessageToToxByType(self, msg):
+        raise 'must impled in subclass'
+        return
+
     def sendMessageToTox(self, msg, fmtcc):
         fstatus = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
         if fstatus is True:
+            if msg.FromUserName == self.txses.me.UserName:
+                newcc = '(From: %s) %s' % (msg.ToUser.NickName, fmtcc)
+            else:
+                newcc = '(From: %s) %s' % (msg.FromUser.NickName, fmtcc)
+
             try:
                 # 把收到的消息发送到汇总tox端
-                self.peerRelay.sendMessage(fmtcc, self.peerRelay.peer_user)
+                ret = self.peerRelay.sendMessage(newcc, self.peerRelay.peer_user)
             except Exception as ex:
                 qDebug(b'tox send msg error: ' + str(ex).encode())
-            ### dispatch by MsgType
-            self.dispatchToToxGroup(msg, fmtcc)
+
+            # dispatch by ChatType
+            ret = self.dispatchToToxGroup(msg, fmtcc)
+            if ret: pass
         else:
             # self.tx2relay_msg_buffer.append(msg)
             pass
@@ -470,31 +512,44 @@ class TX2Any(QObject):
             return rr.value()
         return None
 
+    def asyncGetRpc(self, name, args, callback):
+        pcall = self.sysiface.asyncCall(name, *args)
+        watcher = QDBusPendingCallWatcher(pcall)
+        # watcher.finished.connect(callback)
+        watcher.finished.connect(self.onAsyncGetRpcFinished)
+        self.asyncWatchers[watcher] = callback
+        return
+
+    def onAsyncGetRpcFinished(self, watcher):
+        qDebug('replyyyyyyyyyyyyyyy')
+        pendReply = QDBusPendingReply(watcher)
+        qDebug(str(watcher))
+        qDebug(str(pendReply.isValid()))
+        if pendReply.isValid():
+            hcc = pendReply.argumentAt(0)
+            qDebug(str(type(hcc)))
+        else:
+            callback = self.asyncWatchers.pop(watcher)
+            if callback is not None: callback(None)
+            return
+
+        message = pendReply.reply()
+        args = message.arguments()
+
+        callback = self.asyncWatchers.pop(watcher)
+        # send img file to tox client
+        if callback is not None: callback(args[0])
+
+        return
+
     # @param hcc QByteArray
     # @return str
     def hcc2str(self, hcc):
         strhcc = ''
 
-        try:
-            astr = hcc.data().decode('gkb')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode gbk error:')
-
-        try:
-            astr = hcc.data().decode('utf16')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode utf16 error:')
-
-        try:
-            astr = hcc.data().decode('utf8')
-            qDebug(astr[0:120].replace("\n", "\\n").encode())
-            strhcc = astr
-        except Exception as ex:
-            qDebug('decode utf8 error:')
+        astr = hcc.data().decode()
+        qDebug(astr[0:120].replace("\n", "\\n").encode())
+        strhcc = astr
 
         return strhcc
 
@@ -502,12 +557,8 @@ class TX2Any(QObject):
     # @param hcc QByteArray
     # @return None
     def saveContent(self, name, hcc):
-        # fp = QFile("baseinfo.json")
         fp = QFile(name)
         fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
-        # fp.resize(0)
         fp.write(hcc)
         fp.close()
-
         return
-

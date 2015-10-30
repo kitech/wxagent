@@ -1,7 +1,10 @@
 # 把txim的消息转换为要转发的消息格式
 
 import re
-from PyQt5.QtCore import *
+from PyQt5.QtCore import qDebug
+
+# should be 27
+MAX_LEN_FOR_NEWLINE = ord('Z') - ord('A') + 1 + 1
 
 
 # 使用fromXXMessage的方式，一个好处是添加新的relay时，方便添加与扩展
@@ -211,7 +214,7 @@ class XmppMessage(UniMessage):
 
         # ●•·
         ccmsg = "\n   •  " + content
-        if len(content) < 27: ccmsg = '  ' + content
+        if len(content) < MAX_LEN_FOR_NEWLINE: ccmsg = '  ' + content
         umsg.content = ccmsg
         return umsg
 
@@ -257,6 +260,6 @@ class XmppMessage(UniMessage):
 
         # ●•·
         ccmsg = "\n   •  " + content
-        if len(content) < 27: ccmsg = '  ' + content
+        if len(content) < MAX_LEN_FOR_NEWLINE: ccmsg = '  ' + content
         umsg.content = ccmsg
         return umsg

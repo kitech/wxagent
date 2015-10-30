@@ -17,43 +17,10 @@ from .wxcommon import *
 from .wxmessage import *
 from .wxsession import *
 from .unimessage import *
-from .wxprotocol import *
 from .botcmd import *
 from .filestore import QiniuFileStore, VnFileStore
 
-from .tx2any import TX2Any
-# QDBUS_DEBUG
-
-
-class ToxDispatcher(QObject):
-    def __init__(self):
-        "docstring"
-
-        return
-
-    # @param msg WXMessage
-    def send(self, msg):
-        return
-
-
-class Chatroom():
-    def __init__(self):
-        "docstring"
-
-        self.group_number = -1
-        self.peer_number = -1
-
-        # 以收到消息创建聊天群组时的from/to定义
-        self.FromUser = None
-        self.ToUser = None
-
-        self.title = ''
-
-        self.unsend_queue = []
-
-        # temporary fix some bugs
-        self.FromUserName = ''  # case for newsapp/xxx
-        return
+from .tx2any import TX2Any, Chatroom
 
 
 #
@@ -72,23 +39,6 @@ class WX2Tox(TX2Any):
         self.agent_event_iface = WXAGENT_EVENT_BUS_IFACE
         self.relay_src_pname = 'WXU'
 
-        self.txses = None
-        self.peerRelay = None
-
-        ##### state
-        self.qrpic = None  # QByteArray
-        self.qrfile = ''
-        self.need_send_qrfile = False   # 有可能peerRelay还未上线
-        self.need_send_notify = False   # 有可能peerRelay还未上线
-        self.tx2relay_msg_buffer = []  # 存储未转发到tox的消息
-
-        self.txchatmap = {}  # cname => Chatroom
-        self.relaychatmap = {}  # group_number => Chatroom
-        self.wxproto = WXProtocol()
-        self.pendingGroupMessages = {}  # group name => msg
-
-        self.asyncWatchers = {}   # watcher => arg0
-
         self.initDBus()
         self.initRelay()
         self.startWXBot()
@@ -100,7 +50,6 @@ class WX2Tox(TX2Any):
         # islogined
         # 等待，总之是wxagent支持的命令，
 
-        #
         cmd = BotCmder.parseCmd(msg)
         if cmd is False:
             qDebug('not a cmd: %s' % msg[0:120])
@@ -114,8 +63,8 @@ class WX2Tox(TX2Any):
         elif cmd[0] == 'invite':
             if cmd[1] == '':  # 发送所有的好友，注意是真正的已添加的好友，不是在群组里面的。
                 nnlst = self.txses.getInviteCompleteList()
-                self.peerRelay.sendMessage(', '.join(nnlst), self.peerRelay.peer_user)
-                pass
+                nnlst = list(map(lambda x: '*) ' + x, nnlst))
+                self.peerRelay.sendMessage('    '.join(nnlst), self.peerRelay.peer_user)
             else:
                 # 查找是否有该好友，
                 # 如果有，则创建与该好友的聊天室
@@ -125,15 +74,17 @@ class WX2Tox(TX2Any):
                 nnlen = len(nnlst)
                 if nnlen == 0:
                     qDebug(('not found:' + cmd[1]).encode())
+                    rpstr = 'no user named: ' + cmd[1]
+                    self.peerRelay.sendMessage(rpstr, self.peerRelay.peer_user)
                 elif nnlen == 1:
-                    qDebug(('exact match found:' + cmd[1] +',' + str(nnlst[0])).encode())
+                    qDebug(('exact match found:' + cmd[1] + ',' + str(nnlst[0])).encode())
                     rpstr = 'inviteing %s......' % nnlst[0]
                     self.peerRelay.sendMessage(rpstr, self.peerRelay.peer_user)
                     self.inviteFriendToChat(nnlst[0])
                 else:
                     qDebug(('multi match found:' + cmd[1]).encode())
-                    self.peerRelay.sendMessage(','.join(nnlst), self.peerRelay.peer_user)
-                pass
+                    nnlst = list(map(lambda x: '*) ' + x, nnlst))
+                    self.peerRelay.sendMessage('    '.join(nnlst), self.peerRelay.peer_user)
         else:
             qDebug('unknown cmd:' + str(cmd))
 
@@ -147,29 +98,7 @@ class WX2Tox(TX2Any):
             logined = True
             qDebug('wxagent already logined.')
 
-        ### 无论是否登陆，启动的都发送一次qrcode文件
-        qrpic = self.getQRCode()
-        if qrpic is None:
-            qDebug('maybe wxagent not run...')
-            pass
-        else:
-            fname = self.genQRCodeSaveFileName()
-            self.saveContent(fname, qrpic)
-
-            self.qrpic = qrpic
-            self.qrfile = fname
-
-            tkc = False
-            tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
-            if tkc is True:
-                # url = filestore.upload_file(self.qrpic)
-                url1 = QiniuFileStore.uploadData(self.qrpic)
-                url2 = VnFileStore.uploadData(self.qrpic)
-                url = url1 + "\n" + url2
-                self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
-            else:
-                self.need_send_qrfile = True
-
+        self.sendQRToRelayPeer()
         if logined is True: self.createWXSession()
         return
 
@@ -177,8 +106,7 @@ class WX2Tox(TX2Any):
     def onDBusNewMessage(self, message):
         # qDebug(str(message.arguments()))
         args = message.arguments()
-        msglen = args[0]
-        msghcc = args[1]
+        msglen, msghcc, *others = args
 
         if self.txses is None: self.createWXSession()
 
@@ -189,27 +117,14 @@ class WX2Tox(TX2Any):
                 qDebug(str(type(arg)) + ',' + str(arg)[0:120])
 
         hcc64_str = args[1]
-        hcc64 = hcc64_str.encode('utf8')
+        hcc64 = hcc64_str.encode()
         hcc = QByteArray.fromBase64(hcc64)
 
         self.saveContent('msgfromdbus.json', hcc)
 
-        wxmsgvec = WXMessageList()
-        wxmsgvec.setMessage(hcc)
+        wxmsgvec = self.txses.processMessage(hcc)
 
-        strhcc = hcc.data().decode('utf8')
-        qDebug(strhcc[0:120].replace("\n", "\\n"))
-        jsobj = json.JSONDecoder().decode(strhcc)
-
-        AddMsgCount = jsobj['AddMsgCount']
-        ModContactCount = jsobj['ModContactCount']
-
-        grnames = self.wxproto.parseWebSyncNotifyGroups(hcc)
-        self.txses.addGroupNames(grnames)
-
-        self.txses.parseModContact(jsobj['ModContactList'])
-
-        msgs = wxmsgvec.getContent()
+        msgs = wxmsgvec.getAddMsgList()
         for msg in msgs:
             fromUser = self.txses.getUserByName(msg.FromUserName)
             toUser = self.txses.getUserByName(msg.ToUserName)
@@ -219,37 +134,46 @@ class WX2Tox(TX2Any):
             msg.FromUser = fromUser
             msg.ToUser = toUser
 
-            # pmsg = PlainMessage.fromWXMessage(msg, self.txses)
-            # logstr = pmsg.content
-            # xmsg = XmppMessage.fromWXMessage(msg, self.txses)
-            # logstr = xmsg.get()
-            umsg = self.peerRelay.unimsgcls.fromWXMessage(msg, self.txses)
-            logstr = umsg.get()
+            self.sendMessageToToxByType(msg)
 
+        return
+
+    def sendMessageToToxByType(self, msg):
+        # pmsg = PlainMessage.fromWXMessage(msg, self.txses)
+        # logstr = pmsg.content
+        # xmsg = XmppMessage.fromWXMessage(msg, self.txses)
+        # logstr = xmsg.get()
+        umsg = self.peerRelay.unimsgcls.fromWXMessage(msg, self.txses)
+
+        # multimedia 消息处理
+        logstr = ''
+        if msg.MsgType == WXMsgType.MT_SHOT or msg.MsgType == WXMsgType.MT_X47_CARTOON:
+            imgurl = self.getMsgImgUrl(msg)
+            logstr += '\n> %s' % imgurl
             self.sendMessageToTox(msg, logstr)
-
-            logstr = ''
-            # multimedia 消息处理
-            if msg.MsgType == WXMsgType.MT_SHOT or msg.MsgType == WXMsgType.MT_X47:
-                imgurl = self.getMsgImgUrl(msg)
-                logstr += '\n> %s' % imgurl
-                self.sendMessageToTox(msg, logstr)
-                self.sendShotPicMessageToTox(msg, logstr)
-            elif msg.MsgType == WXMsgType.MT_X49:
-                if len(msg.MediaId) > 0:
-                    fileurl = self.getMsgFileUrl(msg)
-                    logstr += '> %s' % fileurl
-                    logstr += '\n\nname: %s' % msg.FileName
-                    logstr += '\nsize: %s' % msg.FileSize
-                else:
-                    fileurl = msg.Url
-                    logstr += '> %s' % fileurl
-                    logstr += '\n\nname: %s' % msg.FileName
-                self.sendMessageToTox(msg, logstr)
-            elif msg.MsgType == WXMsgType.MT_VOICE:
-                logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength/1000)
-                self.sendMessageToTox(msg, logstr)
-                self.sendVoiceMessageToTox(msg, logstr)
+            self.sendShotPicMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_X49_FILE_OR_ARTICLE:
+            if len(msg.MediaId) > 0:
+                fileurl = self.getMsgFileUrl(msg)
+                logstr += '> %s' % fileurl
+                logstr += '\n\nname: %s' % msg.FileName
+                logstr += '\nsize: %s' % msg.FileSize
+            else:
+                fileurl = msg.Url
+                logstr += '> %s' % fileurl
+                logstr += '\n\nname: %s' % msg.FileName
+            self.sendMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_VOICE:
+            logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength / 1000)
+            self.sendMessageToTox(msg, logstr)
+            self.sendVoiceMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_TEXT:
+            logstr = umsg.get()
+            self.sendMessageToTox(msg, logstr)
+        else:
+            qDebug('Unknown msg type:' + str(msg.MsgType))
+            logstr = 'Unknown -- ' + umsg.get() + ' -- Unknown'
+            self.sendMessageToTox(msg, logstr)
 
         return
 
@@ -454,7 +378,6 @@ class WX2Tox(TX2Any):
 
         return groupchat
 
-
     def sendMessageToWX(self, groupchat, mcc):
         qDebug('here')
 
@@ -501,41 +424,8 @@ class WX2Tox(TX2Any):
 
         qDebug('cc type:, ' + str(type(mcc)))
         qDebug('cc len:, ' + str(len(mcc)))
+        # qDebug(mcc.decode())
 
-        try:
-            mcc_u8 = mcc.decode('utf8')
-            mcc_u16 = mcc_u8.encode('utf16')
-
-            qDebug(mcc_u16)
-        except Exception as ex:
-            qDebug('str as u8 => u16 error')
-
-        try:
-            mcc_u16 = mcc.decode('utf16')
-            mcc_u8 = mcc_u16.encode('utf8')
-
-            qDebug(mcc_u8)
-        except Exception as ex:
-            qDebug('str as u16 => u8 error')
-
-        try:
-            qDebug(mcc)
-        except Exception as ex:
-            qDebug('str as u8 error')
-
-        try:
-            bcc = bytes(mcc, 'utf8')
-            qDebug(bcc)
-        except Exception as ex:
-            qDebug('str as bytes u8 error')
-
-        try:
-            bcc = bytes(mcc, 'utf8')
-            qdebug(bcc)
-        except Exception as ex:
-            qDebug('str as bytes u8 error')
-
-        # return
         args = [from_username, to_username, mcc, 1, 'more', 'even more']
         reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
 
@@ -545,7 +435,7 @@ class WX2Tox(TX2Any):
         else:
             qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
 
-        ### TODO send message faild
+        # TODO send message faild
 
         return
 
@@ -563,7 +453,7 @@ class WX2Tox(TX2Any):
         else:
             qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
 
-        ### TODO send message faild
+        # TODO send message faild
 
         return
 
@@ -608,9 +498,9 @@ class WX2Tox(TX2Any):
         # TODO check reply valid
 
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        data64 = rr.value().encode('utf8')   # to bytes
+        data64 = rr.value().encode()   # to bytes
         data = QByteArray.fromBase64(data64)
-        self.txses.setInitData(data)
+        self.txses.processInitData(data)
         self.saveContent('initdata.json', data)
 
         reply = self.sysiface.call('getcontact', 123, 'a1', 456)
@@ -618,9 +508,9 @@ class WX2Tox(TX2Any):
 
         # TODO check reply valid
         qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        data64 = rr.value().encode('utf8')   # to bytes
+        data64 = rr.value().encode()   # to bytes
         data = QByteArray.fromBase64(data64)
-        self.txses.setContact(data)
+        self.txses.processContactData(data)
         self.saveContent('contact.json', data)
 
         reply = self.sysiface.call('getgroups', 123, 'a1', 456)
@@ -803,35 +693,8 @@ class WX2Tox(TX2Any):
 
     # @param cb(data)
     def getMsgImgCallback(self, msg, imgcb=None):
-
-        def on_dbus_reply(watcher):
-            qDebug('replyyyyyyyyyyyyyyy')
-            pendReply = QDBusPendingReply(watcher)
-            qDebug(str(watcher))
-            qDebug(str(pendReply.isValid()))
-            if pendReply.isValid():
-                hcc = pendReply.argumentAt(0)
-                qDebug(str(type(hcc)))
-            else:
-                self.asyncWatchers.pop(watcher)
-                if imgcb is not None: imgcb(None)
-                return
-
-            message = pendReply.reply()
-            args = message.arguments()
-
-            self.asyncWatchers.pop(watcher)
-            # send img file to tox client
-            if imgcb is not None: imgcb(args[0])
-
-            return
-
         args = [msg.MsgId, False]
-        pcall = self.sysiface.asyncCall('get_msg_img', *args)
-        watcher = QDBusPendingCallWatcher(pcall)
-        watcher.finished.connect(on_dbus_reply)
-        self.asyncWatchers[watcher] = '1'
-
+        self.asyncGetRpc('get_msg_img', args, imgcb)
         return
 
     def getMsgFileUrl(self, msg):
@@ -841,35 +704,8 @@ class WX2Tox(TX2Any):
 
     # @param cb(data)
     def getMsgVoiceCallback(self, msg, imgcb=None):
-
-        def on_dbus_reply(watcher):
-            qDebug('replyyyyyyyyyyyyyyy')
-            pendReply = QDBusPendingReply(watcher)
-            qDebug(str(watcher))
-            qDebug(str(pendReply.isValid()))
-            if pendReply.isValid():
-                hcc = pendReply.argumentAt(0)
-                qDebug(str(type(hcc)))
-            else:
-                self.asyncWatchers.pop(watcher)
-                if imgcb is not None: imgcb(None)
-                return
-
-            message = pendReply.reply()
-            args = message.arguments()
-
-            self.asyncWatchers.pop(watcher)
-            # send img file to tox client
-            if imgcb is not None: imgcb(args[0])
-
-            return
-
         args = [msg.MsgId]
-        pcall = self.sysiface.asyncCall('get_msg_voice', *args)
-        watcher = QDBusPendingCallWatcher(pcall)
-        watcher.finished.connect(on_dbus_reply)
-        self.asyncWatchers[watcher] = '1'
-
+        self.asyncGetRpc('get_msg_voice', args, imgcb)
         return
 
     # TODO 合并抽象该方法与createChatroom方法

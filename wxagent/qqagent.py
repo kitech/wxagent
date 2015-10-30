@@ -10,21 +10,7 @@ from PyQt5.QtDBus import *
 
 from .qqcom import *
 from .wxprotocol import *
-from .txagent import TXAgent
-
-
-class AgentCookieJar(QNetworkCookieJar):
-    def __init__(self, parent=None):
-        super(AgentCookieJar, self).__init__(parent)
-
-    def xallCookies(self):
-        return self.allCookies()
-
-
-class AgentStats:
-    def __init__(self):
-        self.refresh_count = 0
-        return
+from .txagent import TXAgent, AgentCookieJar, AgentStats
 
 
 ######
@@ -38,9 +24,9 @@ class QQAgent(TXAgent):
         self.asvc = asvc
         self.asts = AgentStats()
 
-        self.acj = AgentCookieJar()
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+        self.acj = AgentCookieJar()
         self.nam.setCookieJar(self.acj)
 
         self.connState = CONN_STATE_NONE
@@ -70,9 +56,9 @@ class QQAgent(TXAgent):
 
         qDebug('see this...')
 
-        self.acj = AgentCookieJar()
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+        self.acj = AgentCookieJar()
         self.nam.setCookieJar(self.acj)
 
         self.connState = CONN_STATE_NONE

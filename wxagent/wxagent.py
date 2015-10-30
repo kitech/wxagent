@@ -11,7 +11,7 @@ from PyQt5.QtDBus import *
 from .wxcommon import *
 from .wxsession import *
 from .wxprotocol import *
-from .txagent import TXAgent
+from .txagent import TXAgent, AgentCookieJar
 
 # from dbus.mainloop.pyqt5 import DBusQtMainLoop
 # DBusQtMainLoop(set_as_default = True)
@@ -29,6 +29,8 @@ class WXAgent(TXAgent):
 
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+        self.acj = AgentCookieJar()
+        self.nam.setCookieJar(self.acj)
 
         self.wxses = None
 
@@ -73,6 +75,8 @@ class WXAgent(TXAgent):
 
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
+        self.acj = AgentCookieJar()
+        self.nam.setCookieJar(self.acj)
 
         self.logined = False
         self.qruuid = ''
@@ -181,6 +185,12 @@ class WXAgent(TXAgent):
         elif url.startswith('https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?'):
             qDebug("app scaned qrpic:" + str(hcc))
 
+            if status_code is None and error_no in [99, 8]:  # QNetworkReply.UnknownNetworkError
+                if self.canReconnect(): self.tryReconnect(self.pollLogin)
+                return
+            else:
+                if self.inReconnect(): self.finishReconnect()
+
             # window.code=408;  # 像是超时
             # window.code=400;  # ??? 难道是会话过期???需要重新获取QR图（已确认，在浏览器中，收到400后刷新了https://wx2.qq.com/
             # window.code=201;  # 已扫描，未确认
@@ -285,7 +295,7 @@ class WXAgent(TXAgent):
         elif url.startswith(self.webpushUrlStart+'/cgi-bin/mmwebwx-bin/synccheck?'):
             qDebug('sync check result:' + str(hcc))
 
-            if status_code is None and error_no in [99]:  # QNetworkReply.UnknownNetworkError
+            if status_code is None and error_no in [99, 8]:  # QNetworkReply.UnknownNetworkError
                 if self.canReconnect(): self.tryReconnect(self.syncCheck)
                 return
             else:

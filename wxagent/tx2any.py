@@ -249,20 +249,24 @@ class TX2Any(QObject):
         else:
             print('or will send wx msg:%s' % (groupchat.FromUserName))
 
-        peer_number = 'jaoijfiwafaewf'
+        peer_number = 'magicxxxjaoijfiwafaewf'
         # TODO 把从各群组来的发给WX端的消息，同步再发送给tox汇总端一份。也就是tox的唯一peer端。
         # TODO 如果是从wx2tox转过去的消息，这里也会再次收到，所以，会向tox汇总端重复发一份了，需要处理。
         try:
             if peer_number == 0: pass  # it myself sent message, omit
             else:
-                self.peerRelay.sendMessage(message, self.peerRelay.peer_user)
+                if groupchat.FromUserName == self.txses.me.UserName:
+                    newmsg = '(To: %s) %s' % (groupchat.ToUser.NickName, message)
+                else:
+                    newmsg = '(To: %s) %s' % (groupchat.FromUser.NickName, message)
+                ret = self.peerRelay.sendMessage(newmsg, self.peerRelay.peer_user)
         except Exception as ex:
             qDebug('send msg error: %s' % str(ex))
 
-        if peer_number == 0:  # it myself sent message, omit
-            pass
+        if peer_number == 0: pass  # it myself sent message, omit
         else:
-            self.sendMessageToWX(groupchat, message)
+            ret = self.sendMessageToWX(groupchat, message)
+            if ret: pass
         return
 
     def sendQRToRelayPeer(self):
@@ -350,13 +354,20 @@ class TX2Any(QObject):
     def sendMessageToTox(self, msg, fmtcc):
         fstatus = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
         if fstatus is True:
+            if msg.FromUserName == self.txses.me.UserName:
+                newcc = '(From: %s) %s' % (msg.ToUser.NickName, fmtcc)
+            else:
+                newcc = '(From: %s) %s' % (msg.FromUser.NickName, fmtcc)
+
             try:
                 # 把收到的消息发送到汇总tox端
-                self.peerRelay.sendMessage(fmtcc, self.peerRelay.peer_user)
+                ret = self.peerRelay.sendMessage(newcc, self.peerRelay.peer_user)
             except Exception as ex:
                 qDebug(b'tox send msg error: ' + str(ex).encode())
-            ### dispatch by MsgType
-            self.dispatchToToxGroup(msg, fmtcc)
+
+            # dispatch by ChatType
+            ret = self.dispatchToToxGroup(msg, fmtcc)
+            if ret: pass
         else:
             # self.tx2relay_msg_buffer.append(msg)
             pass

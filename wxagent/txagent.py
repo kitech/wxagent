@@ -1,4 +1,20 @@
 from PyQt5.QtCore import *
+from PyQt5.QtNetwork import *
+
+
+class AgentStats:
+    def __init__(self):
+        self.refresh_count = 0
+        return
+
+
+# 带获取所有cookie扩展功能的定制类
+class AgentCookieJar(QNetworkCookieJar):
+    def __init__(self, parent=None):
+        super(AgentCookieJar, self).__init__(parent)
+
+    def xallCookies(self):
+        return self.allCookies()
 
 
 # XXAgent基类，实现共有的抽象功能
@@ -6,6 +22,9 @@ class TXAgent(QObject):
 
     def __init__(self, parent=None):
         super(TXAgent, self).__init__(parent)
+
+        self.acj = AgentCookieJar()
+        self.nam = QNetworkAccessManager()
 
         # reconnect state
         self.reconnect_total_times = 0

@@ -378,7 +378,6 @@ class WX2Tox(TX2Any):
 
         return groupchat
 
-
     def sendMessageToWX(self, groupchat, mcc):
         qDebug('here')
 

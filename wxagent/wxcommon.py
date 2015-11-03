@@ -15,6 +15,7 @@ class WXMsgType(enum.IntEnum):
     MT_SHOT = 3
     MT_VOICE = 34  # 语音消息
     MT_X37 = 37  # 朋友推荐消息
+    MT_X40 = 40  # xx邀请了xx加入了
     MT_X42 = 42  # 名片消息
     MT_X47_CARTOON = 47  # 像是群内动画表情，好友之间的动画表情
     MT_X49_FILE_OR_ARTICLE = 49  # 像是服务号消息,像是群内分享，像xml格式  # 一种是传的文件，一种是链接

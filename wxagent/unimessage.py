@@ -1,6 +1,7 @@
 # 把txim的消息转换为要转发的消息格式
 
 import re
+import html2text
 from PyQt5.QtCore import qDebug
 
 # should be 27
@@ -121,11 +122,46 @@ class ToxMessage(UniMessage):
         super(ToxMessage, self).__init__()
         return
 
-    def fromWXMessage(wxmsg):
-        umsg = ToxMessage()
-
+    def fromWXMessage(wxmsg, wxses):
+        umsg = XmppMessage()
         msg = wxmsg
-        ccmsg = msg.UnescapedContent
+
+        fromUser = msg.FromUser
+        toUser = msg.ToUser
+
+        fromUser_NickName = ''
+        if fromUser is not None: fromUser_NickName = fromUser.NickName
+        toUser_NickName = ''
+        if toUser is not None: toUser_NickName = toUser.NickName
+
+        content = msg.UnescapedContent
+
+        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
+        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
+        reg = r'^(@[0-9a-f]+):<br/>'
+        mats = re.findall(reg, content)
+        if len(mats) > 0:
+            UserName = mats[0]
+            UserInfo = wxses.getUserInfo(UserName)
+            if UserInfo is not None:
+                dispRealName = UserInfo.NickName + UserName[0:7]
+                content = content.replace(UserName, dispRealName, 1)
+
+        #
+        content = content.replace('<br/>', ' ')
+        content = html2text.html2text(content)
+        content = content.replace('**', ' ')
+        content = content.strip()
+
+        # for eyes
+        dispFromUserName = msg.FromUserName[0:7]
+        dispToUserName = msg.ToUserName[0:7]
+
+        ccmsg = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
+                (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
+                 dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
+
+        ccmsg = content
         umsg.content = ccmsg
         return umsg
 
@@ -203,6 +239,12 @@ class XmppMessage(UniMessage):
             if UserInfo is not None:
                 dispRealName = UserInfo.NickName + UserName[0:7]
                 content = content.replace(UserName, dispRealName, 1)
+
+        #
+        content = content.replace('<br/>', ' ')
+        content = html2text.html2text(content)
+        content = content.replace('**', ' ')
+        content = content.strip()
 
         # for eyes
         dispFromUserName = msg.FromUserName[0:7]

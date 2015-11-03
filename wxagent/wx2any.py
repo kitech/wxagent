@@ -52,7 +52,7 @@ class WX2Tox(TX2Any):
 
         cmd = BotCmder.parseCmd(msg)
         if cmd is False:
-            qDebug('not a cmd: %s' % msg[0:120])
+            qDebug(('not a cmd: %s' % msg[0:120]).encode())
             return
 
         if cmd[0] == 'help':
@@ -162,6 +162,9 @@ class WX2Tox(TX2Any):
                 fileurl = msg.Url
                 logstr += '> %s' % fileurl
                 logstr += '\n\nname: %s' % msg.FileName
+            self.sendMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_X40:
+            logstr = umsg.get()
             self.sendMessageToTox(msg, logstr)
         elif msg.MsgType == WXMsgType.MT_VOICE:
             logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength / 1000)

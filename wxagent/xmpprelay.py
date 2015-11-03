@@ -256,6 +256,7 @@ class XmppRelay(IMRelay):
         form.field['muc#roomconfig_enablelogging']['value'] = False
         form.field['muc#roomconfig_changesubject']['value'] = True
         form.field['muc#roomconfig_maxusers']['value'] = ('3')
+        form.field['muc#roomconfig_membersonly']['value'] = True  # 只能邀请加入
         form.set_type('submit')
         self.plugin_muc.setRoomConfig(room, form)
 

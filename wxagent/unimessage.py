@@ -14,20 +14,71 @@ class UniMessage:
 
     def __init__(self):
         self.content = ''
-        self.dconent = ''
+        self.dcontent = ''
         return
 
     def get(self):
         return self.content
 
     def dget(self):
-        return self.dconent
+        return self.dcontent
 
     def fromWXMessage(wxmsg, wxses):
         return
 
     def fromQQMessage(qqmsg, qqses):
         return
+
+    # filter
+    def num2name(self, ses):
+        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
+        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
+        reg = r'^(@[0-9a-f]+):<br/>'
+        mats = re.findall(reg, self.content)
+        if len(mats) > 0:
+            UserName = mats[0]
+            UserInfo = ses.getUserInfo(UserName)
+            if UserInfo is not None:
+                dispRealName = UserInfo.NickName + UserName[0:7]
+                self.content = self.content.replace(UserName, dispRealName, 1)
+        return self
+
+    # filter
+    def dropnl(self):
+        self.content = self.content.replace('<br/>', ' ')
+        return self
+
+    # filter
+    def drophtml(self):
+        self.content = html2text.html2text(self.content)
+        return self
+
+    # filter
+    def dropstars(self):
+        self.content = self.content.replace('**', ' ')
+        return self
+
+    # filter
+    def strip(self):
+        self.content = self.content.strip()
+        return self
+
+    # transform
+    def nlbylen(self):
+        # ●•·
+        if len(self.content) < MAX_LEN_FOR_NEWLINE:
+            self.content = '  ' + self.content
+        else:
+            self.content = "\n   •  " + self.content
+        return self
+
+    # transform
+    def ubb2emoji(self):
+        return self
+
+    # transform
+    def emoji2ubb(self):
+        return self
 
 
 class PlainMessage(UniMessage):
@@ -37,8 +88,9 @@ class PlainMessage(UniMessage):
 
     def fromWXMessage(wxmsg, wxses):
         umsg = PlainMessage()
-
         msg = wxmsg
+        umsg.content = msg.UnescapedContent
+        umsg.dcontent = msg.UnescapedContent
 
         fromUser = msg.FromUser
         toUser = msg.ToUser
@@ -47,19 +99,6 @@ class PlainMessage(UniMessage):
         if fromUser is not None: fromUser_NickName = fromUser.NickName
         toUser_NickName = ''
         if toUser is not None: toUser_NickName = toUser.NickName
-
-        content = msg.UnescapedContent
-
-        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
-        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
-        reg = r'^(@[0-9a-f]+):<br/>'
-        mats = re.findall(reg, content)
-        if len(mats) > 0:
-            UserName = mats[0]
-            UserInfo = wxses.getUserInfo(UserName)
-            if UserInfo is not None:
-                dispRealName = UserInfo.NickName + UserName[0:7]
-                content = content.replace(UserName, dispRealName, 1)
 
         # for eyes
         dispFromUserName = msg.FromUserName[0:7]
@@ -68,12 +107,15 @@ class PlainMessage(UniMessage):
         ccmsg = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
                 (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
                  dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
-        umsg.content = ccmsg
+
+        umsg.drophtml().dropstars().strip()
         return umsg
 
     def fromQQMessage(qqmsg, qqses):
         umsg = XmppMessage()
         msg = qqmsg
+        umsg.content = msg.UnescapedContent
+        umsg.dcontent = msg.UnescapedContent
 
         fromUser = msg.FromUser
         toUser = msg.ToUser
@@ -82,21 +124,6 @@ class PlainMessage(UniMessage):
         if fromUser is not None: fromUser_NickName = fromUser.NickName
         toUser_NickName = ''
         if toUser is not None: toUser_NickName = toUser.NickName
-
-        content = msg.UnescapedContent
-
-        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
-        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
-        reg = r'^(@[0-9a-f]+):<br/>'
-        mats = re.findall(reg, content)
-        if len(mats) > 0:
-            qDebug(str(mats).encode())
-            UserName = mats[0]
-            UserInfo = qqses.getUserInfo(UserName)
-            qDebug(str(UserInfo).encode())
-            if UserInfo is not None:
-                dispRealName = UserInfo.NickName + UserName
-                content = content.replace(UserName, dispRealName, 1)
 
         # for eyes
         dispFromUserName = msg.FromUserName
@@ -106,14 +133,7 @@ class PlainMessage(UniMessage):
                  (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
                   dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
 
-        logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                 (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
-                  dispToUserName, toUser_NickName, msg.MsgId, content)
-        umsg.dconent = logstr
-
-        # ●••·
-        ccmsg = "" + content
-        umsg.content = ccmsg
+        umsg.drophtml().dropstars().strip()
         return umsg
 
 
@@ -125,6 +145,8 @@ class ToxMessage(UniMessage):
     def fromWXMessage(wxmsg, wxses):
         umsg = XmppMessage()
         msg = wxmsg
+        umsg.content = msg.UnescapedContent
+        umsg.dcontent = msg.UnescapedContent
 
         fromUser = msg.FromUser
         toUser = msg.ToUser
@@ -134,24 +156,7 @@ class ToxMessage(UniMessage):
         toUser_NickName = ''
         if toUser is not None: toUser_NickName = toUser.NickName
 
-        content = msg.UnescapedContent
-
-        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
-        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
-        reg = r'^(@[0-9a-f]+):<br/>'
-        mats = re.findall(reg, content)
-        if len(mats) > 0:
-            UserName = mats[0]
-            UserInfo = wxses.getUserInfo(UserName)
-            if UserInfo is not None:
-                dispRealName = UserInfo.NickName + UserName[0:7]
-                content = content.replace(UserName, dispRealName, 1)
-
-        #
-        content = content.replace('<br/>', ' ')
-        content = html2text.html2text(content)
-        content = content.replace('**', ' ')
-        content = content.strip()
+        umsg.num2name(wxses).dropnl().drophtml().dropstars().strip()
 
         # for eyes
         dispFromUserName = msg.FromUserName[0:7]
@@ -161,13 +166,13 @@ class ToxMessage(UniMessage):
                 (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
                  dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
 
-        ccmsg = content
-        umsg.content = ccmsg
         return umsg
 
     def fromQQMessage(qqmsg, qqses):
         umsg = ToxMessage()
         msg = qqmsg
+        umsg.content = msg.UnescapedContent
+        umsg.dcontent = msg.UnescapedContent
 
         fromUser = msg.FromUser
         toUser = msg.ToUser
@@ -177,21 +182,6 @@ class ToxMessage(UniMessage):
         toUser_NickName = ''
         if toUser is not None: toUser_NickName = toUser.NickName
 
-        content = msg.UnescapedContent
-
-        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
-        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
-        reg = r'^(@[0-9a-f]+):<br/>'
-        mats = re.findall(reg, content)
-        if len(mats) > 0:
-            qDebug(str(mats).encode())
-            UserName = mats[0]
-            UserInfo = qqses.getUserInfo(UserName)
-            qDebug(str(UserInfo).encode())
-            if UserInfo is not None:
-                dispRealName = UserInfo.NickName + UserName
-                content = content.replace(UserName, dispRealName, 1)
-
         # for eyes
         dispFromUserName = msg.FromUserName
         dispToUserName = msg.ToUserName
@@ -199,14 +189,8 @@ class ToxMessage(UniMessage):
         logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
                  (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
                   dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
-
-        logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                 (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
-                  dispToUserName, toUser_NickName, msg.MsgId, content)
         umsg.dconent = logstr
 
-        ccmsg = content
-        umsg.content = ccmsg
         return umsg
 
 
@@ -218,6 +202,8 @@ class XmppMessage(UniMessage):
     def fromWXMessage(wxmsg, wxses):
         umsg = XmppMessage()
         msg = wxmsg
+        umsg.content = msg.UnescapedContent
+        umsg.dcontent = msg.UnescapedContent
 
         fromUser = msg.FromUser
         toUser = msg.ToUser
@@ -227,24 +213,7 @@ class XmppMessage(UniMessage):
         toUser_NickName = ''
         if toUser is not None: toUser_NickName = toUser.NickName
 
-        content = msg.UnescapedContent
-
-        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
-        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
-        reg = r'^(@[0-9a-f]+):<br/>'
-        mats = re.findall(reg, content)
-        if len(mats) > 0:
-            UserName = mats[0]
-            UserInfo = wxses.getUserInfo(UserName)
-            if UserInfo is not None:
-                dispRealName = UserInfo.NickName + UserName[0:7]
-                content = content.replace(UserName, dispRealName, 1)
-
-        #
-        content = content.replace('<br/>', ' ')
-        content = html2text.html2text(content)
-        content = content.replace('**', ' ')
-        content = content.strip()
+        umsg.num2name(wxses).dropnl().drophtml().dropstars().strip()
 
         # for eyes
         dispFromUserName = msg.FromUserName[0:7]
@@ -254,15 +223,14 @@ class XmppMessage(UniMessage):
                 (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
                  dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
 
-        # ●•·
-        ccmsg = "\n   •  " + content
-        if len(content) < MAX_LEN_FOR_NEWLINE: ccmsg = '  ' + content
-        umsg.content = ccmsg
+        umsg.nlbylen()
         return umsg
 
     def fromQQMessage(qqmsg, qqses):
         umsg = XmppMessage()
         msg = qqmsg
+        umsg.content = msg.UnescapedContent
+        umsg.dcontent = msg.UnescapedContent
 
         fromUser = msg.FromUser
         toUser = msg.ToUser
@@ -272,21 +240,6 @@ class XmppMessage(UniMessage):
         toUser_NickName = ''
         if toUser is not None: toUser_NickName = toUser.NickName
 
-        content = msg.UnescapedContent
-
-        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
-        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
-        reg = r'^(@[0-9a-f]+):<br/>'
-        mats = re.findall(reg, content)
-        if len(mats) > 0:
-            qDebug(str(mats).encode())
-            UserName = mats[0]
-            UserInfo = qqses.getUserInfo(UserName)
-            qDebug(str(UserInfo).encode())
-            if UserInfo is not None:
-                dispRealName = UserInfo.NickName + UserName
-                content = content.replace(UserName, dispRealName, 1)
-
         # for eyes
         dispFromUserName = msg.FromUserName
         dispToUserName = msg.ToUserName
@@ -294,14 +247,7 @@ class XmppMessage(UniMessage):
         logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
                  (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
                   dispToUserName, toUser_NickName, msg.MsgId, msg.UnescapedContent)
-
-        logstr = '[%s][%s] %s(%s) => %s(%s) @%s:::\n%s' % \
-                 (msg.CreateTime, msg.MsgType, dispFromUserName, fromUser_NickName,
-                  dispToUserName, toUser_NickName, msg.MsgId, content)
         umsg.dconent = logstr
 
-        # ●•·
-        ccmsg = "\n   •  " + content
-        if len(content) < MAX_LEN_FOR_NEWLINE: ccmsg = '  ' + content
-        umsg.content = ccmsg
+        umsg.nlbylen()
         return umsg

@@ -166,6 +166,9 @@ class WX2Tox(TX2Any):
         elif msg.MsgType == WXMsgType.MT_X40:
             logstr = umsg.get()
             self.sendMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_X51:
+            logstr = '打开了 ' + umsg.get()
+            self.sendMessageToTox(msg, logstr)
         elif msg.MsgType == WXMsgType.MT_VOICE:
             logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength / 1000)
             self.sendMessageToTox(msg, logstr)

@@ -4,6 +4,9 @@ import re
 import html2text
 from PyQt5.QtCore import qDebug
 
+from .wxcommon import *
+
+
 # should be 27
 MAX_LEN_FOR_NEWLINE = ord('Z') - ord('A') + 1 + 1
 
@@ -50,7 +53,9 @@ class UniMessage:
 
     # filter
     def drophtml(self):
-        self.content = html2text.html2text(self.content)
+        # self.content = html2text.html2text(self.content)
+        h = html2text.HTML2Text()
+        self.content = h.handle(self.content)
         return self
 
     # filter
@@ -156,7 +161,10 @@ class ToxMessage(UniMessage):
         toUser_NickName = ''
         if toUser is not None: toUser_NickName = toUser.NickName
 
-        umsg.num2name(wxses).dropnl().drophtml().dropstars().strip()
+        if msg.MsgType == WXMsgType.MT_TEXT:
+            umsg.num2name(wxses).dropnl().dropstars().strip()
+        else:
+            umsg.num2name(wxses).dropnl().drophtml().dropstars().strip()
 
         # for eyes
         dispFromUserName = msg.FromUserName[0:7]
@@ -213,7 +221,10 @@ class XmppMessage(UniMessage):
         toUser_NickName = ''
         if toUser is not None: toUser_NickName = toUser.NickName
 
-        umsg.num2name(wxses).dropnl().drophtml().dropstars().strip()
+        if msg.MsgType == WXMsgType.MT_TEXT:
+            umsg.num2name(wxses).dropnl().dropstars().strip()
+        else:
+            umsg.num2name(wxses).dropnl().drophtml().dropstars().strip()
 
         # for eyes
         dispFromUserName = msg.FromUserName[0:7]

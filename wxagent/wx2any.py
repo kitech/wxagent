@@ -173,6 +173,9 @@ class WX2Tox(TX2Any):
             logstr += '> voicelen: %s″' % math.floor(msg.VoiceLength / 1000)
             self.sendMessageToTox(msg, logstr)
             self.sendVoiceMessageToTox(msg, logstr)
+        elif msg.MsgType == WXMsgType.MT_X10000:
+            logstr = umsg.get()
+            self.sendMessageToTox(msg, logstr)
         elif msg.MsgType == WXMsgType.MT_TEXT:
             logstr = umsg.get()
             self.sendMessageToTox(msg, logstr)

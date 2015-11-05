@@ -244,8 +244,9 @@ class XmppRelay(IMRelay):
         form = self.plugin_muc.getRoomConfig(room)
         # print(form)
         # for f in form.field:
-        #    print("%40s\t%15s\t%s\n" % (f, form.field[f]['type'], form.field[f]['value']))
+        #    print("%40s\t%15s\t%s" % (f, form.field[f]['type'], form.field[f]['value']))
 
+        # http://xmpp.org/extensions/xep-0045.html#createroom-reserved
         form.field['muc#roomconfig_roomname']['value'] = "jioefefjoifjoife"
         form.field['muc#roomconfig_roomdesc']['value'] = "Script configured room"
         form.field['muc#roomconfig_persistentroom']['value'] = False
@@ -255,17 +256,47 @@ class XmppRelay(IMRelay):
         form.field['allow_private_messages']['value'] = False
         form.field['muc#roomconfig_enablelogging']['value'] = False
         form.field['muc#roomconfig_changesubject']['value'] = True
-        form.field['muc#roomconfig_maxusers']['value'] = ('3')
-        form.field['muc#roomconfig_membersonly']['value'] = True  # 只能邀请加入
+        form.field['muc#roomconfig_maxusers']['value'] = ('2')
+        form.field['muc#roomconfig_membersonly']['value'] = True  # 只能邀请加入，出现407，需要怎么办呢？
+        # TODO 调整配置参数后，首次邀请出现了报错，407需要注册。
+        # self.plugin_muc.setAffiliation方法先把对方账号设置为成员。
+
         form.set_type('submit')
         self.plugin_muc.setRoomConfig(room, form)
 
         form = self.plugin_muc.getRoomConfig(room)
         # print(form)
         # for f in form.field:
-        #    print("%40s\t%15s\t%s\n" % (f, form.field[f]['type'], form.field[f]['value']))
+        #    print("%40s\t%15s\t%s" % (f, form.field[f]['type'], form.field[f]['value']))
 
         # self.plugin_muc.invite(room, peer_jid, reason=reason)  # , mfrom=mfrom)
+
+        # 可用的配置项列表
+        #            FORM_TYPE                 hidden ['http://jabber.org/protocol/muc#roomconfig']
+        #                muc#roomconfig_roomname            text-single
+        #                muc#roomconfig_roomdesc            text-single
+        #          muc#roomconfig_persistentroom                boolean False
+        #              muc#roomconfig_publicroom                boolean True
+        #                            public_list                boolean True
+        #   muc#roomconfig_passwordprotectedroom                boolean False
+        #              muc#roomconfig_roomsecret           text-private
+        #                muc#roomconfig_maxusers            list-single 200
+        #                   muc#roomconfig_whois            list-single moderators
+        #             muc#roomconfig_membersonly                boolean False
+        #           muc#roomconfig_moderatedroom                boolean True
+        #                     members_by_default                boolean True
+        #           muc#roomconfig_changesubject                boolean True
+        #                 allow_private_messages                boolean True
+        #   allow_private_messages_from_visitors            list-single anyone
+        #                      allow_query_users                boolean True
+        #            muc#roomconfig_allowinvites                boolean False
+        #      muc#roomconfig_allowvisitorstatus                boolean True
+        #  muc#roomconfig_allowvisitornickchange                boolean True
+        #      muc#roomconfig_allowvoicerequests                boolean True
+        # muc#roomconfig_voicerequestmininterval            text-single 1800
+        #                      captcha_protected                boolean False
+        #       muc#roomconfig_captcha_whitelist              jid-multi None
+        #           muc#roomconfig_enablelogging                boolean True
 
         return
 
@@ -353,12 +384,14 @@ class XmppRelay(IMRelay):
         print(self.plugin_muc.rooms)
         return
 
+    # TODO 检测聊天室是否已经存在，是否是自己创建的
     def create_muc2(self, room_jid, nick_name):
         muc_name = '%s@%s' % (room_jid, self.xmpp_conference_host)
         muc_nick = nick_name
         self.xmpp.add_event_handler('muc::%s::presence' % muc_name, self.on_muc_room_presence)
         qDebug((muc_name + ',,,' + muc_nick).encode())
         self.plugin_muc.joinMUC(muc_name, muc_nick)
+        self.plugin_muc.setAffiliation(muc_name, jid=self.peer_user)
         print(self.plugin_muc.rooms, muc_name, self.xmpp.boundjid.bare)
         qDebug(str(self.plugin_muc.jidInRoom(muc_name, self.xmpp.boundjid.bare)))
         nowtm = QDateTime.currentDateTime()

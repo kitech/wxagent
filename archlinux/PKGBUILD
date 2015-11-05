@@ -9,7 +9,7 @@ pkgdesc="A weixin agent daemon and client"
 license=('Apache')
 url="https://github.com/kitech/wxagent/"
 arch=('any')
-depends=('python' 'python-pyqt5' 'python-qiniu')
+depends=('python' 'python-pyqt5' 'python-qiniu' 'python-html2text')
 optdepends=()
 makedepends=('git')
 checkdepends=()
@@ -17,14 +17,12 @@ conflicts=('wxagent')
 #install=${pkgname}.install
 source=("$_pkgname::git+https://github.com/kitech/wxagent.git"
         "wxagent.service"
-        "wxagent.conf"
-        "qqagent.service"
-        "qqagent.conf")
+        "txagent.conf"
+        "qqagent.service")
 sha512sums=('SKIP'
             '0f6e46266546e1ab00fb72fb0f9d6a05c7380c51f4d8c1ce422689fd3a3e9a04570296d16a0c3bb4da7b3516a0f1d155fb30c6458eff8397bc56ef774cc195a8'
-            '13e0ffc8198f33c305033354abb7ba83da388cc7fe254daff4c6ba93e91c23084d3ab2ac024a1d9525d4458a3529ba1d546b78b45180676d7fdb729944d5c445'
-            '7b9e48dfe119318ab0b2ae976c8ec69c13dea8f939c60b38d2f0bf5ccaf14dd585610d510a75db10cd5a469770527a901c82f5d47a09eba08c9286ce651c8952'
-            '94f6c174731556327ee6e761895decd470ca75e370b9e5ad437d36cdb704963bacd8ea8e0354393aca7d61071143cd7ec07365975b2ac708ad0b3e698c58dbb0')
+            '07cf731720f2b57d146a8ffdf705fb1b5d083f052ac3313e7b9105ee74d5fad5cfb0be8e188f0cacaed540bd985886c48da13423a479a241576f99332d9c4db9'
+            '7b9e48dfe119318ab0b2ae976c8ec69c13dea8f939c60b38d2f0bf5ccaf14dd585610d510a75db10cd5a469770527a901c82f5d47a09eba08c9286ce651c8952')
 
 # set -x
 

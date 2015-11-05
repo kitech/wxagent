@@ -124,6 +124,12 @@ class WX2Tox(TX2Any):
 
         wxmsgvec = self.txses.processMessage(hcc)
 
+        def dmUser(UserName):
+            u = WXUser()
+            u.UserName = UserName
+            u.NickName = 'unknown' + UserName[0:7]
+            return u
+
         msgs = wxmsgvec.getAddMsgList()
         for msg in msgs:
             fromUser = self.txses.getUserByName(msg.FromUserName)
@@ -133,6 +139,13 @@ class WX2Tox(TX2Any):
 
             msg.FromUser = fromUser
             msg.ToUser = toUser
+
+            # TODO 这种情况怎么处理好呢？
+            # 目前只能做到不让程序崩溃掉。
+            if msg.FromUser is None:
+                msg.FromUser = dmUser(msg.FromUserName)
+            if msg.ToUser is None:
+                msg.ToUser = dmUser(msg.ToUserName)
 
             self.sendMessageToToxByType(msg)
 

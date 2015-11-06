@@ -127,7 +127,10 @@ class WX2Tox(TX2Any):
         def dmUser(UserName):
             u = WXUser()
             u.UserName = UserName
-            u.NickName = 'unknown' + UserName[0:7]
+            if UserName in ('newsapp'):
+                u.NickName = UserName
+            else:
+                u.NickName = 'unknown' + UserName[0:7]
             return u
 
         msgs = wxmsgvec.getAddMsgList()
@@ -146,6 +149,9 @@ class WX2Tox(TX2Any):
                 msg.FromUser = dmUser(msg.FromUserName)
             if msg.ToUser is None:
                 msg.ToUser = dmUser(msg.ToUserName)
+
+            if fromUser is None or toUser is None:
+                qDebug(('%s => %s' % (msg.FromUser.NickName, msg.ToUser.NickName)).encode())
 
             self.sendMessageToToxByType(msg)
 
@@ -357,7 +363,12 @@ class WX2Tox(TX2Any):
             if self.txses.me.UserName == msg.FromUser.UserName:
                 mkey = msg.ToUser.cname()
                 title = '%s@WXU' % msg.ToUser.NickName
-            if self.txses.me.UserName == msg.ToUser.UserName:
+            elif self.txses.me.UserName == msg.ToUser.UserName:
+                mkey = msg.FromUser.cname()
+                title = '%s@WXU' % msg.FromUser.NickName
+            else:
+                # TODO 这么处理好合理吗，是否有更好的处理方式。
+                # 有可能是一种通知，并且User为None情况才出现。
                 mkey = msg.FromUser.cname()
                 title = '%s@WXU' % msg.FromUser.NickName
         else:

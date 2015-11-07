@@ -15,8 +15,8 @@ install:
   - sudo apt-get install -y python3-pyqt5 python3-pip
   - sudo apt-get install -y nodejs
   # - sudo apt-get install -y
-  - pip3 -V
-  - yes | sudo pip3 install qiniu sleekxmpp PyExecJS pycurl python-magic html2text
+  - /usr/bin/pip3 -V
+  - yes | sudo /usr/bin/pip3 install qiniu sleekxmpp PyExecJS pycurl python-magic html2text
 
 script:
-  - python3 tests/tests.py
+  - /usr/bin/python3 tests/tests.py

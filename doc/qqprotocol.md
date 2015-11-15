@@ -71,10 +71,14 @@ w.qq与手机qq能够保证都收到消息，但是手机上发送的消息不�
 *
 * 
 
+##### 设置参数：
+enable_https: 1|0，默认0不开启https。
+
+
 ##### long poll
 
 POST
-http://d.web2.qq.com/channel/poll2?
+https://d.web2.qq.com/channel/poll2?
 
 
 返回值：
@@ -103,15 +107,30 @@ https://github.com/sjdy521/Mojo-Webqq/issues/7#issuecomment-149608429
 
 
 ##### 发送好友消息
+POST https://d.web2.qq.com/channel/send_buddy_msg2?
 
+返回值：
+{"retcode":0,"result":"ok"}
 
 ##### 发送群消息
+POST https://d.web2.qq.com/channel/send_qun_msg2?
 
+返回值：
+{"retcode":0,"result":"ok"}
+116, ???
 
-##### 发送讨论组消息
+##### 发送讨论组消
+POST https://d.web2.qq.com/channel/send_discu_msg2?
+
+返回值：
+{"retcode":0,"result":"ok"}
 
 
 ##### 发送临时会话消息
+POST https://d.web2.qq.com/channel/send_sess_msg2?
+
+返回值：
+{"retcode":0,"result":"ok"}
 
 
 ##### 获取图片

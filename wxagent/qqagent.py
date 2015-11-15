@@ -403,19 +403,19 @@ class QQAgent(TXAgent):
             self.asyncRequestDone.emit(reqno, hcc)
             pass
             ########
-        elif url.startswith('http://d.web2.qq.com/channel/get_online_buddies2?'):
+        elif url.startswith('https://d.web2.qq.com/channel/get_online_buddies2?'):
             reqno = self.asyncQueue[reply]
             self.asyncQueue.pop(reply)
             self.asyncRequestDone.emit(reqno, hcc)
             pass
             ########
-        elif url.startswith('http://d.web2.qq.com/channel/get_recent_list2?'):
+        elif url.startswith('https://d.web2.qq.com/channel/get_recent_list2?'):
             reqno = self.asyncQueue[reply]
             self.asyncQueue.pop(reply)
             self.asyncRequestDone.emit(reqno, hcc)
             pass
             ########
-        elif url.startswith('http://d.web2.qq.com/channel/get_c2cmsg_sig2?'):
+        elif url.startswith('https://d.web2.qq.com/channel/get_c2cmsg_sig2?'):
             qDebug(hcc)
             reqno = self.asyncQueue[reply]
             self.asyncQueue.pop(reply)
@@ -427,7 +427,7 @@ class QQAgent(TXAgent):
             self.asyncQueue.pop(reply)
             self.asyncRequestDone.emit(reqno, hcc)
             ########
-        elif url.startswith('http://d.web2.qq.com/channel/get_discu_info?'):
+        elif url.startswith('https://d.web2.qq.com/channel/get_discu_info?'):
             qDebug(hcc)
             reqno = self.asyncQueue[reply]
             self.asyncQueue.pop(reply)
@@ -468,7 +468,7 @@ class QQAgent(TXAgent):
             self.asyncQueue.pop(reply)
             self.asyncRequestDone.emit(reqno, hcc)
             ########
-        elif url.startswith('http://d.web2.qq.com/channel/get_file2?'):
+        elif url.startswith('https://d.web2.qq.com/channel/get_file2?'):
             qDebug(hcc)
             if (reply.hasRawHeader(b'Location')):
                 redir = reply.rawHeader(b'Location').data().decode()
@@ -884,8 +884,8 @@ class QQAgent(TXAgent):
 
         nowt = self.nowTime()
         nowt = str(time.time()).split('.')[0]
-        nsurl = 'http://d.web2.qq.com/channel/get_online_buddies2?vfwebqq=db89a0549f8cc718984e67947c05392cb4b3973c1bf90fb52a7c9c56b4000c37c7a0d022865e6361&clientid=53999199&psessionid=8368046764001d636f6e6e7365727665725f77656271714031302e3133332e34312e3834000035ed0000093c026e0400652a69566d0000000a4049424563327a334b656d00000028a8089c4ac5252c52af2dfb8c2389ab2437388f1ffaa095cc7755fcdbdc57407ca6216a0936714e33&t=1441377742795'
-        nsurl = 'http://d.web2.qq.com/channel/get_online_buddies2?vfwebqq=%s&clientid=%s&psessionid=%s&t=%s' % \
+        nsurl = 'https://d.web2.qq.com/channel/get_online_buddies2?vfwebqq=db89a0549f8cc718984e67947c05392cb4b3973c1bf90fb52a7c9c56b4000c37c7a0d022865e6361&clientid=53999199&psessionid=8368046764001d636f6e6e7365727665725f77656271714031302e3133332e34312e3834000035ed0000093c026e0400652a69566d0000000a4049424563327a334b656d00000028a8089c4ac5252c52af2dfb8c2389ab2437388f1ffaa095cc7755fcdbdc57407ca6216a0936714e33&t=1441377742795'
+        nsurl = 'https://d.web2.qq.com/channel/get_online_buddies2?vfwebqq=%s&clientid=%s&psessionid=%s&t=%s' % \
                 (self.newvfwebqq, self.clientid, self.psessionid, nowt)
 
         nsreq = QNetworkRequest(QUrl(nsurl))
@@ -901,7 +901,7 @@ class QQAgent(TXAgent):
     def getRecentList(self):
 
         nowt = self.nowTime()
-        nsurl = 'http://d.web2.qq.com/channel/get_recent_list2?'
+        nsurl = 'https://d.web2.qq.com/channel/get_recent_list2?'
 
         post_data_obj = {
             'clientid': self.clientid,
@@ -944,8 +944,8 @@ class QQAgent(TXAgent):
     def getC2CMsgSig(self, gid, to_uin, service_type):
 
         nowt = self.nowTime()
-        nsurl = 'http://d.web2.qq.com/channel/get_c2cmsg_sig2?'
-        nsurl = 'http://d.web2.qq.com/channel/get_c2cmsg_sig2?id=%s&to_uin=%s&clientid=%s&psessionid=%s&service_type=%s&t=%s'  %   \
+        nsurl = 'https://d.web2.qq.com/channel/get_c2cmsg_sig2?'
+        nsurl = 'https://d.web2.qq.com/channel/get_c2cmsg_sig2?id=%s&to_uin=%s&clientid=%s&psessionid=%s&service_type=%s&t=%s'  %   \
                 (gid, to_uin, self.clientid, self.psessionid, service_type, nowt)
 
         nsreq = QNetworkRequest(QUrl(nsurl))
@@ -994,8 +994,8 @@ class QQAgent(TXAgent):
     def getDiscusDetail(self, did):
 
         nowt = self.nowTime()
-        nsurl = 'http://d.web2.qq.com/channel/get_discu_info?did=1011664478&vfwebqq=dcc18f7455d4ad57b64c7d779d4b74236465ece6675577496de0cf324d0d32e5cf6766be76294965&clientid=53999199&psessionid=8368046764001d636f6e6e7365727665725f77656271714031302e3133332e34312e38340000439900000bde026e0400652a69566d0000000a406451553469573966496d000000282922098baee4e49b40c72a4dc53f80bb9fc5ded0e5b2d31ccace2448a66aa5ae4fd7a1e28b9163fa&t=1442025992605'
-        nsurl = 'http://d.web2.qq.com/channel/get_discu_info?did=%s&clientid=%s&psessionid=%s&t=%s' % \
+        nsurl = 'https://d.web2.qq.com/channel/get_discu_info?did=1011664478&vfwebqq=dcc18f7455d4ad57b64c7d779d4b74236465ece6675577496de0cf324d0d32e5cf6766be76294965&clientid=53999199&psessionid=8368046764001d636f6e6e7365727665725f77656271714031302e3133332e34312e38340000439900000bde026e0400652a69566d0000000a406451553469573966496d000000282922098baee4e49b40c72a4dc53f80bb9fc5ded0e5b2d31ccace2448a66aa5ae4fd7a1e28b9163fa&t=1442025992605'
+        nsurl = 'https://d.web2.qq.com/channel/get_discu_info?did=%s&clientid=%s&psessionid=%s&t=%s' % \
                 (did, self.clientid, self.psessionid, nowt)
 
         nsreq = QNetworkRequest(QUrl(nsurl))
@@ -1190,7 +1190,7 @@ class QQAgent(TXAgent):
         # to_uin = ''
         psessionid = self.psessionid
         nowt = self.nowTime()
-        nsurl = 'http://d.web2.qq.com/channel/get_file2?lcid=20868&guid=%s&to=%s&psessionid=%s&count=1&time=%s&clientid=53999199' % \
+        nsurl = 'https://d.web2.qq.com/channel/get_file2?lcid=20868&guid=%s&to=%s&psessionid=%s&count=1&time=%s&clientid=53999199' % \
                 (lcid, guid, to_uin, psessionid, nowt)
 
         nsreq = QNetworkRequest(QUrl(nsurl))
@@ -1210,7 +1210,7 @@ class QQAgent(TXAgent):
         # to_uin = ''
         psessionid = self.psessionid
         nowt = self.nowTime()
-        nsurl = 'http://d.web2.qq.com/channel/get_file2?lcid=%s&guid=%s&to=%s&psessionid=%s&count=1&time=%s&clientid=53999199' % \
+        nsurl = 'https://d.web2.qq.com/channel/get_file2?lcid=%s&guid=%s&to=%s&psessionid=%s&count=1&time=%s&clientid=53999199' % \
                 (lcid, guid, to_uin, psessionid, nowt)
 
         nsreq = QNetworkRequest(QUrl(nsurl))

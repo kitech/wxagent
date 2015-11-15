@@ -840,6 +840,9 @@ class WX2Tox(TX2Any):
         qDebug(str(args))
         extrainfo = self.asyncWatchers[watcher]
         self.saveContent('dr.'+extrainfo+'.json', args[0])
+        if len(args[0].data()) == 0:
+            qDebug('can not get group or discus list.')
+            sys.exit()
 
         ######
         hcc = args[0]  # QByteArray

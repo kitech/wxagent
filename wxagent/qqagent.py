@@ -506,6 +506,14 @@ class QQAgent(TXAgent):
 
         return
 
+    def onReplySslError(self, errors):
+        qDebug('reply ssl error:' + str(errors))
+        reply = self.sender()
+        url = reply.url().toString()
+        qDebug('url: ' + url)
+
+        return
+
     def checkNeedVerify(self):
         import random
         self.username = '1449732709'
@@ -1083,6 +1091,7 @@ class QQAgent(TXAgent):
 
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode()))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        nsreply.sslErrors.connect(self.onReplySslError, Qt.QueuedConnection)
 
         return
 

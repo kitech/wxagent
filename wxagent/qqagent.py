@@ -294,7 +294,7 @@ class QQAgent(TXAgent):
             self.loginSetOnline()
 
             ########
-        elif url.startswith('http://d.web2.qq.com/channel/login2?'):
+        elif url.startswith('https://d.web2.qq.com/channel/login2?'):
             qDebug('login set online status done')
             qDebug(hcc)
 
@@ -313,7 +313,7 @@ class QQAgent(TXAgent):
             self.eventPoll()
 
             ########
-        elif url.startswith('http://d.web2.qq.com/channel/poll2?'):
+        elif url.startswith('https://d.web2.qq.com/channel/poll2?'):
             qDebug('msgpoll2 done.')
             qDebug(hcc)
 
@@ -704,7 +704,7 @@ class QQAgent(TXAgent):
         return
 
     def loginSetOnline(self):
-        nsurl = 'http://d.web2.qq.com/channel/login2?'
+        nsurl = 'https://d.web2.qq.com/channel/login2?'
         qDebug(str(nsurl))
 
         post_data_obj = {
@@ -726,7 +726,7 @@ class QQAgent(TXAgent):
         return
 
     def eventPoll(self):
-        nsurl = 'http://d.web2.qq.com/channel/poll2?'
+        nsurl = 'https://d.web2.qq.com/channel/poll2?'
         qDebug(str(nsurl))
 
         # r:{"ptwebqq":"acc30a5f77fc58b24694864bad33e45be4c28fa09b70f53c4e52aac5cf550179",
@@ -1009,7 +1009,7 @@ class QQAgent(TXAgent):
 
     #####
     def sendBuddyMessage(self, from_username, to_username, content):
-        nsurl = 'http://d.web2.qq.com/channel/send_buddy_msg2?'
+        nsurl = 'https://d.web2.qq.com/channel/send_buddy_msg2?'
 
         fullcc = [content, ["font",{"name":"宋体","size":10,"style":[0,0,0],"color":"000000"}]]
         jscontent = json.JSONEncoder().encode(fullcc)
@@ -1051,7 +1051,7 @@ class QQAgent(TXAgent):
         return
 
     def sendQunMessage(self, from_username, to_username, content):
-        nsurl = 'http://d.web2.qq.com/channel/send_qun_msg2?'
+        nsurl = 'https://d.web2.qq.com/channel/send_qun_msg2?'
 
         fullcc = [content, ["font",{"name":"宋体","size":10,"style":[0,0,0],"color":"000000"}]]
         jscontent = json.JSONEncoder().encode(fullcc)
@@ -1087,7 +1087,7 @@ class QQAgent(TXAgent):
         return
 
     def sendSessionMessage(self, from_username, to_username, content, group_sig):
-        nsurl = 'http://d.web2.qq.com/channel/send_sess_msg2?'
+        nsurl = 'https://d.web2.qq.com/channel/send_sess_msg2?'
 
         fullcc = [content, ["font", {"name": "宋体", "size": 10, "style": [0, 0, 0], "color": "000000"}]]
         jscontent = json.JSONEncoder().encode(fullcc)
@@ -1119,7 +1119,7 @@ class QQAgent(TXAgent):
         return
 
     def sendDiscusMessage(self, from_username, to_username, content):
-        nsurl = 'http://d.web2.qq.com/channel/send_discu_msg2?'
+        nsurl = 'https://d.web2.qq.com/channel/send_discu_msg2?'
 
         fullcc = [content, ["font",{"name":"宋体","size":10,"style":[0,0,0],"color":"000000"}]]
         jscontent = json.JSONEncoder().encode(fullcc)

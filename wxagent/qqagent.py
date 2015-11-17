@@ -355,7 +355,7 @@ class QQAgent(TXAgent):
                 strhcc = self.hcc2str(hcc)
                 jshcc = json.JSONDecoder().decode(strhcc)
                 self.ptwebqq = jshcc['p']
-                qDebug(self.ptwebqq)
+                qWarning('Using new ptwebqq:' + self.ptwebqq)
 
                 self.eventPoll()
             elif retcode in [103]:

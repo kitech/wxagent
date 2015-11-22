@@ -100,7 +100,7 @@ class TXAgent(QObject):
         self.reconnect_last_time = QDateTime()
         return
 
-    def queueShot(self, msec, slot, extra):
+    def queueShot(self, msec, slot, extra=None):
         tmer = QTimer()
         tmer.setInterval(msec)
         tmer.setSingleShot(True)
@@ -114,7 +114,8 @@ class TXAgent(QObject):
     def onQueueShotTimeout(self):
         tmer = self.sender()
         slot, extra = self.queue_shot_timers.pop(tmer)
-        slot(extra)
+        if extra is None: slot()
+        else: slot(extra)
         return
 
     def testNcm(self):

@@ -49,11 +49,13 @@ class QQAgent(TXAgent):
         self.asyncQueue = {}  # {reply => id}
         self.refresh_count = 0
 
+        self.poll_timeout_watcher = {}  # QTimer => QNetworkReply
+
         return
 
     def refresh(self):
-        oldname = self.nam
-        oldname.finished.disconnect()
+        oldnam = self.nam
+        oldnam.finished.disconnect()
         self.nam = None
 
         qDebug('see this...')
@@ -321,10 +323,21 @@ class QQAgent(TXAgent):
             qDebug('msgpoll2 done.')
             qDebug(hcc)
 
+            # test capture poll timeout, cleanup here
+            if reply in self.poll_timeout_watcher:
+                qDebug('cleanup poll timeout watcher...')
+                tmer = self.poll_timeout_watcher.pop(reply)
+                treply = self.poll_timeout_watcher.pop(tmer)
+                pass
+
             if status_code is None and error_no == 99:
                 # 尝试重新建立新连接， 使用当前的会话信息再次发起请求
                 # QTimer.singleShot(5678, self.tryReconnect)
                 if self.canReconnect(): self.tryReconnect(self.eventPoll)
+                return
+            if status_code is None and error_no == 5:
+                # abort by timeout watcher
+                qWarning('maybe aborted by timeout watcher')
                 return
             else:
                 if self.inReconnect(): self.finishReconnect()
@@ -500,16 +513,19 @@ class QQAgent(TXAgent):
                 qWarning('maybe need use http..., or retry later?')
                 pass
 
-            if len(hcc) > 0:
-                qDebug(hcc[0:120])
-                # parse hcc
-                strhcc = self.hcc2str(hcc)
-                jshcc = json.JSONDecoder().decode(strhcc)
-                retcode = jshcc['retcode']
+            if status_code in [500]:  # QNetworkReply.
+                qWarning('server internal error.')
+                pass
+
+            qDebug(hcc[0:120])
+            # parse hcc
+            hco = self.loadJsonFromResponse(hcc)
+            if hco is not None:
+                retcode = hco.retcode
             pass
             ########
         elif url.startswith('https://d.web2.qq.com/channel/send_qun_msg2?'):
-            if len(hcc) > 0:
+            if len(hcc) > 0 and hcc[0] == '{':
                 qDebug(hcc[0:120])
                 # parse hcc
                 strhcc = self.hcc2str(hcc)
@@ -518,7 +534,7 @@ class QQAgent(TXAgent):
             pass
             ########
         elif url.startswith('https://d.web2.qq.com/channel/send_sess_msg2?'):
-            if len(hcc) > 0:
+            if len(hcc) > 0 and hcc[0] == '{':
                 qDebug(hcc[0:120])
                 # parse hcc
                 strhcc = self.hcc2str(hcc)
@@ -527,7 +543,7 @@ class QQAgent(TXAgent):
             pass
             ########
         elif url.startswith('https://d.web2.qq.com/channel/send_discu_msg2?'):
-            if len(hcc) > 0:
+            if len(hcc) > 0 and hcc[0] == '{':
                 qDebug(hcc[0:120])
                 # parse hcc
                 strhcc = self.hcc2str(hcc)
@@ -808,6 +824,31 @@ class QQAgent(TXAgent):
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode()))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        # test capture poll timeout
+        def on_poll_timeout():
+            tmer = self.sender()
+            if tmer in self.poll_timeout_watcher:
+                qWarning('maybe this poll timeout:' + str(nsreply))
+                reply = self.poll_timeout_watcher.pop(tmer)
+                self.poll_timeout_watcher.pop(reply)
+                reply.error.disconnect()
+                reply.sslErrors.disconnect()
+
+                reply.abort()
+                self.queueShot(123, self.eventPoll)
+            else:
+                # qDebug('poll not timeout')
+                pass
+            return
+
+        tmer = QTimer()
+        tmer.setSingleShot(True)
+        tmer.setInterval(300 * 1000)
+        tmer.timeout.connect(on_poll_timeout)
+        self.poll_timeout_watcher[tmer] = nsreply
+        self.poll_timeout_watcher[nsreply] = tmer
+        tmer.start()
 
         return
 
@@ -1438,6 +1479,24 @@ class QQAgent(TXAgent):
         strhcc = astr
 
         return strhcc
+
+    #
+    def loadJsonFromResponse(self, hcc):
+        import json
+        from collections import namedtuple
+
+        if len(hcc) == 0:
+            qWarning('empty data.')
+            return
+
+        data = strhcc = self.hcc2str(hcc)
+        try:
+            jo = json.loads(data, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+            return jo
+        except:
+            qWarning('Invalid json data.')
+            return
+        return
 
     # @param name str
     # @param hcc QByteArray

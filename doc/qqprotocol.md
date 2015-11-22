@@ -74,8 +74,11 @@ w.qq与手机qq能够保证都收到消息，但是手机上发送的消息不�
 ##### 设置参数：
 enable_https: 1|0，默认0不开启https。
 
+不过也还是部分API支持https。好像是在d.web2.qq.com域名上的可以。
 
 ##### long poll
+
+poll超时为60秒，但有时为120秒。
 
 POST
 https://d.web2.qq.com/channel/poll2?
@@ -95,7 +98,10 @@ https://d.web2.qq.com/channel/poll2?
 ##### 被迫下载
 您的帐号在另一地点登录，您已被迫下线。如有疑问，请登录 safe.qq.com 了解更多。
 
+这是poll2的返回值的一种情况。
+
     {"retcode":0,"result":[{"poll_type":"kick_message","value":{"msg_id":53125,"from_uin":10000,"to_uin":1449732709,"msg_id2":53126,"msg_type":48,"reply_ip":0,"show_reason":1,"reason":"\u60A8\u7684\u5E10\u53F7\u5728\u53E6\u4E00\u5730\u70B9\u767B\u5F55\uFF0C\u60A8\u5DF2\u88AB\u8FEB\u4E0B\u7EBF\u3002\u5982\u6709\u7591\u95EE\uFF0C\u8BF7\u767B\u5F55 safe.qq.com \u4E86\u89E3\u66F4\u591A\u3002"}}]}
+
 
 ##### 定时下线
 

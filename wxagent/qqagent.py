@@ -28,6 +28,8 @@ class QQAgent(TXAgent):
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
         self.acj = AgentCookieJar()
         self.nam.setCookieJar(self.acj)
+        # regradless network, QNetworkSession leave away
+        self.nam.setConfiguration(QNetworkConfiguration())
 
         self.connState = CONN_STATE_NONE
         self.logined = False
@@ -60,6 +62,8 @@ class QQAgent(TXAgent):
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
         self.acj = AgentCookieJar()
         self.nam.setCookieJar(self.acj)
+        # regradless network, QNetworkSession leave away
+        self.nam.setConfiguration(QNetworkConfiguration())
 
         self.connState = CONN_STATE_NONE
         self.logined = False
@@ -491,11 +495,26 @@ class QQAgent(TXAgent):
             self.asyncQueue.pop(reply)
             self.asyncRequestDone.emit(reqno, hcc)
             ########
+        elif url.startswith('https://d.web2.qq.com/channel/send_buddy_msg2?'):
+            if status_code is None and error_no in [6]:  # QNetworkReply.SslHandshakeFailedError
+                qWarning('maybe need use http...')
+                pass
+            ########
+        elif url.startswith('https://d.web2.qq.com/channel/send_qun_msg2?'):
+            pass
+            ########
+        elif url.startswith('https://d.web2.qq.com/channel/send_sess_msg2?'):
+            pass
+            ########
+        elif url.startswith('https://d.web2.qq.com/channel/send_discu_msg2?'):
+            pass
+            ########
         else:
             qDebug('unknown requrl:' + str(url))
             qDebug(hcc[0:120])
             self.saveContent('qqunknown_requrl.json', hcc)
 
+        reply.deleteLater()
         return
 
     def onReplyError(self, errcode):
@@ -710,6 +729,13 @@ class QQAgent(TXAgent):
         nsreply = self.nam.get(nsreq)
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         return
+
+    def relink(self):
+
+        return
+
+    # maybe need a new offical method name
+    def login2(self): return self.loginSetOnline()
 
     def loginSetOnline(self):
         nsurl = 'https://d.web2.qq.com/channel/login2?'
@@ -1055,6 +1081,7 @@ class QQAgent(TXAgent):
 
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode()))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        nsreply.sslErrors.connect(self.onReplySslError, Qt.QueuedConnection)
 
         return
 

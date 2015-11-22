@@ -497,16 +497,42 @@ class QQAgent(TXAgent):
             ########
         elif url.startswith('https://d.web2.qq.com/channel/send_buddy_msg2?'):
             if status_code is None and error_no in [6]:  # QNetworkReply.SslHandshakeFailedError
-                qWarning('maybe need use http...')
+                qWarning('maybe need use http..., or retry later?')
                 pass
+
+            if len(hcc) > 0:
+                qDebug(hcc[0:120])
+                # parse hcc
+                strhcc = self.hcc2str(hcc)
+                jshcc = json.JSONDecoder().decode(strhcc)
+                retcode = jshcc['retcode']
+            pass
             ########
         elif url.startswith('https://d.web2.qq.com/channel/send_qun_msg2?'):
+            if len(hcc) > 0:
+                qDebug(hcc[0:120])
+                # parse hcc
+                strhcc = self.hcc2str(hcc)
+                jshcc = json.JSONDecoder().decode(strhcc)
+                retcode = jshcc['retcode']
             pass
             ########
         elif url.startswith('https://d.web2.qq.com/channel/send_sess_msg2?'):
+            if len(hcc) > 0:
+                qDebug(hcc[0:120])
+                # parse hcc
+                strhcc = self.hcc2str(hcc)
+                jshcc = json.JSONDecoder().decode(strhcc)
+                retcode = jshcc['retcode']
             pass
             ########
         elif url.startswith('https://d.web2.qq.com/channel/send_discu_msg2?'):
+            if len(hcc) > 0:
+                qDebug(hcc[0:120])
+                # parse hcc
+                strhcc = self.hcc2str(hcc)
+                jshcc = json.JSONDecoder().decode(strhcc)
+                retcode = jshcc['retcode']
             pass
             ########
         else:

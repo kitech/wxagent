@@ -430,6 +430,7 @@ class WXAgent(TXAgent):
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc, reply)
 
+        reply.deleteLater()
         return
 
     def createMsgImage(self, hcc):

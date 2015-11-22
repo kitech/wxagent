@@ -41,7 +41,7 @@ class TXAgent(QObject):
         self.queue_shot_timers = {}  # QTimer => [slot, extra]
 
         # test some
-        self.testNcm()
+        # self.testNcm()
         return
 
     # 在reconnect策略允许的范围内

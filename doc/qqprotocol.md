@@ -76,9 +76,32 @@ enable_https: 1|0，默认0不开启https。
 
 不过也还是部分API支持https。好像是在d.web2.qq.com域名上的可以。
 
+##### 返回错误号汇总
+{"retcode":100101}  这是二进制？
+{"retcode":100006,"errmsg":""}
+{"retcode":100003}
+{"retcode":100001}  群编号有问题
+{"retcode":100000}
+{"retcode":122,"errmsg":"wrong web client3"}
+{"retcode":121,"errmsg":""}  ReLinkFailure
+{"retcode":120,"errmsg":""}  ReLinkFailure
+{"retcode":116}
+{"retcode":114}
+{"retcode":110}  已经下线
+{"retcode":109}  已经下线
+{"retcode":108,"errmsg":""}
+{"retcode":103,"errmsg":""}  掉线
+{"retcode":102,"errmsg":""}  正常连接、没有消息。
+{"retcode":101,"errmsg":""}
+{"retcode":100,"errmsg":""}  NotReLogin
+{"retcode":60,"errmsg":""}
+{"retcode":50,"errmsg":""}
+{"retcode":0}
+
 ##### long poll
 
 poll超时为60秒，但有时为120秒。
+使用telnet d.web2.qq.com 443，1分钟被服务器关闭。
 
 POST
 https://d.web2.qq.com/channel/poll2?
@@ -181,6 +204,19 @@ http://d.web2.qq.com/channel/refuse_file2?to=2300061779&lcid=20868&psessionid=83
 
 {"retcode":0,"result":"ok"}
 
+
+##### 获取好友列表
+
+POST
+http://s.web2.qq.com/api/get_user_friends2
+
+返回值：
+{"retcode":6}  错误，账号被锁定了?可是重新登陆再调用也没有问题啊？
+别人是在自动加好友时出现的问题，超过15个之后就失败了,返回{ retcode :6}
+这个错误很少见啊，找不到是什么原因。
+
+正确:
+{"retcode":0,"result":{"friends":[{"flag":0,"uin":2318067912,"categories":0}],"marknames":[],"categories":[{"index":1,"sort":1,"name":"朋友"},{"index":2,"sort":2,"name":"家人"},{"index":3,"sort":3,"name":"同學"}],"vipinfo":[{"vip_level":0,"u":2318067912,"is_vip":0}],"info":[{"face":105,"flag":285213184,50"nick":"YAT-SEN","uin":2318067912}]}}
 
 
 ### 参考：

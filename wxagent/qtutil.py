@@ -69,7 +69,8 @@ def qt_debug_handler(mtype, ctx, msg):
     if function == b'': function = b'qtinternal'
     # if ctx.function == None: function = b'qtinternal'   # maybe UnicodeDecodeError:
 
-    stypes = {QtDebugMsg: 'D', QtInfoMsg: 'I', QtWarningMsg: 'W',
+    # Fix PyQt 5.4, 不支持QInfo
+    stypes = {QtDebugMsg: 'D', QtWarningMsg: 'W',
               QtCriticalMsg: 'C', QtFatalMsg: 'F'}
     stype = '?'
     stype = stypes[mtype] if mtype in stypes else stype

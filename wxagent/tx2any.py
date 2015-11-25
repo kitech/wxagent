@@ -256,9 +256,9 @@ class TX2Any(QObject):
             if peer_number == 0: pass  # it myself sent message, omit
             else:
                 if groupchat.FromUserName == self.txses.me.UserName:
-                    newmsg = '(To: %s) %s' % (groupchat.ToUser.NickName, message)
+                    newmsg = '⇧(To: %s) %s' % (groupchat.ToUser.NickName, message)
                 else:
-                    newmsg = '(To: %s) %s' % (groupchat.FromUser.NickName, message)
+                    newmsg = '⇧(To: %s) %s' % (groupchat.FromUser.NickName, message)
                 ret = self.peerRelay.sendMessage(newmsg, self.peerRelay.peer_user)
         except Exception as ex:
             qDebug('send msg error: %s' % str(ex))
@@ -355,9 +355,9 @@ class TX2Any(QObject):
         fstatus = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
         if fstatus is True:
             if msg.FromUserName == self.txses.me.UserName:
-                newcc = '(From: %s) %s' % (msg.ToUser.NickName, fmtcc)
+                newcc = '⇩(From: %s) %s' % (msg.ToUser.NickName, fmtcc)
             else:
-                newcc = '(From: %s) %s' % (msg.FromUser.NickName, fmtcc)
+                newcc = '⇩(From: %s) %s' % (msg.FromUser.NickName, fmtcc)
 
             try:
                 # 把收到的消息发送到汇总tox端

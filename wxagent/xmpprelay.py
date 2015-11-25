@@ -321,7 +321,7 @@ class XmppRelay(IMRelay):
                 return True
             return False
 
-        def check_peer_prsence(presence):
+        def check_peer_presence(presence):
             if presence['from'].bare == self.peer_user:
                 return True
             return False
@@ -331,7 +331,8 @@ class XmppRelay(IMRelay):
             self.connected.emit()
             return
 
-        if check_peer_prsence(presence):
+        # peer user presence
+        if check_peer_presence(presence):
             if presence['type'] == 'unavailable':
                 for room in self.fixrooms:
                     if self.peer_user in self.fixrooms[room]:
@@ -341,7 +342,8 @@ class XmppRelay(IMRelay):
             else:
                 for room in self.fixrooms:
                     if self.peer_user not in self.fixrooms[room]:
-                        self.fixrooms[room].append(self.peer_user)
+                        # self.fixrooms[room].append(self.peer_user)
+                        pass  # 这个地方不能再添加，对方掉线情况，需要使用invite才行。
                 self.fixstatus[self.peer_user] = True
                 self.peerConnected.emit(self.peer_user)
             return
@@ -357,6 +359,7 @@ class XmppRelay(IMRelay):
             # now care presence
             return
 
+        # muc presence
         peer_jid = mats[0]
         if presence['type'] == 'unavailable':
             if peer_jid in self.fixrooms[room_jid]:

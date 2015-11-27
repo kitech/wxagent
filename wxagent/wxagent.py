@@ -360,7 +360,7 @@ class WXAgent(TXAgent):
             qDebug('web sync result:' + str(len(hcc)) + str(status_code))
 
             # TODO check no reply case and rerun synccheck.
-            if status_code == '' and l:
+            if status_code == '' and len(hcc) == 0:
                 qDebug('maybe need rerun synccheck')
 
             self.wxWebSyncRawData = hcc

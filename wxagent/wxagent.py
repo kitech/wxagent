@@ -361,7 +361,14 @@ class WXAgent(TXAgent):
 
             # TODO check no reply case and rerun synccheck.
             if status_code == '' and len(hcc) == 0:
-                qDebug('maybe need rerun synccheck')
+                qDebug('maybe need rerun syncCheck, or rerun webSync')
+
+            # QNetworkReply.UnknownNetworkError
+            if status_code is None and error_no in [99, 8]:
+                if self.canReconnect(): self.tryReconnect(self.webSync)
+                return
+            else:
+                if self.inReconnect(): self.finishReconnect()
 
             self.wxWebSyncRawData = hcc
             self.saveContent('websync.json', hcc, reply)

@@ -147,15 +147,14 @@ class TX2Any(QObject):
             url = url1 + "\n" + url2
             rc = self.peerRelay.sendMessage('test qrpic url....' + url,
                                             self.peerRelay.peer_user)
-            if rc is not False:
-                self.need_send_qrfile = False
+            if rc is not False: self.need_send_qrfile = False
 
         if self.need_send_notify is True and self.peerRelay.isPeerConnected(self.peerRelay.peer_user):
             blen = len(self.notify_buffer)
             while len(self.notify_buffer) > 0:
                 notify_msg = self.notify_buffer.pop()
                 self.peerRelay.sendMessage(notify_msg, self.peerRelay.peer_user)
-                qDebug('send buffered notify msg: %s' % blen)
+            qDebug('send buffered notify msg: %s' % blen)
             self.need_send_notify = False
 
         return
@@ -174,15 +173,15 @@ class TX2Any(QObject):
             url2 = VnFileStore.uploadData(self.qrpic.data())
             url = url1 + "\n" + url2
             rc = self.peerRelay.sendMessage('test qrpic url....' + url, self.peerRelay.peer_user)
-            if rc is not False:
-                self.need_send_qrfile = False
+            if rc is not False: self.need_send_qrfile = False
 
         # TODO 使用dispatch方式发送消息
         if len(self.tx2relay_msg_buffer) > 0 and self.peerRelay.isPeerConnected(self.peerRelay.peer_user):
             blen = len(self.tx2relay_msg_buffer)
             while len(self.tx2relay_msg_buffer) > 0:
                 msg = self.tx2relay_msg_buffer.pop()
-                self.peerRelay.sendMessage(msg, self.peerRelay.peer_user)
+                # self.peerRelay.sendMessage(msg, self.peerRelay.peer_user)
+                self.sendMessageToToxByType(msg)
                 # ## TODO 如果发送失败，这条消息可就丢失了。
             qDebug('send buffered wx2tox msg: %s' % blen)
         return

@@ -184,9 +184,9 @@ class ToxRelay(IMRelay):
         return
 
     def onToxnetGroupMessage(self, group_number, peer_number, message):
-        qDebug('nextline...')
-        print('gn=%s,pn=%s,mlen=%s,mp=%s' %
-              (group_number, peer_number, len(message), message[0:27]))
+        # qDebug('nextline...')
+        qDebug(('gn=%s,pn=%s,mlen=%s,mp=%s' %
+                (group_number, peer_number, len(message), message[0:27])).encode())
 
         if peer_number == 0:  # it myself sent message, omit
             return
@@ -197,20 +197,22 @@ class ToxRelay(IMRelay):
 
     def onToxnetGroupNamelistChanged(self, group_number, peer_number, change):
         qDebug(str(change))
+        chop = {0: 'add', 1: 'del', 2: 'name'}[change]
 
         # TODO group number count == 2
         number_peers = self.toxkit.groupNumberPeers(group_number)
         if number_peers == 0:
             qDebug('why 0?')
         elif number_peers == 1:
-            qDebug('myself added')
+            qDebug('myself %sed' % chop)
         elif number_peers == 2:
-            qDebug('toxpeer added')
+            qDebug('toxpeer %sed' % chop)
         else:
             qDebug('who is there? wtf?')
 
         qDebug('np: %d' % number_peers)
         if number_peers != 2: return
+        if change != 2: return  # 好像只有CHANGE_PEER_NAME才能保证对方进入群组了。
 
         # 上游需要字符串类型的group标识。
         self.peerEnterGroup.emit(str(group_number))

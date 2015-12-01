@@ -687,3 +687,11 @@ class QToxKit(QThread):
     def groupNumberPeers(self, group_number):
         rc = self.tox.group_number_peers(group_number)
         return rc
+
+    def __getattr__(self, attr):
+
+        # for Tox.XXX constants
+        if attr.upper() == attr and hasattr(self.tox, attr):
+            return getattr(self.tox, attr)
+
+        return None

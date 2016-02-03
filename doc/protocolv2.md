@@ -197,11 +197,20 @@ https://webpush.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?callback=jQuery18308
 
 window.synccheck={retcode:"0",selector:"0"}
 
+没有消息，监听会话正常。
+
+selector > 0，表示有新消息，但消息类型目前不知道。应该都需要使用websync接收吧。
+
 ### 未知返回结果
 
 window.synccheck={retcode:"0",selector:"1"}
 
 好像有时是群组更新，有时像是用户配置项变化。不太确定。
+
+window.synccheck={retcode:"0",selector:"5"}
+
+window.synccheck={retcode:"0",selector:"7"}
+
 
 ### 有消息返回结果
 

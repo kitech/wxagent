@@ -184,9 +184,9 @@ class ToxRelay(IMRelay):
         return
 
     def onToxnetGroupMessage(self, group_number, peer_number, message):
-        qDebug('nextline...')
-        print('gn=%s,pn=%s,mlen=%s,mp=%s' %
-              (group_number, peer_number, len(message), message[0:27]))
+        # qDebug('nextline...')
+        qDebug(('gn=%s,pn=%s,mlen=%s,mp=%s' %
+                (group_number, peer_number, len(message), message[0:27])).encode())
 
         if peer_number == 0:  # it myself sent message, omit
             return
@@ -195,25 +195,24 @@ class ToxRelay(IMRelay):
         self.newGroupMessage.emit(str_group_number, message)
         return
 
-    def onToxnetGroupNamelistChanged(self, group_number, peer_number, change):
-        qDebug(str(change))
-        chop = {0: 'add', 1: 'del', 2: 'name'}[change]
+    def onToxnetGroupNamelistChanged(self, group_number, peer_number, change_type):
+        qDebug(str(change_type))
+        chop = {0: 'add', 1: 'del', 2: 'name'}[change_type]
+        info = {0: 'why 0?', 1: 'myself %sed' % chop,
+                2: 'toxpeer %sed' % chop, 3: 'who is there? wtf?'}
 
-        # TODO group number count == 2
+        # 判断组员数
         number_peers = self.toxkit.groupNumberPeers(group_number)
-        if number_peers == 0:
-            qDebug('why 0?')
-        elif number_peers == 1:
-            qDebug('myself added')
-        elif number_peers == 2:
-            qDebug('toxpeer added')
-        else:
-            qDebug('who is there? wtf?')
+        pinfo = info[number_peers] if number_peers < 3 else info[3]
+        qDebug('np: %d, %s' % (number_peers + pinfo))
 
-        qDebug('np: %d' % number_peers)
+        # 据说要这么写更好，少用return控制流程
+        if number_peers >= 2 and change_type == self.toxkit.CHAT_CHANGE_PEER_NAME:
+            # 上游需要字符串类型的group标识。
+            self.peerEnterGroup.emit(str(group_number))
+
         if number_peers != 2: return
-        if change != 2: return  # 
+        if change_type != 2: return  # 好像只有CHANGE_PEER_NAME才能保证对方进入群组了。
+        # change_type为0,1,2，分别表示？？？
 
-        # 上游需要字符串类型的group标识。
-        self.peerEnterGroup.emit(str(group_number))
         return

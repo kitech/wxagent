@@ -525,8 +525,11 @@ class QToxKit(QThread):
         return
 
     def friendGetConnectionStatus(self, friend_pubkey):
-        friend_number = self.tox.friend_by_public_key(friend_pubkey)
-        status = self.tox.friend_get_connection_status(friend_number)
+        try:
+            friend_number = self.tox.friend_by_public_key(friend_pubkey)
+            status = self.tox.friend_get_connection_status(friend_number)
+        except:
+            return self.tox.CONNECTION_NONE
         return status
 
     # @param msg str

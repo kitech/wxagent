@@ -197,6 +197,7 @@ class ToxRelay(IMRelay):
 
     def onToxnetGroupNamelistChanged(self, group_number, peer_number, change):
         qDebug(str(change))
+        chop = {0: 'add', 1: 'del', 2: 'name'}[change]
 
         # TODO group number count == 2
         number_peers = self.toxkit.groupNumberPeers(group_number)
@@ -211,6 +212,7 @@ class ToxRelay(IMRelay):
 
         qDebug('np: %d' % number_peers)
         if number_peers != 2: return
+        if change != 2: return  # 
 
         # 上游需要字符串类型的group标识。
         self.peerEnterGroup.emit(str(group_number))

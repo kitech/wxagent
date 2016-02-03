@@ -204,7 +204,7 @@ class ToxRelay(IMRelay):
         # 判断组员数
         number_peers = self.toxkit.groupNumberPeers(group_number)
         pinfo = info[number_peers] if number_peers < 3 else info[3]
-        qDebug('np: %d, %s' % (number_peers + pinfo))
+        qDebug('np: %d, %s' % (number_peers, pinfo))
 
         # 据说要这么写更好，少用return控制流程
         if number_peers >= 2 and change_type == self.toxkit.CHAT_CHANGE_PEER_NAME:

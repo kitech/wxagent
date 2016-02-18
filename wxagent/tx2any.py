@@ -299,7 +299,6 @@ class TX2Any(QObject):
         # clear smth.
         return
 
-
     @pyqtSlot(QDBusMessage)
     def onDBusGotQRCode(self, message):
         args = message.arguments()
@@ -362,7 +361,7 @@ class TX2Any(QObject):
                 # 把收到的消息发送到汇总tox端
                 ret = self.peerRelay.sendMessage(newcc, self.peerRelay.peer_user)
             except Exception as ex:
-                qDebug(b'tox send msg error: ' + str(ex).encode())
+                qDebug('tox send msg error: ' + str(ex))
 
             # dispatch by ChatType
             ret = self.dispatchToToxGroup(msg, fmtcc)
@@ -375,14 +374,16 @@ class TX2Any(QObject):
 
     # wx and qq both use
     def sendShotPicMessageToTox(self, msg, logstr):
+        umsg = self.peerRelay.unimsgcls.fromWXMessage(msg, self.txses)
+
         def get_img_reply(data=None):
             if data is None: return
             # url = filestore.upload_file(data)
             url1 = QiniuFileStore.uploadData(data)
             url2 = VnFileStore.uploadData(data)
             url = url1 + "\n" + url2
-            umsg = 'pic url: ' + url
-            self.sendMessageToTox(msg, umsg)
+            urmsg = '%s: pic url: %s' % (umsg.dispname(self.txses), url)
+            self.sendMessageToTox(msg, urmsg)
             return
 
         self.getMsgImgCallback(msg, get_img_reply)
@@ -390,14 +391,16 @@ class TX2Any(QObject):
 
     # wx use now
     def sendVoiceMessageToTox(self, msg, logstr):
+        umsg = self.peerRelay.unimsgcls.fromWXMessage(msg, self.txses)
+
         def get_voice_reply(data=None):
             if data is None: return
             # url = filestore.upload_file(data)
             url1 = QiniuFileStore.uploadData(data)
             url2 = VnFileStore.uploadData(data)
             url = url1 + "\n" + url2
-            umsg = 'voice url: ' + url
-            self.sendMessageToTox(msg, umsg)
+            urmsg = '%s: voice url: %s' % (umsg.dispname(self.txses), url)
+            self.sendMessageToTox(msg, urmsg)
             return
 
         self.getMsgVoiceCallback(msg, get_voice_reply)

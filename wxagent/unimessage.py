@@ -32,6 +32,21 @@ class UniMessage:
     def fromQQMessage(qqmsg, qqses):
         return
 
+    # 返回该条消息的用户名前缀nick@abc
+    def dispname(self, ses):
+        # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名
+        # @894e0c4caa27eeef705efaf55235a2a2:<br/>...
+        reg = r'^(@[0-9a-f]+):<br/>'
+        mats = re.findall(reg, self.content)
+        if len(mats) > 0:
+            UserName = mats[0]
+            UserInfo = ses.getUserInfo(UserName)
+            if UserInfo is not None:
+                dispRealName = UserInfo.NickName + UserName[0:7]
+                return dispRealName
+        raise 'wtf'
+        return ''
+
     # filter
     def num2name(self, ses):
         # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名

@@ -85,6 +85,10 @@ class WX2Tox(TX2Any):
                     qDebug(('multi match found:' + cmd[1]).encode())
                     nnlst = list(map(lambda x: '*) ' + x, nnlst))
                     self.peerRelay.sendMessage('    '.join(nnlst), self.peerRelay.peer_user)
+
+        elif cmd[0] == 'stats':
+            stats = self.getAgentRuntimeStats()
+            self.peerRelay.sendMessage(stats, self.peerRelay.peer_user)
         else:
             qDebug('unknown cmd:' + str(cmd))
 

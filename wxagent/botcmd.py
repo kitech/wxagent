@@ -12,7 +12,7 @@ from PyQt5.QtDBus import *
 class BotCmder(QObject):
 
     cmds = [
-        'help', 'invite',
+        'help', 'invite', 'stats',
     ]
 
     cmdpch = '.'

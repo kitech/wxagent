@@ -23,8 +23,12 @@ class AgentStats:
         return
 
     def toJson(self):
+        def time2str(t):
+            if t is None: return ''
+            return t.toString()
+
         stats = {
-            "start_time": self.program_start_time,
+            "start_time": time2str(self.program_start_time),
             "login_times": len(self.login_time_points),
             "logout_times": len(self.logout_time_points),
             "refresh_count": len(self.refresh_time_points),
@@ -34,35 +38,26 @@ class AgentStats:
             "send_count": self.send_message_count,
             "send_length": self.send_message_length,
             "send_error_count": self.send_message_error_count,
-            "first_login_time": self.firstLoginTime(),
-            "last_login_time": self.lastLoginTime(),
-            "last_logout_time": self.lastLogoutTime(),
+            "first_login_time": time2str(self.firstLoginTime()),
+            "last_login_time": time2str(self.lastLoginTime()),
+            "last_logout_time": time2str(self.lastLogoutTime()),
         }
-        res = json.JSONEncoder().encode(stats)
+        res = json.JSONEncoder(ensure_ascii=False).encode(stats)
         return res
 
+    def toText(self):
+        res = ''
+        return res
+
+    # 登陆事件
     def onLogin(self):
         self.login_time_points.append(QDateTime.currentDateTime())
         return
 
+    # 登出事件
     def onLogout(self):
         self.logout_time_points.append(QDateTime.currentDateTime())
         return
-
-    def firstLoginTime(self):
-        n = self.login_time_points
-        if n == 0: return None
-        return self.login_time_points[0]
-
-    def lastLoginTime(self):
-        n = self.login_time_points
-        if n == 0: return None
-        return self.login_time_points[n - 1]
-
-    def lastLogoutTime(self):
-        n = self.logout_time_points.count()
-        if n == 0: return None
-        return self.logout_time_points[n - 1]
 
     def onRefresh(self):
         self.refresh_time_points.append(QDateTime.currentDateTime())
@@ -71,9 +66,6 @@ class AgentStats:
     def onPollTimeout(self):
         self.poll_timeout_count += 1
         return
-
-    def pollTimeoutCount(self):
-        return self.poll_timeout_count
 
     def onRecvMessage(self, msg):
         self.recv_message_count += 1
@@ -88,3 +80,21 @@ class AgentStats:
     def onSendMessageError(self):
         self.send_message_error_count += 1
         return
+
+    def firstLoginTime(self):
+        n = len(self.login_time_points)
+        if n == 0: return None
+        return self.login_time_points[0]
+
+    def lastLoginTime(self):
+        n = len(self.login_time_points)
+        if n == 0: return None
+        return self.login_time_points[n - 1]
+
+    def lastLogoutTime(self):
+        n = len(self.logout_time_points)
+        if n == 0: return None
+        return self.logout_time_points[n - 1]
+
+    def pollTimeoutCount(self):
+        return self.poll_timeout_count

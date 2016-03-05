@@ -1,11 +1,7 @@
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
 
-
-class AgentStats:
-    def __init__(self):
-        self.refresh_count = 0
-        return
+from .agentstats import AgentStats
 
 
 # 带获取所有cookie扩展功能的定制类
@@ -40,6 +36,7 @@ class TXAgent(QObject):
 
         self.queue_shot_timers = {}  # QTimer => [slot, extra]
 
+        self.asts = AgentStats()
         # test some
         # self.testNcm()
         return

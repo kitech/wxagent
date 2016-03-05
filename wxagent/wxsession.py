@@ -336,6 +336,10 @@ class WXSession():
         # use filter
         nnlst = list(map(lambda x: x.NickName, self.parseUsers(jsobj['MemberList'])))
         if prefix is not None:
-            nnlst = list(filter(lambda x: x.startswith(prefix), nnlst))
+            # 查找完全相等的，或者 # 查找前缀匹配的
+            nnlst = list(filter(lambda x: x == prefix, nnlst)) or \
+                    list(filter(lambda x: x.startswith(prefix), nnlst)) or \
+                    list(filter(lambda x: x.endswith(prefix), nnlst)) or \
+                    list(filter(lambda x: x.find(prefix) > 0, nnlst))
 
         return nnlst

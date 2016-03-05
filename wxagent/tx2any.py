@@ -501,6 +501,10 @@ class TX2Any(QObject):
     # @param cb(data)
     # def getMsgVoiceCallback(self, msg, imgcb=None):
 
+    def getAgentRuntimeStats(self):
+        args = []
+        return self.syncGetRpc('get_stats', args)
+
     # @param name str
     # @param args list
     # @param return None | mixed

@@ -44,7 +44,7 @@ class UniMessage:
             if UserInfo is not None:
                 dispRealName = UserInfo.NickName + UserName[0:7]
                 return dispRealName
-        raise 'wtf'
+        # raise 'wtf'
         return ''
 
     # filter

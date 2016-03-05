@@ -104,6 +104,7 @@ class WXAgent(TXAgent):
 
         self.retry_times_before_refresh = 0
 
+        self.gsts.onRefresh()
         self.doboot()
         self.refresh_count += 1
         return
@@ -291,11 +292,12 @@ class WXAgent(TXAgent):
             self.wxFriendRawData = hcc
             # parser contact data:
 
+            self.asts.onLogin()
             self.emitDBusLoginSuccess()
 
             #########
         #elif url.startswith('https://webpush2.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?'):
-        elif url.startswith(self.webpushUrlStart+'/cgi-bin/mmwebwx-bin/synccheck?'):
+        elif url.startswith(self.webpushUrlStart + '/cgi-bin/mmwebwx-bin/synccheck?'):
             qDebug('sync check result:' + str(hcc))
 
             if status_code is None and error_no in [99, 8]:  # QNetworkReply.UnknownNetworkError
@@ -382,6 +384,7 @@ class WXAgent(TXAgent):
             self.saveContent('websync.json', hcc, reply)
             self.saveContent('websync_%s.json' % (self.currentSelector), hcc, reply)
             self.currentSelector = ''
+            self.asts.onRecvMessage(hcc)
             self.emitDBusNewMessage(hcc)
 
             # parse web sync result:
@@ -686,6 +689,7 @@ class WXAgent(TXAgent):
 
         nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
         nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        self.asts.onSendMessage(post_data)
 
         return
 
@@ -1113,7 +1117,7 @@ class WXAgentService(QObject):
     @pyqtSlot(QDBusMessage, result=bool)
     def sendmessage(self, message):
         args = message.arguments()
-        qDebug(json.dumps(args) )
+        qDebug(json.dumps(args))
         from_username = args[0]
         to_username = args[1]
         qDebug('cc type: ' + str(type(args[2])))
@@ -1222,6 +1226,16 @@ class WXAgentService(QObject):
 
         self.dses[reqno] = s
         return 'can not see this.'
+
+    # @calltype: sync
+    # @return str
+    @pyqtSlot(QDBusMessage, result=str)
+    def get_stats(self, message):
+        # args = message.arguments()
+        # qDebug(json.dumps(args))
+
+        stats = self.wxa.asts.toJson()
+        return stats
 
     def onDelayedReply(self, reqno, hcc):
         qDebug(str(reqno))

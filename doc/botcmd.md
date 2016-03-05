@@ -5,5 +5,6 @@ TODO 应该放在单独的文件中
 'qqnum 1234567
 'passwd abc123|5678
 'vfcode 5678
-'invite qqnum 与某个好友聊天。
+.invite qqnum 与某个好友聊天。
+.stats 查看代理运行信息
 

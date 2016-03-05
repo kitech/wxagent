@@ -104,7 +104,7 @@ class WXAgent(TXAgent):
 
         self.retry_times_before_refresh = 0
 
-        self.gsts.onRefresh()
+        self.asts.onRefresh()
         self.doboot()
         self.refresh_count += 1
         return
@@ -308,7 +308,7 @@ class WXAgent(TXAgent):
 
             # window.synccheck={retcode:”0”,selector:”0”}
             # selector: 6: 表示有新消息
-            # selector: 7: ??? 打开了某项，如群，好友，是一个事件
+            # selector: 7: ??? 打开了某项，如群，好友，是一个事件，
             # selector: 2: ??? 有新消息
             # selector: 4: ???
             # selector: 5: ???
@@ -405,6 +405,10 @@ class WXAgent(TXAgent):
                 elif jsobj['BaseResponse']['Ret'] == -1:
                     qDebug('whywhy?')
                     self.syncCheck()
+                elif jsobj['BaseResponse']['Ret'] == 1101:
+                    qDebug("maybe need rerun refresh()...1101")
+                    qDebug("\n\n\n\n\n\n\n")
+                    # QTimer.singleShot(5000, self.refresh)
                 else: qDebug('web sync error:' + str(jsobj['BaseResponse']['Ret'])
                              + ',' + str(jsobj['BaseResponse']['ErrMsg']))
             else:

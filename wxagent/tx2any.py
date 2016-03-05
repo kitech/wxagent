@@ -16,18 +16,6 @@ from .txcom import *
 # QDBUS_DEBUG
 
 
-# 基类，xx2any共用的基础逻辑。
-class ToxDispatcher(QObject):
-    def __init__(self):
-        "docstring"
-
-        return
-
-    # @param msg WXMessage
-    def send(self, msg):
-        return
-
-
 class Chatroom():
     def __init__(self):
         "docstring"

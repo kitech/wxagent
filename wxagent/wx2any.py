@@ -41,6 +41,7 @@ class WX2Tox(TX2Any):
 
         self.initDBus()
         self.initRelay()
+        self.initListener()
         self.startWXBot()
         return
 
@@ -50,47 +51,11 @@ class WX2Tox(TX2Any):
         # islogined
         # 等待，总之是wxagent支持的命令，
 
-        cmd = BotCmder.parseCmd(msg)
-        if cmd is False:
-            qDebug(('not a cmd: %s' % msg[0:120]).encode())
-            return
-
-        if cmd[0] == 'help':
-            helpmsg = BotCmder.helpMessage()
-            self.peerRelay.sendMessage(helpmsg, self.peerRelay.peer_user)
-            return
-
-        elif cmd[0] == 'invite':
-            if cmd[1] == '':  # 发送所有的好友，注意是真正的已添加的好友，不是在群组里面的。
-                nnlst = self.txses.getInviteCompleteList()
-                nnlst = list(map(lambda x: '*) ' + x, nnlst))
-                self.peerRelay.sendMessage('    '.join(nnlst), self.peerRelay.peer_user)
-            else:
-                # 查找是否有该好友，
-                # 如果有，则创建与该好友的聊天室
-                # 如果没有，则查找是否有前相似匹配的
-                # 如果有相似匹配的，则提示相似匹配的所有好友
-                nnlst = self.txses.getInviteCompleteList(cmd[1])
-                nnlen = len(nnlst)
-                if nnlen == 0:
-                    qDebug(('not found:' + cmd[1]).encode())
-                    rpstr = 'no user named: ' + cmd[1]
-                    self.peerRelay.sendMessage(rpstr, self.peerRelay.peer_user)
-                elif nnlen == 1:
-                    qDebug(('exact match found:' + cmd[1] + ',' + str(nnlst[0])).encode())
-                    rpstr = 'inviteing %s......' % nnlst[0]
-                    self.peerRelay.sendMessage(rpstr, self.peerRelay.peer_user)
-                    self.inviteFriendToChat(nnlst[0])
-                else:
-                    qDebug(('multi match found:' + cmd[1]).encode())
-                    nnlst = list(map(lambda x: '*) ' + x, nnlst))
-                    self.peerRelay.sendMessage('    '.join(nnlst), self.peerRelay.peer_user)
-
-        elif cmd[0] == 'stats':
-            stats = self.getAgentRuntimeStats()
-            self.peerRelay.sendMessage(stats, self.peerRelay.peer_user)
-        else:
-            qDebug('unknown cmd:' + str(cmd))
+        # listener event
+        qDebug("emit event...")
+        for listener in self.lsnrs:
+            if listener.role == listener.ROLE_CTRL:
+                listener.onMessage(msg)
 
         return
 
@@ -159,6 +124,11 @@ class WX2Tox(TX2Any):
 
             self.sendMessageToToxByType(msg)
 
+        # listener event
+        for listener in self.lsnrs:
+            if listener.role == listener.ROLE_CHAT:
+                for msg in msgs:
+                    listener.onMessage(msg)
         return
 
     def sendMessageToToxByType(self, msg):

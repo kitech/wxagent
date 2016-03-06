@@ -49,6 +49,21 @@ class UniMessage:
         # raise 'wtf'
         return ''
 
+    # check if content has user prefix
+    def hasprefix(self):
+        reg = r'^(@[0-9a-f]+):<br/>'
+        mats = re.findall(reg, self.dcontent)
+        if len(mats) > 0:
+            return True
+        return False
+
+    def dropprefix(self):
+        reg = r'^(@[0-9a-f]+):<br/>'
+        mats = re.findall(reg, self.dcontent)
+        if len(mats) > 0:
+            return self.dcontent[len(mats[0]) + 6:]
+        return self.dcontent
+
     # filter
     def num2name(self, ses):
         # 对消息做进一步转化，当MsgId==1时，替换消息开关的真实用户名

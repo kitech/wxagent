@@ -13,6 +13,7 @@ from .imrelayfactory import IMRelayFactory
 from .unimessage import *
 from .filestore import QiniuFileStore, VnFileStore
 from .txcom import *
+from .listener import ListenerFactory
 # QDBUS_DEBUG
 
 
@@ -60,6 +61,7 @@ class TX2Any(QObject):
 
         self.txses = None   # XXSession
         self.peerRelay = None  # IMRelay subclass
+        self.lsnrs = []  # XXXListener
 
         # #### state
         self.qrpic = None  # QByteArray
@@ -122,6 +124,13 @@ class TX2Any(QObject):
         relay.peerDisconnected.connect(self.onRelayPeerDisconnected, Qt.QueuedConnection)
         relay.newGroupMessage.connect(self.onRelayGroupMessage, Qt.QueuedConnection)
         relay.peerEnterGroup.connect(self.onRelayPeerEnterGroup, Qt.QueuedConnection)
+        return
+
+    def initListener(self):
+        from .secfg import listeners
+        for listener in listeners:
+            lo = ListenerFactory.create(listener, self)
+            self.lsnrs.append(lo)
         return
 
     def onRelayConnected(self):
@@ -535,6 +544,20 @@ class TX2Any(QObject):
         if callback is not None: callback(args[0])
 
         return
+
+    # listener 需要知道发送以哪个room
+    def findGroupChatByMsg(self, msg):
+        for mkey in self.txchatmap:
+            room = self.txchatmap[mkey]
+            if room.FromUser.UserName == msg.FromUser.UserName and \
+               room.ToUser.UserName == msg.ToUser.UserName:
+                return room
+
+            if room.ToUser.UserName == msg.FromUser.UserName and \
+               room.FromUser.UserName == msg.ToUser.UserName:
+                return room
+        raise Exception('wtf')
+        return None
 
     # @param hcc QByteArray
     # @return str

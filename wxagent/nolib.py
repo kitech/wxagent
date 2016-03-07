@@ -1,8 +1,10 @@
+
 import os, sys
 import json, re
 import enum, time
 import requests
 import random
+import base64
 
 
 class Nolib:
@@ -38,8 +40,26 @@ class Nolib:
             return random.sample(list(self.results.values()), 1)[0]
         return None
 
+    # @param data str | bytes
+    def putFile(self, data):
+        s = data.encode() if type(data) == str else data
+        s64 = base64.b64encode(s).decode()
+        data = {'Data': s64, 'Encoding': 'base64', 'Url': 'about: _blank_', 'Provider': 'any'}
+        jdata = json.JSONEncoder().encode(data)
+
+        url = self.burl + '/1.0/nolib.FileStore/PutFile'
+        r = requests.post(url, data=jdata)
+        resp = json.JSONDecoder().decode(r.text)
+
+        return resp['Url']
+
 
 if __name__ == '__main__':
+    nol = Nolib()
+    print(nol.putFile('不粉脍塔顶 赤绿 os 这'))
+
+
+if __name__ == '__main__1':
     nol = Nolib()
     print(time.time(), len(nol.results))
     nol.getPage(1)

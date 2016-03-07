@@ -24,7 +24,9 @@ class Listener(QObject):
         return
 
     def onMessage(self, msg):
+        return
 
+    def onRelayGroupMessage(self, room, msg):
         return
 
 
@@ -111,14 +113,32 @@ class LisaListener(Listener):
                 qDebug('matched lisa cmd:' + cmd)
                 room = self.toany.findGroupChatByMsg(msg)
                 words = self.handlers[cmd]()
-                words = self.fmtWords(words, umsg, msg)
+                words = self.fmtWords(words, msg, umsg)
                 self.peerRelay.sendMessage(words, self.peerRelay.peer_user)
                 self.toany.sendMessageToWX(room, words)
                 break
         return
 
-    def fmtWords(self, words, umsg, msg):
-        if umsg.hasprefix():
+    def onRelayGroupMessage(self, room, msg):
+        qDebug('lisa is processing relay msg...' + str(room.group_number))
+
+        tmsg = msg
+        for cmd in self.handlers.keys():
+            if tmsg.startswith(cmd):
+                qDebug('matched lisa cmd:' + cmd)
+                words = self.handlers[cmd]()
+                words = self.fmtWords(words, msg, None)
+                # self.peerRelay.sendMessage(words, self.peerRelay.peer_user)
+                self.peerRelay.sendGroupMessage(words, room.group_number)
+                self.toany.sendMessageToWX(room, words)
+                # 上面的顺序，还是要这样的，否则可能导致wx中消息顺序不对
+                break
+        return
+
+    def fmtWords(self, words, msg, umsg=None):
+        if umsg is None:
+            words = "(Lisa) @%s: %s" % (self.toany.txses.me.NickName, words)
+        elif umsg.hasprefix():
             dispname = umsg.dispname(self.toany.txses).split('@')[0]
             words = "(Lisa) @%s: %s" % (dispname, words)
         else:

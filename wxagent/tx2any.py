@@ -207,6 +207,8 @@ class TX2Any(QObject):
                 # groupchat.unsend_queue.append(fmtcc)  # 也许是这个函数返回值有问题，即使返回错误也可能发送成功。
             idx += 1
 
+
+
         return
 
     def onRelayMessage(self, msg):
@@ -263,6 +265,12 @@ class TX2Any(QObject):
         else:
             ret = self.sendMessageToWX(groupchat, message)
             if ret: pass
+
+            # listener event
+            for listener in self.lsnrs:
+                if listener.role == listener.ROLE_CHAT:
+                    listener.onRelayGroupMessage(groupchat, message)
+
         return
 
     def sendQRToRelayPeer(self):

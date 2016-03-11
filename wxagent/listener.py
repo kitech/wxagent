@@ -99,7 +99,8 @@ class LisaListener(Listener):
         self.nol = Nolib()
         self.handlers = {'lisalisa': self.handlerLisalisa,
                          '.help': self.handlerHelp,
-                         '.ping': self.handlerPing}
+                         '.ping': self.handlerPing,
+                         '.abbr': self.handlerAbbrev}
         return
 
     def onMessage(self, msg):
@@ -112,7 +113,7 @@ class LisaListener(Listener):
             if tmsg.startswith(cmd):
                 qDebug('matched lisa cmd:' + cmd)
                 room = self.toany.findGroupChatByMsg(msg)
-                words = self.handlers[cmd]()
+                words = self.handlers[cmd](tmsg)
                 words = self.fmtWords(words, msg, umsg)
                 self.peerRelay.sendMessage(words, self.peerRelay.peer_user)
                 self.toany.sendMessageToWX(room, words)
@@ -126,7 +127,7 @@ class LisaListener(Listener):
         for cmd in self.handlers.keys():
             if tmsg.startswith(cmd):
                 qDebug('matched lisa cmd:' + cmd)
-                words = self.handlers[cmd]()
+                words = self.handlers[cmd](msg)
                 words = self.fmtWords(words, msg, None)
                 # self.peerRelay.sendMessage(words, self.peerRelay.peer_user)
                 self.peerRelay.sendGroupMessage(words, room.group_number)
@@ -145,17 +146,25 @@ class LisaListener(Listener):
             words = "(Lisa) @%s: %s" % (msg.FromUser.NickName, words)
         return words
 
-    def handlerHelp(self):
+    def handlerHelp(self, msg=None):
         words = ' '.join(self.handlers.keys())
         return words
 
-    def handlerLisalisa(self):
+    def handlerLisalisa(self, msg=None):
         words = self.nol.getOne()
         return words
 
-    def handlerPing(self):
+    def handlerPing(self, msg=None):
         words = 'pong!'
         return words
+
+    # @param msg str
+    def handlerAbbrev(self, msg):
+        word = msg.strip().split(' ')[1]
+        unabbrevs = self.nol.unabbrev(word)
+        if unabbrevs is None:
+            return 'error occurs'
+        return ' '.join(unabbrevs)
 
 
 class ListenerFactory:

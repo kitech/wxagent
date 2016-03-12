@@ -92,6 +92,16 @@ class RecordListener(Listener):
         return
 
 
+class HandlerContext:
+    def __init__(self, cmd, pmsg, room, txmsg, umsg):
+        self.cmd = cmd
+        self.pmsg = pmsg
+        self.txmsg = txmsg
+        self.umsg = umsg
+        self.room = room
+        return
+
+
 class LisaListener(Listener):
     def __init__(self, toany):
         super(LisaListener, self).__init__(toany)
@@ -100,7 +110,8 @@ class LisaListener(Listener):
         self.handlers = {'lisalisa': self.handlerLisalisa,
                          '.help': self.handlerHelp,
                          '.ping': self.handlerPing,
-                         '.abbr': self.handlerAbbrev}
+                         '.abbr': self.handlerAbbrev,
+                         '.lisa': self.handlerLisaChat}
         return
 
     def onMessage(self, msg):
@@ -113,7 +124,8 @@ class LisaListener(Listener):
             if tmsg.startswith(cmd):
                 qDebug('matched lisa cmd:' + cmd)
                 room = self.toany.findGroupChatByMsg(msg)
-                words = self.handlers[cmd](tmsg)
+                ctx = HandlerContext(cmd, tmsg, room, msg, umsg)
+                words = self.handlers[cmd](tmsg, ctx)
                 words = self.fmtWords(words, msg, umsg)
                 self.peerRelay.sendMessage(words, self.peerRelay.peer_user)
                 self.toany.sendMessageToWX(room, words)
@@ -127,7 +139,8 @@ class LisaListener(Listener):
         for cmd in self.handlers.keys():
             if tmsg.startswith(cmd):
                 qDebug('matched lisa cmd:' + cmd)
-                words = self.handlers[cmd](msg)
+                ctx = HandlerContext(cmd, tmsg, room, None, None)
+                words = self.handlers[cmd](msg, ctx)
                 words = self.fmtWords(words, msg, None)
                 # self.peerRelay.sendMessage(words, self.peerRelay.peer_user)
                 self.peerRelay.sendGroupMessage(words, room.group_number)
@@ -146,25 +159,40 @@ class LisaListener(Listener):
             words = "(Lisa) @%s: %s" % (msg.FromUser.NickName, words)
         return words
 
-    def handlerHelp(self, msg=None):
+    def handlerHelp(self, msg=None, ctx=None):
         words = ' '.join(self.handlers.keys())
         return words
 
-    def handlerLisalisa(self, msg=None):
+    def handlerLisalisa(self, msg=None, ctx=None):
         words = self.nol.getOne()
         return words
 
-    def handlerPing(self, msg=None):
+    def handlerPing(self, msg=None, ctx=None):
         words = 'pong!'
         return words
 
     # @param msg str
-    def handlerAbbrev(self, msg):
+    def handlerAbbrev(self, msg, ctx=None):
         word = msg.strip().split(' ')[1]
         unabbrevs = self.nol.unabbrev(word)
         if unabbrevs is None:
             return 'error occurs'
         return ' '.join(unabbrevs)
+
+    def handlerLisaChat(self, msg, ctx):
+        import hashlib
+        h = hashlib.md5()
+        h.update(b'memememmememe')
+        if ctx.room.FromUser.UserName != self.toany.txses.me.UserName:
+            h.update(ctx.room.FromUser.UserName.encode())
+        else:
+            # should be me
+            h.update(self.toany.txses.me.UserName.encode())
+        sum = h.hexdigest()
+        reqmsg = msg[len(ctx.cmd):].strip()
+        print(12222222222, msg, reqmsg)
+        reply = self.nol.tlchat(reqmsg, sum)
+        return reply
 
 
 class ListenerFactory:

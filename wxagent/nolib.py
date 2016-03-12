@@ -66,16 +66,84 @@ class Nolib:
             return None
         return jres.get("Explains")
 
+    def tlchat(self, info, uid):
+        data = {'Info': info, 'Userid': uid, 'Loc': '', 'Result': ''}
+        jdata = json.JSONEncoder(ensure_ascii=True).encode(data)
+
+        url = self.burl + '/1.0/nolib.Tuling123/GetU'
+        headers = {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
+        res = requests.post(url, data=jdata, headers=headers)
+        print(res.status_code, res.headers, res.content, res.json())
+
+        jres = res.json()
+        if jres.get('errcode') is not None:
+            return None
+        res2 = json.JSONDecoder().decode(jres.get("Result"))
+
+        rcode = res2['code']
+        if rcode == 100000:  # 文件
+            print(1111)
+            text = res2['text']
+        elif rcode == 200000:  # 链接
+            print(3333)
+            text = res2['text'] + ' ' + res2['url']
+        elif rcode == 302000:  # 新闻
+            print(35444)
+            text = res2['text']
+            text += ":\n"
+            for item in res2['list']:
+                text += item['article'] + ': ' + item['detailurl'] + "\n"
+        elif rcode == 308000:  # 菜谱
+            print(3333666)
+            text = res2['text']
+            text += ":\n"
+            for item in res2['list']:
+                text += item['name'] + ': ' + item['detailurl'] + "\n"
+        else:
+            print(3333888)
+            text = res2['text']
+
+        return text
+
 
 if __name__ == '__main__':
     nol = Nolib()
-    # print(nol.putFile('不粉脍塔顶 赤绿 os 这'))
-    words = nol.unabbrev('brm')
-    print(words)
-    words = nol.unabbrev('aros')
-    print(words)
-    words = nol.unabbrev('arpa')
-    print(words)
+
+    def test_putfile():
+        print(nol.putFile('不粉脍塔顶 赤绿 os 这'))
+        return
+
+    def test_abbrev():
+        words = nol.unabbrev('brm')
+        print(words)
+        words = nol.unabbrev('aros')
+        print(words)
+        words = nol.unabbrev('arpa')
+        print(words)
+        return
+
+    def test_tuling():
+        import time
+        info = '你好'
+        uid = 'iaejfawefewfefaewfewf'
+        reply = nol.tlchat(info, uid)
+        print(reply)
+        for info in ['今天星期几啊', '你叫什么', '谁起的名字', '多大了',
+                     '维纳斯是谁', 'aol是什么意思', '这你都知道',
+                     '你还知道些什么', '天为什么是蓝的']:
+            reply = nol.tlchat(info, uid)
+            print(info, reply)
+            time.sleep(3)
+        return
+
+    def test_tuling2():
+        info = '我想看新闻'
+        uid = 'iaejfawefewfefaewfewf'
+        reply = nol.tlchat(info, uid)
+        print(reply)
+        return
+
+    test_tuling2()
 
 
 if __name__ == '__main__1':

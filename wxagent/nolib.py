@@ -8,7 +8,7 @@ import base64
 
 
 class Nolib:
-    burl = 'http://127.0.0.1:5002'
+    burl = 'http://127.0.0.1:5007'
     interval = 30
 
     def __init__(self):
@@ -20,9 +20,8 @@ class Nolib:
         if time.time() - self.last_fetch_time < self.interval: return
 
         url = self.burl + '/1.0/nolib.Qiubai/GetPage'
-        data = {'Pageno': pageno, 'Pesult': ''}
+        data = {'Pageno': pageno, 'Result': ''}
         jdata = json.JSONEncoder().encode(data)
-
         r = requests.post(url, data=jdata)
 
         resp = json.JSONDecoder().decode(r.text)
@@ -82,32 +81,54 @@ class Nolib:
 
         rcode = res2['code']
         if rcode == 100000:  # 文件
-            print(1111)
             text = res2['text']
         elif rcode == 200000:  # 链接
-            print(3333)
             text = res2['text'] + ' ' + res2['url']
         elif rcode == 302000:  # 新闻
-            print(35444)
             text = res2['text']
             text += ":\n"
             for item in res2['list']:
                 text += item['article'] + ': ' + item['detailurl'] + "\n"
         elif rcode == 308000:  # 菜谱
-            print(3333666)
             text = res2['text']
             text += ":\n"
             for item in res2['list']:
                 text += item['name'] + ': ' + item['detailurl'] + "\n"
         else:
-            print(3333888)
             text = res2['text']
 
         return text
 
+    def bmadd(self, bmurl, utype):
+        data = {'Id': 0, 'Url': bmurl, 'Type': utype, 'Tags': '', 'Result': ''}
+        jdata = json.JSONEncoder().encode(data)
+
+        url = self.burl + '/1.0/nolib.BookMark/BmInsert'
+        r = requests.post(url, data=jdata)
+        print(r.status_code, r.headers, r.content, r.json())
+
+        jres = r.json()
+        if jres.get('errcode') is not None:
+            return None
+        return jres.get('Result')
+
+    def bmmod(self, bmurl, utype):
+        return
+
+    def bmdel(self, bmurl):
+        return
+
+    def bmget(self, keywords):
+        return
+
 
 if __name__ == '__main__':
     nol = Nolib()
+
+    def test_qiubai():
+        nol.getPage(1)
+        print(time.time(), len(nol.results), nol.results)
+        return
 
     def test_putfile():
         print(nol.putFile('不粉脍塔顶 赤绿 os 这'))
@@ -143,7 +164,18 @@ if __name__ == '__main__':
         print(reply)
         return
 
-    test_tuling2()
+    def test_bms():
+        url = 'http://www.abc.efg.com/' + str(time.time())
+        utype = 'link'
+        reply = nol.bmadd(url, utype)
+        url += str(time.time())
+        utype = 'rss'
+        reply = nol.bmadd(url, utype)
+        return
+
+    test_qiubai()
+    # test_tuling2()
+    # test_bms()
 
 
 if __name__ == '__main__1':

@@ -8,7 +8,7 @@ import base64
 
 
 class Nolib:
-    burl = 'http://127.0.0.1:5007'
+    burl = 'http://127.0.0.1:5003'
     interval = 30
 
     def __init__(self):
@@ -121,6 +121,19 @@ class Nolib:
     def bmget(self, keywords):
         return
 
+    def tran(self, stype, words):
+        data = {'Type': stype, 'Words': words, 'Result': ''}
+        jdata = json.JSONEncoder().encode(data)
+
+        url = self.burl + '/1.0/nolib.Fanyi/Translate'
+        r = requests.post(url, data=jdata)
+        # print(r.status_code, r.headers, r.content, r.json())
+
+        jres = r.json()
+        if jres.get('errcode') is not None:
+            return None
+        return jres.get('Result')
+
 
 if __name__ == '__main__':
     nol = Nolib()
@@ -173,7 +186,21 @@ if __name__ == '__main__':
         reply = nol.bmadd(url, utype)
         return
 
-    test_qiubai()
+    def test_tran():
+        stype = 'ytran'
+        words = 'mock'
+        reply = nol.tran(stype, words)
+        print(words, "=>", reply)
+        words = 'すみません'
+        reply = nol.tran(stype, words)
+        print(words, "=>", reply)
+        words = '编辑'
+        reply = nol.tran(stype, words)
+        print(words, "=>", reply)
+        return
+
+    test_tran()
+    # test_qiubai()
     # test_tuling2()
     # test_bms()
 

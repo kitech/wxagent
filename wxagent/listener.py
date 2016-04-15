@@ -111,6 +111,7 @@ class LisaListener(Listener):
                          '.help': self.handlerHelp,
                          '.ping': self.handlerPing,
                          '.abbr': self.handlerAbbrev,
+                         '.ytran': self.handlerYTran,
                          '.lisa': self.handlerLisaChat}
         return
 
@@ -167,6 +168,21 @@ class LisaListener(Listener):
         words = self.nol.getOne()
         return words
 
+    def handlerLisaChat(self, msg, ctx):
+        import hashlib
+        h = hashlib.md5()
+        h.update(b'memememmememe')
+        if ctx.room.FromUser.UserName != self.toany.txses.me.UserName:
+            h.update(ctx.room.FromUser.UserName.encode())
+        else:
+            # should be me
+            h.update(self.toany.txses.me.UserName.encode())
+        sum = h.hexdigest()
+        reqmsg = msg[len(ctx.cmd):].strip()
+        # print(12222222222, msg, reqmsg)
+        reply = self.nol.tlchat(reqmsg, sum)
+        return reply
+
     def handlerPing(self, msg=None, ctx=None):
         words = 'pong!'
         return words
@@ -179,20 +195,10 @@ class LisaListener(Listener):
             return 'error occurs'
         return ' '.join(unabbrevs)
 
-    def handlerLisaChat(self, msg, ctx):
-        import hashlib
-        h = hashlib.md5()
-        h.update(b'memememmememe')
-        if ctx.room.FromUser.UserName != self.toany.txses.me.UserName:
-            h.update(ctx.room.FromUser.UserName.encode())
-        else:
-            # should be me
-            h.update(self.toany.txses.me.UserName.encode())
-        sum = h.hexdigest()
-        reqmsg = msg[len(ctx.cmd):].strip()
-        print(12222222222, msg, reqmsg)
-        reply = self.nol.tlchat(reqmsg, sum)
-        return reply
+    def handlerYTran(self, msg, ctx=None):
+        word = msg.strip().split(' ')[1]
+        zhres = self.nol.tran('ytran', word)
+        return zhres
 
 
 class ListenerFactory:

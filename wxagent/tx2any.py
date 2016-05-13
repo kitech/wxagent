@@ -240,12 +240,11 @@ class TX2Any(QObject):
             qDebug('can not find assoc chatroom')
             return
 
-        qDebug('nextline...')
-        print('will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.ToUser.NickName))
+        qDebug(('will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.ToUser.NickName)).encode())
         if groupchat.FromUser is not None:
-            print('or will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.FromUser.NickName))
+            qDebug(('or will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.FromUser.NickName)).encode())
         else:
-            print('or will send wx msg:%s' % (groupchat.FromUserName))
+            qDebug(('or will send wx msg:%s' % (groupchat.FromUserName)).encode())
 
         peer_number = 'magicxxxjaoijfiwafaewf'
         # TODO 把从各群组来的发给WX端的消息，同步再发送给tox汇总端一份。也就是tox的唯一peer端。

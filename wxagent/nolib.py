@@ -22,9 +22,14 @@ class Nolib:
         url = self.burl + '/1.0/nolib.Qiubai/GetPage'
         data = {'Pageno': pageno, 'Result': ''}
         jdata = json.JSONEncoder().encode(data)
-        r = requests.post(url, data=jdata)
+        try:
+            r = requests.post(url, data=jdata)
+        except Exception as ex:
+            print(ex)
+            return
 
         resp = json.JSONDecoder().decode(r.text)
+        # print(resp)
         if resp['retcode'] == '0':
             res = json.JSONDecoder().decode(resp['Result'])
             for key in res.keys():
@@ -134,6 +139,19 @@ class Nolib:
             return None
         return jres.get('Result')
 
+    def couplet(self, rightop):
+        data = {'Shanglian': rightop, 'Result': ''}
+        jdata = json.JSONEncoder().encode(data)
+
+        url = self.burl + '/1.0/nolib.Couplet/GetCouplet'
+        r = requests.post(url, data=jdata)
+        print(r.status_code, r.headers, r.content, r.json())
+
+        jres = r.json()
+        if jres.get('errcode') is not None:
+            return None
+        return jres.get('Result')
+
 
 if __name__ == '__main__':
     nol = Nolib()
@@ -199,10 +217,17 @@ if __name__ == '__main__':
         print(words, "=>", reply)
         return
 
-    test_tran()
+    def test_couplet():
+        words = "颠覆三观"
+        reply = nol.couplet(words)
+        print(words, "=>", reply)
+        return
+
+    # test_tran()
     # test_qiubai()
     # test_tuling2()
     # test_bms()
+    test_couplet()
 
 
 if __name__ == '__main__1':

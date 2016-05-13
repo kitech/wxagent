@@ -112,6 +112,7 @@ class LisaListener(Listener):
                          '.ping': self.handlerPing,
                          '.abbr': self.handlerAbbrev,
                          '.ytran': self.handlerYTran,
+                         '.couplet': self.handlerCouplet,
                          '.lisa': self.handlerLisaChat}
         return
 
@@ -196,8 +197,13 @@ class LisaListener(Listener):
         return ' '.join(unabbrevs)
 
     def handlerYTran(self, msg, ctx=None):
-        word = msg.strip().split(' ')[1]
+        word = ' '.join(msg.strip().split(' ')[1:])
         zhres = self.nol.tran('ytran', word)
+        return zhres
+
+    def handlerCouplet(self, msg, ctx=None):
+        word = ''.join(msg.strip().split(' ')[1:])
+        zhres = self.nol.couplet(word)
         return zhres
 
 

@@ -308,7 +308,7 @@ class WXAgent(TXAgent):
 
             # window.synccheck={retcode:”0”,selector:”0”}
             # selector: 6: 表示有新消息
-            # selector: 7: ??? 打开了某项，如群，好友，是一个事件，
+            # selector: 7: ??? 打开了某项，如群，好友，是一个事件。7 进入/离开聊天界面
             # selector: 2: ??? 有新消息
             # selector: 4: ???
             # selector: 5: ???
@@ -392,6 +392,11 @@ class WXAgent(TXAgent):
 
             if len(strhcc) > 0:
                 jsobj = json.JSONDecoder().decode(strhcc)
+
+                if jsobj['SyncKey']['Count'] == '0':
+                    qDebug("websync's SyncKey empty, maybe need refresh...")
+                    exit(0)
+
                 self.wxWebSyncData = jsobj
                 self.wxSyncKey = jsobj['SyncKey']
 

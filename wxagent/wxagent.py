@@ -59,7 +59,7 @@ class WXAgent(TXAgent):
         self.asyncQueueIdBase = qrand()
         self.asyncQueue = {}  # {reply => id}
         self.refresh_count = 0
-        self.urlStart = ''
+        self.urlBase = ''
         self.webpushUrlStart = ''
         self.msgimage = b''   # QByteArray
         self.msgimagename = ''  # str
@@ -220,13 +220,13 @@ class WXAgent(TXAgent):
 
                 nsurl = redir_url
                 if nsurl.find('wx.qq.com') > 0:
-                    self.urlStart = 'https://wx.qq.com'
+                    self.urlBase = 'https://wx.qq.com'
                     self.webpushUrlStart = 'https://webpush.weixin.qq.com'
                 else:
-                    self.urlStart = 'https://wx2.qq.com'
+                    self.urlBase = 'https://wx2.qq.com'
                     self.webpushUrlStart = 'https://webpush2.weixin.qq.com'
                 qDebug(nsurl)
-                qDebug(self.urlStart)
+                qDebug(self.urlBase)
                 qDebug(self.webpushUrlStart)
                 nsreq = QNetworkRequest(QUrl(nsurl))
                 nsreq = self.mkreq(nsurl)
@@ -238,7 +238,7 @@ class WXAgent(TXAgent):
             else: qDebug('not impled:' + scan_code)
 
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage?'):
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxnewloginpage?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxnewloginpage?'):
             qDebug('got wxuin and wxsid and other important cookie:')
             cookies = reply.header(QNetworkRequest.SetCookieHeader)
             qDebug(str(cookies))
@@ -263,7 +263,7 @@ class WXAgent(TXAgent):
 
         #############
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?'):
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxinit?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxinit?'):
             qDebug('wxinited.:' + str(type(hcc)))
             self.wxinitRawData = hcc
             self.saveContent("baseinfo.json", hcc, reply)
@@ -287,7 +287,7 @@ class WXAgent(TXAgent):
             ########
 
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?'):
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxgetcontact?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxgetcontact?'):
             qDebug('get contact:' + str(len(hcc)))
             self.wxFriendRawData = hcc
             # parser contact data:
@@ -366,7 +366,7 @@ class WXAgent(TXAgent):
 
         ##############
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?'):
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxsync?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxsync?'):
             qDebug('web sync result:' + str(len(hcc)) + str(status_code))
 
             # TODO check no reply case and rerun synccheck.
@@ -421,19 +421,19 @@ class WXAgent(TXAgent):
 
             #######
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxlogout?'):
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxlogout?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxlogout?'):
             qDebug('logouted...')
             QTimer.singleShot(3, self.refresh)
 
             ########
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
             qDebug('sendmsg...')
             self.saveContent('sendmsg.json', hcc, reply)
 
             ########
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
             qDebug('getbatchcontact done...')
             self.saveContent('getbatchcontact.json', hcc, reply)
 
@@ -441,12 +441,12 @@ class WXAgent(TXAgent):
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxgetmsgimg?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxgetmsgimg?'):
             if reply in self.asyncQueue:
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
-        elif url.startswith(self.urlStart + '/cgi-bin/mmwebwx-bin/webwxgetvoice?'):
+        elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxgetvoice?'):
             if reply in self.asyncQueue:
                 reqno = self.asyncQueue.pop(reply)
                 self.asyncRequestDone.emit(reqno, hcc)
@@ -512,8 +512,8 @@ class WXAgent(TXAgent):
         # v2 url:https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=-1222669677&lang=en_US&pass_ticket=%252BEdqKi12tfvM8ZZTdNeh4GLO9LFfwKLQRpqWk8LRYVWFkDE6%252FZJJXurz79ARX%252FIT
         #nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=%s&lang=en_US&pass_ticket=' % \
         #        (self.nowTime() - 3600 * 24 * 30)
-        #nsurl = self.urlStart + '/cgi-bin/mmwebwx-bin/webwxinit?r=%s&lang=en_US&pass_ticket=' % \
-        nsurl = self.urlStart + '/cgi-bin/mmwebwx-bin/webwxinit?r=%s&lang=en_US&pass_ticket=%s' % \
+        #nsurl = self.urlBase + '/cgi-bin/mmwebwx-bin/webwxinit?r=%s&lang=en_US&pass_ticket=' % \
+        nsurl = self.urlBase + '/cgi-bin/mmwebwx-bin/webwxinit?r=%s&lang=en_US&pass_ticket=%s' % \
                 (self.nowTime() - 3600 * 24 * 30, self.wxPassTicket)
         qDebug(nsurl)
 
@@ -534,7 +534,7 @@ class WXAgent(TXAgent):
 
         nsurl = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?r=1377482079876'
         #nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?r='
-        nsurl = self.urlStart + '/cgi-bin/mmwebwx-bin/webwxgetcontact?r='
+        nsurl = self.urlBase + '/cgi-bin/mmwebwx-bin/webwxgetcontact?r='
 
         post_data = '{}'
         nsreq = QNetworkRequest(QUrl(nsurl))
@@ -598,7 +598,7 @@ class WXAgent(TXAgent):
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=9qxNHGgi9VP4/Tx6&skey=@crypt_3ea2fe08_723d1e1bd7b4171657b58c6d2849b367&lang=en_US&pass_ticket=%252BEdqKi12tfvM8ZZTdNeh4GLO9LFfwKLQRpqWk8LRYVWFkDE6%252FZJJXurz79ARX%252FIT'
         #nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=en_US&pass_ticket=%s' % \
                 #(self.wxsid, skey, self.wxPassTicket)
-        nsurl = self.urlStart + '/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=en_US&pass_ticket=%s' % \
+        nsurl = self.urlBase + '/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=en_US&pass_ticket=%s' % \
                 (self.wxsid, skey, self.wxPassTicket)
 
         # {"BaseRequest":{"Uin":979270107,"Sid":"9qxNHGgi9VP4/Tx6","Skey":"@crypt_3ea2fe08_723d1e1bd7b4171657b58c6d2849b367","DeviceID":"e740613595349714"},"SyncKey":{"Count":7,"List":[{"Key":1,"Val":638162182},{"Key":2,"Val":638162328},{"Key":3,"Val":638162098},{"Key":11,"Val":638162315},{"Key":201,"Val":1440036879},{"Key":203,"Val":1440034958},{"Key":1000,"Val":1440031958}]},"rr":-1222840202}
@@ -633,7 +633,7 @@ class WXAgent(TXAgent):
         # https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxlogout?redirect=1&type=0&skey=%40crypt_3ea2fe08_3d6fd43e69bbeea4553311ee632760cc
         #nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxlogout?redirect=0&type=0&skey=%s' % \
         #        (skey)
-        nsurl = self.urlStart + '/cgi-bin/mmwebwx-bin/webwxlogout?redirect=0&type=0&skey=%s' % \
+        nsurl = self.urlBase + '/cgi-bin/mmwebwx-bin/webwxlogout?redirect=0&type=0&skey=%s' % \
                 (skey)
 
         post_data = 'sid=%s&uin=%s' % (self.wxsid, self.wxuin)
@@ -667,7 +667,7 @@ class WXAgent(TXAgent):
 
         #nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=en_US&pass_ticket=%s' % \
         #        (self.wxPassTicket)
-        nsurl = self.urlStart + '/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=en_US&pass_ticket=%s' % \
+        nsurl = self.urlBase + '/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=en_US&pass_ticket=%s' % \
                 (self.wxPassTicket)
 
         clientMsgId = self.nextClientMsgId()
@@ -720,7 +720,7 @@ class WXAgent(TXAgent):
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=@3d9f8af0b17ab22745f776b94fe3530f'
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=wxid_xx3mtgeux5511'
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=kitech'
-        nsurl = self.urlStart + '/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=coder_zj'
+        nsurl = self.urlBase + '/cgi-bin/mmwebwx-bin/webwxgeticon?seq=&username=coder_zj'
 
         return
 
@@ -729,7 +729,7 @@ class WXAgent(TXAgent):
         nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?type=ex&r=1440473919872&lang=en_US&pass_ticket=kKWVrvi2aw98Z8sXfzwncDWxWZZQgVZERel61bswt0bLI5z3Xo3Vz8l5UmrLWOXq'
         #nsurl = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?type=ex&r=%s&lang=en_US&pass_ticket=%s' % \
         #        (self.nowTime(), self.wxPassTicket)
-        nsurl = self.urlStart + '/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?type=ex&r=%s&lang=en_US&pass_ticket=%s' % \
+        nsurl = self.urlBase + '/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?type=ex&r=%s&lang=en_US&pass_ticket=%s' % \
                 (self.nowTime(), self.wxPassTicket)
 
 
@@ -829,7 +829,7 @@ class WXAgent(TXAgent):
     def getCookie(self, name):
         ckjar = self.nam.cookieJar()
         #domain = 'https://wx2.qq.com'
-        domain = self.urlStart
+        domain = self.urlBase
         cookies = ckjar.cookiesForUrl(QUrl(domain))
 
         for cookie in cookies:

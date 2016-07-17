@@ -4,6 +4,8 @@ import os, sys
 import json, re
 import time
 
+import requests
+
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
 from PyQt5.QtDBus import *
@@ -17,6 +19,61 @@ from .txagent import TXAgent, AgentCookieJar
 # DBusQtMainLoop(set_as_default = True)
 
 
+class ReqThread(QThread):
+    reqFinished = pyqtSignal('int')
+
+    def __init__(self, parent=None):
+        super(ReqThread, self).__init__(parent)
+        self._rq = list()
+        self._res = {}
+        self._rid = 0
+        self._qlock = QMutex()
+        self._wlock = QMutex()
+        self._cond = QWaitCondition()
+        return
+
+    def request(self, req):
+        self._qlock.lock()
+        self._rq.append(req)
+        self._qlock.unlock()
+        r = self._cond.wakeAll()
+        qDebug('enqueued:' + str(r))
+        return
+
+    def run(self):
+        stop = False
+        while not stop:
+            qDebug('hehre')
+            if len(self._rq) > 0:
+                self.doreq()
+                continue
+            self._wlock.lock()
+            self._cond.wait(self._wlock)
+            self.doreq()
+            qDebug('hehre')
+            self._wlock.unlock()
+        return
+
+    def doreq(self):
+        self._qlock.lock()
+        req = self._rq.pop()
+        qDebug('hehre')
+        if req is not None:
+            qDebug(req[0] + ', ' + req[1] + ' ......')
+            req[2]['timeout'] = 35 # seconds
+            res = requests.request(req[0], req[1], **req[2])
+            qDebug(str(res.status_code) + str(res.headers))
+            self._rid = self._rid + 1
+            self._res[self._rid] = [req, res]
+            self.reqFinished.emit(self._rid)
+            pass
+        self._qlock.unlock()
+        return
+
+    def getres(self, rid):
+        return self._res[rid]
+
+
 ######
 class WXAgent(TXAgent):
     qrpicGotten = pyqtSignal('QByteArray')
@@ -27,6 +84,9 @@ class WXAgent(TXAgent):
 
         self.asvc = asvc
 
+        self._rth = ReqThread()
+        self._rth.reqFinished.connect(self.onReply2, Qt.QueuedConnection)
+        self._rth.start()
         self.nam = QNetworkAccessManager()
         self.nam.finished.connect(self.onReply, Qt.QueuedConnection)
         self.acj = AgentCookieJar()
@@ -119,10 +179,24 @@ class WXAgent(TXAgent):
         req.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
 
         qDebug('requesting: ' + url)
-        reply = self.nam.get(req)
-        reply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        # reply = self.nam.get(req)
+        # reply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        #####
+        req = ['get', url, {}]
+        self._rth.request(req)
 
         return
+
+    @pyqtSlot(int)
+    def onReply2(self, rid):
+        req, res = self._rth.getres(rid)
+        qDebug(str(rid))
+        status_code = res.status_code
+        error_no = 0
+        url = req[1]
+        hcc = QByteArray(res.content)
+        return self.handleReply(status_code, error_no, url, hcc)
 
     def onReply(self, reply):
         self.dumpReply(reply)
@@ -132,6 +206,10 @@ class WXAgent(TXAgent):
 
         url = reply.url().toString()
         hcc = reply.readAll()
+
+        return self.handleReply(status_code, error_no, url, hcc)
+
+    def handleReply(self, status_code, error_no, url, hcc):
         qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
 
         # TODO 考虑添加个retry_times_before_refresh
@@ -150,24 +228,16 @@ class WXAgent(TXAgent):
                 self.doboot()
                 return
 
-            self.saveContent('jslogin.html', hcc, reply)
+            # self.saveContent('jslogin.html', hcc, reply)
 
             # parse hcc: window.QRLogin.code = 200; window.QRLogin.uuid = "gYmgd1grLg==";
             qrcode = 200
             qruuid = ''
             qruuid = hcc.data().decode('utf8').split('"')[1]
-            # qDebug(str(qruuid))
+            qDebug(str(qruuid))
             self.qruuid = qruuid
 
             self.requestQRCode()
-            # nsurl = 'https://login.weixin.qq.com/qrcode/4ZYgra8RHw=='
-            # nsurl = 'https://login.weixin.qq.com/qrcode/%s' % qruuid
-            # qDebug(str(nsurl))
-
-            # nsreq = QNetworkRequest(QUrl(nsurl))
-            # nsreq = self.mkreq(nsurl)
-            # nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-            # nsreply = self.nam.get(nsreq)
 
         #####
         elif url.startswith('https://login.weixin.qq.com/qrcode/'):
@@ -459,7 +529,7 @@ class WXAgent(TXAgent):
             qDebug('unknown requrl:' + str(url))
             self.saveContent('wxunknown_requrl.json', hcc, reply)
 
-        reply.deleteLater()
+        # reply.deleteLater()
         return
 
     def createMsgImage(self, hcc):
@@ -486,8 +556,11 @@ class WXAgent(TXAgent):
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-        nsreply = self.nam.get(nsreq)
-        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        # nsreply = self.nam.get(nsreq)
+        # nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        req = ['get', nsurl, {}]
+        self._rth.request(req)
 
         return
 
@@ -502,8 +575,11 @@ class WXAgent(TXAgent):
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-        nsreply = self.nam.get(nsreq)
-        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        # nsreply = self.nam.get(nsreq)
+        # nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+
+        req = ['get', nsurl, {}]
+        self._rth.request(req)
         return
 
     def getBaseInfo(self):
@@ -919,11 +995,39 @@ class WXAgent(TXAgent):
     # @param name str
     # @param hcc QByteArray
     # @return None
+    def saveContent2(self, name, hcc, req, res):
+        # fp = QFile("baseinfo.json")
+        fp = QFile(name)
+        fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
+
+        # write reply info
+        reqinfo = b''
+        req = reply.request()
+        # qDebug(str(req.url()))
+        reqinfo += req[1].encode() + b"\n"
+        stcode = res.status_code
+        # qDebug(str(stcode))
+        reqinfo += b'status code:' + str(stcode).encode() + b"\n"
+        cookies = res.cookies
+        # qDebug(str(cookies))
+
+        hdrlst = res.headers
+        for hk, hv in res.headers:
+            # qDebug(str(hdr) + '=' + str(hdrval))
+            reqinfo += hk.encode() + b'=' + hv.encode() + b"\n"
+
+        reqinfo += b"\n\n"
+        fp.write(reqinfo)
+
+        fp.write(hcc)
+        fp.close()
+
+        return
+
     def saveContent(self, name, hcc, reply):
         # fp = QFile("baseinfo.json")
         fp = QFile(name)
         fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
-        # fp.resize(0)
 
         # write reply info
         reqinfo = b''

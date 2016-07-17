@@ -91,13 +91,14 @@ window.code=200;
 
 window.redirect_uri="https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage?ticket=03f725a8039d418ab79c69b6ffbd771b&lang=zh_CN&scan=1388975896";
 
+获取登陆所有cookie的访问，需要在该URL基础上添加参数: &fun=new&version=v2
 
 ### 未确认返回空
 
 
 ## get 登陆获取Cookie
 
-https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage?ticket=03f725a8039d418ab79c69b6ffbd771b&lang=zh_CN&scan=1388975896&fun=new
+https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage?ticket=03f725a8039d418ab79c69b6ffbd771b&lang=zh_CN&scan=1388975896&fun=new&version=v2
 
 
 ## WX2新协议

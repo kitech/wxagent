@@ -25,7 +25,8 @@ class ReqThread(QThread):
     def __init__(self, parent=None):
         super(ReqThread, self).__init__(parent)
         self._rq = list()
-        self._res = {}
+        self._rv = dict()
+        self._res = dict()
         self._rid = 0
         self._qlock = QMutex()
         self._wlock = QMutex()
@@ -35,11 +36,13 @@ class ReqThread(QThread):
 
     def request(self, req):
         self._qlock.lock()
-        self._rq.append(req)
+        rid = self._rid = self._rid + 1
+        self._rv[rid] = req
+        self._rq.append(rid)
         self._qlock.unlock()
         r = self._cond.wakeAll()
         qDebug('enqueued:' + str(r))
-        return
+        return rid
 
     def run(self):
         stop = False
@@ -57,17 +60,18 @@ class ReqThread(QThread):
 
     def doreq(self):
         self._qlock.lock()
-        req = self._rq.pop()
+        rid = self._rq.pop()
         qDebug('hehre')
-        if req is not None:
+        if rid is not None:
+            req = self._rv[rid]
             qDebug(req[0] + ', ' + req[1] + ' ......')
             req[2]['timeout'] = 35 # seconds
             req[2]['headers'] = {'Referer': REFERER}
             res = self._sess.request(req[0], req[1], **req[2])
             qDebug(str(res.status_code) + str(res.headers))
-            self._rid = self._rid + 1
-            self._res[self._rid] = [req, res]
-            self.reqFinished.emit(self._rid)
+            self._res[rid] = [req, res]
+            self._rv.pop(rid)
+            self.reqFinished.emit(rid)
             pass
         self._qlock.unlock()
         return
@@ -715,7 +719,7 @@ class WXAgent(TXAgent):
         req = ['post', nsurl, {'data': post_data}]
         self._rth.request(req)
 
-        return nsreply
+        return
 
     def logout(self):
 

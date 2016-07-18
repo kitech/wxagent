@@ -68,12 +68,14 @@ class ReqThread(QThread):
             req[2]['headers'] = {'Referer': REFERER}
 
             def runfun():
+                res = None
                 try:
+                    # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
                     res = self._sess.request(req[0], req[1], **req[2])
                 except Exception as ex:
                     qDebug(str(ex).encode())
-                finally:
-                    self.doreqcb(res, req, rid)
+
+                self.doreqcb(res, req, rid)
                 return
 
             # how use gevent to run the task?
@@ -205,21 +207,9 @@ class WXAgent(TXAgent):
         url = req[1]
         hcc = QByteArray(res.content)
         cookies = res.cookies
-        return self.handleReply(status_code, error_no, url, hcc, cookies, rid)
+        return self.handleReply(status_code, error_no, url, hcc, cookies, res, req, rid)
 
-    def onReply(self, reply):
-        self.dumpReply(reply)
-
-        status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
-        error_no = reply.error()
-
-        url = reply.url().toString()
-        hcc = reply.readAll()
-        cookies = reply.header(QNetworkRequest.SetCookieHeader)
-
-        return self.handleReply(status_code, error_no, url, hcc, cookies)
-
-    def handleReply(self, status_code, error_no, url, hcc, cookies, reqid=None):
+    def handleReply(self, status_code, error_no, url, hcc, cookies, reply:requests.Response, req:list, reqid=None):
         qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
 
         # TODO 考虑添加个retry_times_before_refresh
@@ -238,7 +228,7 @@ class WXAgent(TXAgent):
                 self.doboot()
                 return
 
-            # self.saveContent('jslogin.html', hcc, reply)
+            self.saveContent('jslogin.html', hcc, reply, req)
 
             # parse hcc: window.QRLogin.code = 200; window.QRLogin.uuid = "gYmgd1grLg==";
             qrcode = 200
@@ -342,7 +332,7 @@ class WXAgent(TXAgent):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxinit?'):
             qDebug('wxinited.:' + str(type(hcc)))
             self.wxinitRawData = hcc
-            # self.saveContent("baseinfo.json", hcc, reply)
+            self.saveContent("baseinfo.json", hcc, reply, req)
 
             # qDebug(str(hcc.data().decode('utf8')))  # why can not decode?
             # UnicodeEncodeError: 'ascii' codec can't encode characters in position 131-136: ordinal not in range(128)
@@ -457,8 +447,8 @@ class WXAgent(TXAgent):
                 if self.inReconnect(): self.finishReconnect()
 
             self.wxWebSyncRawData = hcc
-            # self.saveContent('websync.json', hcc, reply)
-            # self.saveContent('websync_%s.json' % (self.currentSelector), hcc, reply)
+            self.saveContent('websync.json', hcc, reply, req)
+            self.saveContent('websync_%s.json' % (self.currentSelector), hcc, reply, req)
             self.currentSelector = ''
             self.asts.onRecvMessage(hcc)
             self.emitDBusNewMessage(hcc)
@@ -505,13 +495,13 @@ class WXAgent(TXAgent):
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
             qDebug('sendmsg...')
-            # self.saveContent('sendmsg.json', hcc, reply)
+            self.saveContent('sendmsg.json', hcc, reply, req)
 
             ########
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
             qDebug('getbatchcontact done...')
-            # self.saveContent('getbatchcontact.json', hcc, reply)
+            self.saveContent('getbatchcontact.json', hcc, reply, req)
 
             if reqid in self.asyncQueue:
                 reqno = self.asyncQueue.pop(reqid)
@@ -533,7 +523,7 @@ class WXAgent(TXAgent):
             self.createMsgImage(hcc)
         else:
             qDebug('unknown requrl:' + str(url))
-            # self.saveContent('wxunknown_requrl.json', hcc, reply)
+            self.saveContent('wxunknown_requrl.json', hcc, reply, req)
 
         # reply.deleteLater()
         return
@@ -545,14 +535,6 @@ class WXAgent(TXAgent):
         fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
         fp.write(hcc)
         fp.close()
-
-    def onReplyError(self, errcode):
-        qDebug('reply error:' + str(errcode))
-        reply = self.sender()
-        url = reply.url().toString()
-        qDebug('url: ' + url)
-
-        return
 
     def requestQRCode(self):
         nsurl = 'https://login.weixin.qq.com/qrcode/4ZYgra8RHw=='
@@ -590,7 +572,7 @@ class WXAgent(TXAgent):
         post_data = '{"BaseRequest":{"Uin":"%s","Sid":"%s","Skey":"","DeviceID":"%s"}}' % \
                     (self.wxuin, self.wxsid, self.devid)
 
-        req = ['post', nsurl, {'data': post_data}]
+        req = ['post', nsurl, {'data': post_data.encode()}]
         self._rth.request(req)
 
         return
@@ -603,7 +585,7 @@ class WXAgent(TXAgent):
 
         post_data = '{}'
 
-        req = ['post', nsurl, {'data': post_data}]
+        req = ['post', nsurl, {'data': post_data.encode()}]
         self._rth.request(req)
 
         return
@@ -668,7 +650,8 @@ class WXAgent(TXAgent):
         post_data = json.JSONEncoder().encode(post_data_obj)
         qDebug(str(post_data))
 
-        req = ['post', nsurl, {'data': post_data, 'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
+        req = ['post', nsurl, {'data': post_data.encode(),
+                               'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
         self._rth.request(req)
 
         return
@@ -685,7 +668,8 @@ class WXAgent(TXAgent):
                 (skey)
         post_data = 'sid=%s&uin=%s' % (self.wxsid, self.wxuin)
 
-        req = ['post', nsurl, {'data': post_data, 'headers':{'content-type': 'application/x-www-form-urlencoded'}}]
+        req = ['post', nsurl, {'data': post_data.encode(),
+                               'headers':{'content-type': 'application/x-www-form-urlencoded'}}]
         self._rth.request(req)
 
         return
@@ -735,7 +719,8 @@ class WXAgent(TXAgent):
         post_data = json.JSONEncoder(ensure_ascii=False).encode(post_data_obj)
         qDebug(bytes(post_data, 'utf8'))
 
-        req = ['post', nsurl, {'data': post_data, 'headers':{'content-type': 'application/x-www-form-urlencoded'}}]
+        req = ['post', nsurl, {'data': post_data.encode(),
+                               'headers':{'content-type': 'application/x-www-form-urlencoded'}}]
         self._rth.request(req)
         self.asts.onSendMessage(post_data)
 
@@ -786,7 +771,8 @@ class WXAgent(TXAgent):
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
 
-        req = ['post', nsurl, {'data': post_data, 'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
+        req = ['post', nsurl, {'data': post_data.encode(),
+                               'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
         rid = self._rth.request(req)
         self.asyncQueue[rid] = reqno
 
@@ -851,84 +837,26 @@ class WXAgent(TXAgent):
         clientMsgId = '%s%4d' % (now.toMSecsSinceEpoch(), self.clientMsgIdBase % 10000)
         return clientMsgId
 
-    # TODO depcreated
-    # @return str
-    def getCookie(self, name):
-        ckjar = self.nam.cookieJar()
-        #domain = 'https://wx2.qq.com'
-        domain = self.urlBase
-        cookies = ckjar.cookiesForUrl(QUrl(domain))
-
-        for cookie in cookies:
-            tname = cookie.name().data().decode('utf8')
-            val = cookie.value().data.decode('utf8')
-            qDebug(tname + '=' + val)
-            if tname == name:
-                return val
-        return
-
-    # TODO depcreated
-    def getCookie2(self, name):
-        str_cookies = self.cookies.data().decode('utf8')
-        for cline in str_cookies.split("\n"):
-            for celem in cline.split(";"):
-                kv = celem.strip().split('=')
-                if (kv[0] == name): return kv[1]
-
-        return
-
-    # TODO depcreated
-    def getCookie3(self, name):
-        for c in self.cookies:
-            tname = c.name().data().decode('utf8')
-            tvalue = c.value().data().decode('utf8')
-            if tname == name: return tvalue
-        return
-
-    # TODO depcreated
-    def joinCookies(self):
-        joined = ''
-        for c in self.cookies:
-            tname = c.name().data().decode('utf8')
-            tvalue = c.value().data().decode('utf8')
-            joined = joined + '%s=%s; ' % (tname, tvalue)
-
-        return joined
-
     def nowTime(self):
         # return QDateTime.currentDateTime().toTime_t()
         import time
         return int(time.time())
 
-    # TODO depcreated
-    def setUserAgent(self, req):
-        ua = USER_AGENT.encode()
-        req.setRawHeader(b'User-Agent', ua)
-        return
-
-    # TODO depcreated
-    def setReferer(self, req):
-        req.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-        return
-
     # TODO depcreated|replaced
-    def dumpReply(self, reply):
+    def dumpReply(self, reply: requests.Response, req: list):
         qDebug("\ngggggggg===========")
         qDebug(str(reply))
-        req = reply.request()
-        qDebug(str(req.url()).encode())
-        stcode = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+        qDebug(str(req[1]).encode())
+        stcode = reply.status_code
         qDebug(str(stcode))
-        cookies = reply.header(QNetworkRequest.SetCookieHeader)
+        cookies = reply.cookies
         qDebug(str(cookies))
 
-        hdrlst = reply.rawHeaderList()
-        for hdr in hdrlst:
-            hdrval = reply.rawHeader(hdr)
-            qDebug(str(hdr) + '=' + str(hdrval))
+        for k, v in reply.headers:
+            qDebug(('%s = %s' % (k, v)).encode())
 
-        # hcc = reply.readAll()
-        # qDebug(str(hcc))
+        # hcc = reply.content
+        # qDebug(hcc)
 
         return
 
@@ -946,56 +874,23 @@ class WXAgent(TXAgent):
     # @param name str
     # @param hcc QByteArray
     # @return None
-    def saveContent2(self, name, hcc, req, res):
+    def saveContent(self, name:str, hcc: QByteArray, reply: requests.Response, req: list):
         # fp = QFile("baseinfo.json")
         fp = QFile(name)
         fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
 
         # write reply info
         reqinfo = b''
-        req = reply.request()
-        # qDebug(str(req.url()))
         reqinfo += req[1].encode() + b"\n"
-        stcode = res.status_code
+        stcode = reply.status_code
         # qDebug(str(stcode))
         reqinfo += b'status code:' + str(stcode).encode() + b"\n"
-        cookies = res.cookies
+        cookies = reply.cookies
         # qDebug(str(cookies))
 
-        hdrlst = res.headers
-        for hk, hv in res.headers:
-            # qDebug(str(hdr) + '=' + str(hdrval))
+        for hk in reply.headers:
+            hv = reply.headers[hk]
             reqinfo += hk.encode() + b'=' + hv.encode() + b"\n"
-
-        reqinfo += b"\n\n"
-        fp.write(reqinfo)
-
-        fp.write(hcc)
-        fp.close()
-
-        return
-
-    def saveContent(self, name, hcc, reply):
-        # fp = QFile("baseinfo.json")
-        fp = QFile(name)
-        fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
-
-        # write reply info
-        reqinfo = b''
-        req = reply.request()
-        # qDebug(str(req.url()))
-        reqinfo += req.url().toString().encode() + b"\n"
-        stcode = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
-        # qDebug(str(stcode))
-        reqinfo += b'status code:' + str(stcode).encode() + b"\n"
-        cookies = reply.header(QNetworkRequest.SetCookieHeader)
-        # qDebug(str(cookies))
-
-        hdrlst = reply.rawHeaderList()
-        for hdr in hdrlst:
-            hdrval = reply.rawHeader(hdr)
-            # qDebug(str(hdr) + '=' + str(hdrval))
-            reqinfo += hdr + b'=' + hdrval + b"\n"
 
         reqinfo += b"\n\n"
         fp.write(reqinfo)

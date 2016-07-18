@@ -5,6 +5,7 @@ import json, re
 import time
 
 import requests
+import gevent.pool
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -32,48 +33,66 @@ class ReqThread(QThread):
         self._wlock = QMutex()
         self._cond = QWaitCondition()
         self._sess = requests.Session()
+        self._pool = gevent.pool.Pool(size=8)
+        self._ths = dict()  # rid => thread
         return
 
-    def request(self, req):
+    def request(self, req: list):
         self._qlock.lock()
         rid = self._rid = self._rid + 1
         self._rv[rid] = req
         self._rq.append(rid)
         self._qlock.unlock()
-        r = self._cond.wakeAll()
-        qDebug('enqueued:' + str(r))
+        self._cond.wakeOne()
         return rid
 
     def run(self):
         stop = False
         while not stop:
-            qDebug('hehre')
             if len(self._rq) > 0:
                 self.doreq()
                 continue
             self._wlock.lock()
             self._cond.wait(self._wlock)
             self.doreq()
-            qDebug('hehre')
             self._wlock.unlock()
         return
 
     def doreq(self):
+        import threading
         self._qlock.lock()
         rid = self._rq.pop()
-        qDebug('hehre')
         if rid is not None:
             req = self._rv[rid]
-            qDebug(req[0] + ', ' + req[1] + ' ......')
             req[2]['timeout'] = 35 # seconds
             req[2]['headers'] = {'Referer': REFERER}
-            res = self._sess.request(req[0], req[1], **req[2])
-            qDebug(str(res.status_code) + str(res.headers))
-            self._res[rid] = [req, res]
-            self._rv.pop(rid)
-            self.reqFinished.emit(rid)
+
+            def runfun():
+                try:
+                    res = self._sess.request(req[0], req[1], **req[2])
+                except Exception as ex:
+                    qDebug(str(ex).encode())
+                finally:
+                    self.doreqcb(res, req, rid)
+                return
+
+            # how use gevent to run the task?
+            # glet = self._pool.apply_async(runfun, req[0:2], req[2])
+            # self._ths[rid] = glet
+            # self._pool.start(glet)
+            th = threading.Thread(target=runfun)
+            self._ths[rid] = th
+            th.start()
             pass
         self._qlock.unlock()
+        return
+
+    def doreqcb(self, res: requests.Response, req: list, rid: int):
+        # qDebug(str(res.status_code) + ', ' + str(res.headers))
+        self._res[rid] = [req, res]
+        self._rv.pop(rid)
+        self._ths.pop(rid)
+        self.reqFinished.emit(rid)
         return
 
     def getres(self, rid):
@@ -203,7 +222,7 @@ class WXAgent(TXAgent):
         url = req[1]
         hcc = QByteArray(res.content)
         cookies = res.cookies
-        return self.handleReply(status_code, error_no, url, hcc, cookies)
+        return self.handleReply(status_code, error_no, url, hcc, cookies, rid)
 
     def onReply(self, reply):
         self.dumpReply(reply)
@@ -217,7 +236,7 @@ class WXAgent(TXAgent):
 
         return self.handleReply(status_code, error_no, url, hcc, cookies)
 
-    def handleReply(self, status_code, error_no, url, hcc, cookies):
+    def handleReply(self, status_code, error_no, url, hcc, cookies, reqid=None):
         qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
 
         # TODO 考虑添加个retry_times_before_refresh
@@ -518,18 +537,18 @@ class WXAgent(TXAgent):
             qDebug('getbatchcontact done...')
             # self.saveContent('getbatchcontact.json', hcc, reply)
 
-            if reply in self.asyncQueue:
-                reqno = self.asyncQueue.pop(reply)
+            if reqid in self.asyncQueue:
+                reqno = self.asyncQueue.pop(reqid)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxgetmsgimg?'):
-            if reply in self.asyncQueue:
-                reqno = self.asyncQueue.pop(reply)
+            if reqid in self.asyncQueue:
+                reqno = self.asyncQueue.pop(reqid)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxgetvoice?'):
-            if reply in self.asyncQueue:
-                reqno = self.asyncQueue.pop(reply)
+            if reqid in self.asyncQueue:
+                reqno = self.asyncQueue.pop(reqid)
                 self.asyncRequestDone.emit(reqno, hcc)
             ########
         elif url.startswith('http://emoji.qpic.cn/wx_emoji'):
@@ -856,11 +875,16 @@ class WXAgent(TXAgent):
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
         nsreq.setHeader(QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
 
-        nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
-        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        # nsreply = self.nam.post(nsreq, QByteArray(post_data.encode('utf8')))
+        # nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
-        self.asyncQueue[nsreply] = reqno
+        # self.asyncQueue[nsreply] = reqno
+
+        req = ['post', nsurl, {'data': post_data}]
+        rid = self._rth.request(req)
+        self.asyncQueue[rid] = reqno
+
         return reqno
 
     def getMsgImg(self, msgid, thumb=True):
@@ -875,12 +899,16 @@ class WXAgent(TXAgent):
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
 
-        nsreply = self.nam.get(nsreq)
-        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        # nsreply = self.nam.get(nsreq)
+        # nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
 
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
-        self.asyncQueue[nsreply] = reqno
+        # self.asyncQueue[nsreply] = reqno
+
+        req = ['get', nsurl, {}]
+        rid = self._rth.request(req)
+        self.asyncQueue[rid] = reqno
         return reqno
 
     def getMsgImgUrl(self, msgid, thumb=True):
@@ -914,12 +942,16 @@ class WXAgent(TXAgent):
         nsreq = QNetworkRequest(QUrl(nsurl))
         nsreq = self.mkreq(nsurl)
 
-        nsreply = self.nam.get(nsreq)
-        nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
+        # nsreply = self.nam.get(nsreq)
+        # nsreply.error.connect(self.onReplyError, Qt.QueuedConnection)
 
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
-        self.asyncQueue[nsreply] = reqno
+        # self.asyncQueue[nsreply] = reqno
+
+        req = ['get', nsurl, {}]
+        rid = self._rth.request(req)
+        self.asyncQueue[rid] = reqno
         return reqno
 
     def nextClientMsgId(self):
@@ -1204,8 +1236,12 @@ class WXAgentService(QObject):
         nsreq = QNetworkRequest(QUrl(imgurl))
         nsreq = self.wxa.mkreq(imgurl)
         nsreq.setRawHeader(b'Referer', b'https://wx2.qq.com/?lang=en_US')
-        nsreply = self.wxa.nam.get(nsreq)
-        nsreply.error.connect(self.wxa.onReplyError, Qt.QueuedConnection)
+        # nsreply = self.wxa.nam.get(nsreq)
+        # nsreply.error.connect(self.wxa.onReplyError, Qt.QueuedConnection)
+
+        req = ['get', imgurl, {}]
+        rid = self.wxa._rth.request(req)
+
         return
 
     @pyqtSlot(QDBusMessage, result=str)

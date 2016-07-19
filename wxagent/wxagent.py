@@ -25,10 +25,10 @@ class ReqThread(QThread):
 
     def __init__(self, parent=None):
         super(ReqThread, self).__init__(parent)
-        self._rq = list()
-        self._rv = dict()
-        self._res = dict()
-        self._rid = 0
+        self._req_queue = list()
+        self._req_map = dict()
+        self._res_map = dict()
+        self._reqid = 0
         self._qlock = QMutex()
         self._wlock = QMutex()
         self._cond = QWaitCondition()
@@ -39,17 +39,17 @@ class ReqThread(QThread):
 
     def request(self, req: list) -> int:
         self._qlock.lock()
-        rid = self._rid = self._rid + 1
-        self._rv[rid] = req
-        self._rq.append(rid)
+        reqid = self._reqid = self._reqid + 1
+        self._req_map[reqid] = req
+        self._req_queue.append(reqid)
         self._qlock.unlock()
         self._cond.wakeOne()
-        return rid
+        return reqid
 
     def run(self) -> None:
         stop = False
         while not stop:
-            if len(self._rq) > 0:
+            if len(self._req_queue) > 0:
                 self.doreq()
                 continue
             self._wlock.lock()
@@ -61,12 +61,12 @@ class ReqThread(QThread):
     def doreq(self) -> None:
         import threading
         self._qlock.lock()
-        rid = self._rq.pop()
-        if rid is None:
+        reqid = self._req_queue.pop()
+        if reqid is None:
             self._qlock.unlock()
             return
 
-        req = self._rv[rid]
+        req = self._req_map[reqid]
         req[2]['timeout'] = 35 # seconds
         req[2]['headers'] = {'Referer': REFERER}
         if 'data' in req[2] and type(req[2]['data']) == str:
@@ -79,7 +79,7 @@ class ReqThread(QThread):
                 try:
                     # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
                     res = self._sess.request(req[0], req[1], **req[2])
-                    self.doreqcb(res if 'res' in locals() else None, req, rid)
+                    self.doreqcb(res if 'res' in locals() else None, req, reqid)
                     break
                 except Exception as ex:
                     qDebug(str(ex).encode())
@@ -95,22 +95,22 @@ class ReqThread(QThread):
         # self._ths[rid] = glet
         # self._pool.start(glet)
         th = threading.Thread(target=runfun)
-        self._ths[rid] = th
+        self._ths[reqid] = th
         th.start()
 
         self._qlock.unlock()
         return
 
-    def doreqcb(self, res: requests.Response, req: list, rid: int):
+    def doreqcb(self, res: requests.Response, req: list, reqid: int):
         # qDebug(str(res.status_code) + ', ' + str(res.headers))
-        self._res[rid] = [req, res]
-        self._rv.pop(rid)
-        self._ths.pop(rid)
-        self.reqFinished.emit(rid)
+        self._res_map[reqid] = [req, res]
+        self._req_map.pop(reqid)
+        self._ths.pop(reqid)
+        self.reqFinished.emit(reqid)
         return
 
-    def getres(self, rid: int) -> requests.Response:
-        return self._res[rid]
+    def getres(self, reqid: int) -> requests.Response:
+        return self._res_map[reqid]
 
 
 ######
@@ -123,9 +123,9 @@ class WXAgent(TXAgent):
 
         self.asvc = asvc
 
-        self._rth = ReqThread()
-        self._rth.reqFinished.connect(self.onReply2, Qt.QueuedConnection)
-        self._rth.start()
+        self._reqth = ReqThread()
+        self._reqth.reqFinished.connect(self.onReply2, Qt.QueuedConnection)
+        self._reqth.start()
         self.acj = AgentCookieJar()
 
         self.wxses = None
@@ -136,7 +136,7 @@ class WXAgent(TXAgent):
         self.qrpic = b''   # QByteArray
         self.userAvatar = b''  # QByteArray
         self.rediect_url = ''
-        self.cookies = []  # [QNetworkCookie]
+        self.cookies = []  # [requests.cookies.RequestCookieJar]
         self.wxPassTicket = ''
         self.wxDataTicket = ''
         self.wxinitRawData = b''  # QByteArray
@@ -176,7 +176,7 @@ class WXAgent(TXAgent):
         self.qrpic = b''   # QByteArray
         self.userAvatar = b''  # QByteArray
         self.rediect_url = ''
-        self.cookies = []  # [QNetworkCookie]
+        self.cookies = []  # [request.cookies.RequestCookieJar]
         self.wxPassTicket = ''
         self.wxDataTicket = ''
         self.wxinitRawData = b''  # QByteArray
@@ -206,13 +206,13 @@ class WXAgent(TXAgent):
         qDebug('requesting: ' + url)
         #####
         req = ['get', url, {}]
-        self._rth.request(req)
+        self._reqth.request(req)
 
         return
 
     @pyqtSlot(int)
     def onReply2(self, rid: int):
-        req, res = self._rth.getres(rid)
+        req, res = self._reqth.getres(rid)
         status_code = res.status_code
         error_no = 0
         url = req[1]
@@ -311,7 +311,7 @@ class WXAgent(TXAgent):
                 qDebug(self.webpushUrlStart)
 
                 req = ['get', nsurl, {}]
-                self._rth.request(req)
+                self._reqth.request(req)
 
                 pass
             else: qDebug('not impled:' + scan_code)
@@ -553,7 +553,7 @@ class WXAgent(TXAgent):
         qDebug(str(nsurl))
 
         req = ['get', nsurl, {}]
-        self._rth.request(req)
+        self._reqth.request(req)
 
         return
 
@@ -566,7 +566,7 @@ class WXAgent(TXAgent):
         qDebug(nsurl)
 
         req = ['get', nsurl, {}]
-        self._rth.request(req)
+        self._reqth.request(req)
         return
 
     def getBaseInfo(self):
@@ -584,7 +584,7 @@ class WXAgent(TXAgent):
                     (self.wxuin, self.wxsid, self.devid)
 
         req = ['post', nsurl, {'data': post_data.encode()}]
-        self._rth.request(req)
+        self._reqth.request(req)
 
         return
 
@@ -597,7 +597,7 @@ class WXAgent(TXAgent):
         post_data = '{}'
 
         req = ['post', nsurl, {'data': post_data.encode()}]
-        self._rth.request(req)
+        self._reqth.request(req)
 
         return
 
@@ -625,7 +625,7 @@ class WXAgent(TXAgent):
 
         qDebug(nsurl)
         req = ['get', nsurl, {}]
-        self._rth.request(req)
+        self._reqth.request(req)
 
         return
 
@@ -663,7 +663,7 @@ class WXAgent(TXAgent):
 
         req = ['post', nsurl, {'data': post_data.encode(),
                                'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
-        self._rth.request(req)
+        self._reqth.request(req)
 
         return
 
@@ -680,8 +680,8 @@ class WXAgent(TXAgent):
         post_data = 'sid=%s&uin=%s' % (self.wxsid, self.wxuin)
 
         req = ['post', nsurl, {'data': post_data.encode(),
-                               'headers':{'content-type': 'application/x-www-form-urlencoded'}}]
-        self._rth.request(req)
+                               'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
+        self._reqth.request(req)
 
         return
 
@@ -731,8 +731,8 @@ class WXAgent(TXAgent):
         qDebug(bytes(post_data, 'utf8'))
 
         req = ['post', nsurl, {'data': post_data.encode(),
-                               'headers':{'content-type': 'application/x-www-form-urlencoded'}}]
-        self._rth.request(req)
+                               'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
+        self._reqth.request(req)
         self.asts.onSendMessage(post_data)
 
         return
@@ -742,7 +742,7 @@ class WXAgent(TXAgent):
         nsurl = url
 
         req = ['get', nsurl, {}]
-        self._rth.request(req)
+        self._reqth.request(req)
 
         return nsreply
 
@@ -784,7 +784,7 @@ class WXAgent(TXAgent):
 
         req = ['post', nsurl, {'data': post_data.encode(),
                                'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
-        rid = self._rth.request(req)
+        rid = self._reqth.request(req)
         self.asyncQueue[rid] = reqno
 
         return reqno
@@ -802,7 +802,7 @@ class WXAgent(TXAgent):
         reqno = self.asyncQueueIdBase
 
         req = ['get', nsurl, {}]
-        rid = self._rth.request(req)
+        rid = self._reqth.request(req)
         self.asyncQueue[rid] = reqno
         return reqno
 
@@ -838,7 +838,7 @@ class WXAgent(TXAgent):
         reqno = self.asyncQueueIdBase
 
         req = ['get', nsurl, {}]
-        rid = self._rth.request(req)
+        rid = self._reqth.request(req)
         self.asyncQueue[rid] = reqno
         return reqno
 
@@ -1033,7 +1033,7 @@ class WXAgentService(QObject):
         qDebug(str(imgurl))
 
         req = ['get', imgurl, {}]
-        rid = self.wxa._rth.request(req)
+        rid = self.wxa._reqth.request(req)
 
         return
 

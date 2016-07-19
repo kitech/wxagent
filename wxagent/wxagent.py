@@ -37,7 +37,7 @@ class ReqThread(QThread):
         self._ths = dict()  # rid => thread
         return
 
-    def request(self, req: list):
+    def request(self, req: list) -> int:
         self._qlock.lock()
         rid = self._rid = self._rid + 1
         self._rv[rid] = req
@@ -46,7 +46,7 @@ class ReqThread(QThread):
         self._cond.wakeOne()
         return rid
 
-    def run(self):
+    def run(self) -> None:
         stop = False
         while not stop:
             if len(self._rq) > 0:
@@ -58,34 +58,46 @@ class ReqThread(QThread):
             self._wlock.unlock()
         return
 
-    def doreq(self):
+    def doreq(self) -> None:
         import threading
         self._qlock.lock()
         rid = self._rq.pop()
-        if rid is not None:
-            req = self._rv[rid]
-            req[2]['timeout'] = 35 # seconds
-            req[2]['headers'] = {'Referer': REFERER}
+        if rid is None:
+            self._qlock.unlock()
+            return
 
-            def runfun():
-                res = None
+        req = self._rv[rid]
+        req[2]['timeout'] = 35 # seconds
+        req[2]['headers'] = {'Referer': REFERER}
+        if 'data' in req[2] and type(req[2]['data']) == str:
+            req[2]['data'] = req[2]['data'].encode()
+
+        def runfun() -> None:
+            cnter = 0
+            while cnter < 30:
+                cnter += 1
                 try:
                     # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
                     res = self._sess.request(req[0], req[1], **req[2])
+                    self.doreqcb(res if 'res' in locals() else None, req, rid)
+                    break
                 except Exception as ex:
                     qDebug(str(ex).encode())
+                except requests.ReadTimeout:
+                    continue
 
-                self.doreqcb(res, req, rid)
-                return
+            if cnter >= 30:
+                qDebug('retried 30 times, still failed: %s %s' % (req[0], req[1]))
+            return
 
-            # how use gevent to run the task?
-            # glet = self._pool.apply_async(runfun, req[0:2], req[2])
-            # self._ths[rid] = glet
-            # self._pool.start(glet)
-            th = threading.Thread(target=runfun)
-            self._ths[rid] = th
-            th.start()
-            pass
+        # how use gevent to run the task?
+        # glet = self._pool.apply_async(runfun, req[0:2], req[2])
+        # self._ths[rid] = glet
+        # self._pool.start(glet)
+        th = threading.Thread(target=runfun)
+        self._ths[rid] = th
+        th.start()
+
         self._qlock.unlock()
         return
 
@@ -97,7 +109,7 @@ class ReqThread(QThread):
         self.reqFinished.emit(rid)
         return
 
-    def getres(self, rid):
+    def getres(self, rid: int) -> requests.Response:
         return self._res[rid]
 
 
@@ -199,9 +211,8 @@ class WXAgent(TXAgent):
         return
 
     @pyqtSlot(int)
-    def onReply2(self, rid):
+    def onReply2(self, rid: int):
         req, res = self._rth.getres(rid)
-        qDebug(str(rid))
         status_code = res.status_code
         error_no = 0
         url = req[1]
@@ -210,7 +221,7 @@ class WXAgent(TXAgent):
         return self.handleReply(status_code, error_no, url, hcc, cookies, res, req, rid)
 
     def handleReply(self, status_code, error_no, url, hcc, cookies, reply:requests.Response, req:list, reqid=None):
-        qDebug('content-length:' + str(len(hcc)) + ',' + str(status_code) + ',' + str(error_no))
+        qDebug('content-length: %d, %d, %d, RN: %d' % (len(hcc), status_code, error_no, reqid))
 
         # TODO 考虑添加个retry_times_before_refresh
         if status_code is None and error_no in [99, 8]:

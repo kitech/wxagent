@@ -6,6 +6,7 @@ import time
 
 import requests
 import gevent.pool
+from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -35,6 +36,7 @@ class ReqThread(QThread):
         self._sess = requests.Session()
         self._pool = gevent.pool.Pool(size=8)
         self._ths = dict()  # rid => thread
+        self._pexe = ThreadPoolExecutor(max_workers=8)
         return
 
     def request(self, req: requests.Request) -> int:
@@ -59,7 +61,6 @@ class ReqThread(QThread):
         return
 
     def doreq(self) -> None:
-        import threading
         self._qlock.lock()
         reqid = self._req_queue.pop()
         if reqid is None:
@@ -72,40 +73,41 @@ class ReqThread(QThread):
             req.data = req.data.encode()
         preq = self._sess.prepare_request(req)
 
-        def runfun() -> None:
-            cnter = 0
-            while cnter < 30:
-                cnter += 1
-                try:
-                    # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
-                    res = self._sess.send(preq, timeout=35)
-                    self.doreqcb(res if 'res' in locals() else None, req, reqid)
-                    break
-                except Exception as ex:
-                    qDebug(str(ex).encode())
-                except requests.ReadTimeout:
-                    continue
+        def runfun() -> list:
+            res = None
+            try:
+                # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
+                res = self._sess.send(preq, timeout=35)
+                # self.doreqcb(res if 'res' in locals() else None, req, reqid)
+            except requests.ReadTimeout:
+                # TODO
+                pass
+            except Exception as ex:
+                qDebug(str(ex).encode())
 
-            if cnter >= 30:
-                qDebug('retried 30 times, still failed: %s %s' % (req.method, req.url))
-            return
+            return [reqid, req, res]
 
         # how use gevent to run the task?
         # glet = self._pool.apply_async(runfun, req[0:2], req[2])
         # self._ths[rid] = glet
         # self._pool.start(glet)
-        th = threading.Thread(target=runfun)
-        self._ths[reqid] = th
-        th.start()
+        ##########
+        jobh = self._pexe.submit(runfun)
+        self._ths[reqid] = jobh
+        jobh.add_done_callback(self.doreqcb)
 
         self._qlock.unlock()
         return
 
-    def doreqcb(self, res: requests.Response, req: list, reqid: int):
+    def doreqcb(self, jobh: Future):
+        fures = jobh.result()
+        res = fures[2]
+        req = fures[1]
+        reqid = fures[0]
         # qDebug(str(res.status_code) + ', ' + str(res.headers))
         self._res_map[reqid] = [req, res]
         self._req_map.pop(reqid)
-        self._ths.pop(reqid)
+        jobj = self._ths.pop(reqid)
         self.reqFinished.emit(reqid)
         return
 

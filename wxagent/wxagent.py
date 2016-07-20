@@ -37,7 +37,7 @@ class ReqThread(QThread):
         self._ths = dict()  # rid => thread
         return
 
-    def request(self, req: list) -> int:
+    def request(self, req: requests.Request) -> int:
         self._qlock.lock()
         reqid = self._reqid = self._reqid + 1
         self._req_map[reqid] = req
@@ -67,10 +67,10 @@ class ReqThread(QThread):
             return
 
         req = self._req_map[reqid]
-        req[2]['timeout'] = 35 # seconds
-        req[2]['headers'] = {'Referer': REFERER}
-        if 'data' in req[2] and type(req[2]['data']) == str:
-            req[2]['data'] = req[2]['data'].encode()
+        req.headers['Referer'] = REFERER
+        if type(req.data) == str:
+            req.data = req.data.encode()
+        preq = self._sess.prepare_request(req)
 
         def runfun() -> None:
             cnter = 0
@@ -78,7 +78,7 @@ class ReqThread(QThread):
                 cnter += 1
                 try:
                     # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
-                    res = self._sess.request(req[0], req[1], **req[2])
+                    res = self._sess.send(preq, timeout=35)
                     self.doreqcb(res if 'res' in locals() else None, req, reqid)
                     break
                 except Exception as ex:
@@ -87,7 +87,7 @@ class ReqThread(QThread):
                     continue
 
             if cnter >= 30:
-                qDebug('retried 30 times, still failed: %s %s' % (req[0], req[1]))
+                qDebug('retried 30 times, still failed: %s %s' % (req.method, req.url))
             return
 
         # how use gevent to run the task?
@@ -205,7 +205,7 @@ class WXAgent(TXAgent):
         url = "https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx2.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=en_US"
         qDebug('requesting: ' + url)
         #####
-        req = ['get', url, {}]
+        req = requests.Request('get', url)
         self._reqth.request(req)
 
         return
@@ -215,7 +215,7 @@ class WXAgent(TXAgent):
         req, res = self._reqth.getres(rid)
         status_code = res.status_code
         error_no = 0
-        url = req[1]
+        url = req.url
         hcc = QByteArray(res.content)
         cookies = res.cookies
         return self.handleReply(status_code, error_no, url, hcc, cookies, res, req, rid)
@@ -310,7 +310,7 @@ class WXAgent(TXAgent):
                 qDebug(self.urlBase)
                 qDebug(self.webpushUrlStart)
 
-                req = ['get', nsurl, {}]
+                req = requests.Request('get', nsurl)
                 self._reqth.request(req)
 
                 pass
@@ -444,7 +444,7 @@ class WXAgent(TXAgent):
         ##############
         #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxsync?'):
-            qDebug('web sync result:' + str(len(hcc)) + str(status_code))
+            qDebug('web sync result: %d, %d' % (len(hcc), status_code))
 
             # TODO check no reply case and rerun synccheck.
             if status_code == '' and len(hcc) == 0:
@@ -552,7 +552,7 @@ class WXAgent(TXAgent):
         nsurl = 'https://login.weixin.qq.com/qrcode/%s' % self.qruuid
         qDebug(str(nsurl))
 
-        req = ['get', nsurl, {}]
+        req = requests.Request('get', nsurl)
         self._reqth.request(req)
 
         return
@@ -565,7 +565,7 @@ class WXAgent(TXAgent):
                 (self.qruuid, self.nowTime())
         qDebug(nsurl)
 
-        req = ['get', nsurl, {}]
+        req = requests.Request('get', nsurl)
         self._reqth.request(req)
         return
 
@@ -583,7 +583,7 @@ class WXAgent(TXAgent):
         post_data = '{"BaseRequest":{"Uin":"%s","Sid":"%s","Skey":"","DeviceID":"%s"}}' % \
                     (self.wxuin, self.wxsid, self.devid)
 
-        req = ['post', nsurl, {'data': post_data.encode()}]
+        req = requests.Request('post', nsurl, data=post_data.encode())
         self._reqth.request(req)
 
         return
@@ -596,7 +596,7 @@ class WXAgent(TXAgent):
 
         post_data = '{}'
 
-        req = ['post', nsurl, {'data': post_data.encode()}]
+        req = requests.Request('post', nsurl, data=post_data.encode())
         self._reqth.request(req)
 
         return
@@ -624,7 +624,7 @@ class WXAgent(TXAgent):
                 (self.nowTime(), skey, self.wxsid, self.wxuin, self.devid, syncKey, pass_ticket)
 
         qDebug(nsurl)
-        req = ['get', nsurl, {}]
+        req = requests.Request('get', nsurl)
         self._reqth.request(req)
 
         return
@@ -661,8 +661,8 @@ class WXAgent(TXAgent):
         post_data = json.JSONEncoder().encode(post_data_obj)
         qDebug(str(post_data))
 
-        req = ['post', nsurl, {'data': post_data.encode(),
-                               'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
+        req = requests.Request('post', nsurl, data=post_data.encode(),
+                               headers={'content-type': 'application/x-www-form-urlencoded'})
         self._reqth.request(req)
 
         return
@@ -679,8 +679,8 @@ class WXAgent(TXAgent):
                 (skey)
         post_data = 'sid=%s&uin=%s' % (self.wxsid, self.wxuin)
 
-        req = ['post', nsurl, {'data': post_data.encode(),
-                               'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
+        req = requests.Request('post', nsurl, data=post_data.encode(),
+                               headers={'content-type': 'application/x-www-form-urlencoded'})
         self._reqth.request(req)
 
         return
@@ -730,8 +730,8 @@ class WXAgent(TXAgent):
         post_data = json.JSONEncoder(ensure_ascii=False).encode(post_data_obj)
         qDebug(bytes(post_data, 'utf8'))
 
-        req = ['post', nsurl, {'data': post_data.encode(),
-                               'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
+        req = requests.Request('post', nsurl, data=post_data.encode(),
+                               headers={'content-type': 'application/x-www-form-urlencoded'})
         self._reqth.request(req)
         self.asts.onSendMessage(post_data)
 
@@ -741,7 +741,7 @@ class WXAgent(TXAgent):
     def requrl(self, url, method='GET', data=''):
         nsurl = url
 
-        req = ['get', nsurl, {}]
+        req = requests.Request('get', nsurl)
         self._reqth.request(req)
 
         return nsreply
@@ -782,8 +782,8 @@ class WXAgent(TXAgent):
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
 
-        req = ['post', nsurl, {'data': post_data.encode(),
-                               'headers': {'content-type': 'application/x-www-form-urlencoded'}}]
+        req = requests.Request('post', nsurl, data=post_data.encode(),
+                               headers={'content-type': 'application/x-www-form-urlencoded'})
         rid = self._reqth.request(req)
         self.asyncQueue[rid] = reqno
 
@@ -801,7 +801,7 @@ class WXAgent(TXAgent):
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
 
-        req = ['get', nsurl, {}]
+        req = requests.Request('get', nsurl)
         rid = self._reqth.request(req)
         self.asyncQueue[rid] = reqno
         return reqno
@@ -837,7 +837,7 @@ class WXAgent(TXAgent):
         self.asyncQueueIdBase = self.asyncQueueIdBase + 1
         reqno = self.asyncQueueIdBase
 
-        req = ['get', nsurl, {}]
+        req = requests.Request('get', nsurl)
         rid = self._reqth.request(req)
         self.asyncQueue[rid] = reqno
         return reqno
@@ -854,10 +854,10 @@ class WXAgent(TXAgent):
         return int(time.time())
 
     # TODO depcreated|replaced
-    def dumpReply(self, reply: requests.Response, req: list):
+    def dumpReply(self, reply: requests.Response, req: requests.Request):
         qDebug("\ngggggggg===========")
         qDebug(str(reply))
-        qDebug(str(req[1]).encode())
+        qDebug(str(req.url).encode())
         stcode = reply.status_code
         qDebug(str(stcode))
         cookies = reply.cookies
@@ -892,7 +892,7 @@ class WXAgent(TXAgent):
 
         # write reply info
         reqinfo = b''
-        reqinfo += req[1].encode() + b"\n"
+        reqinfo += req.url.encode() + b"\n"
         stcode = reply.status_code
         # qDebug(str(stcode))
         reqinfo += b'status code:' + str(stcode).encode() + b"\n"
@@ -1032,7 +1032,7 @@ class WXAgentService(QObject):
         #imgurl = 'http://emoji.qpic.cn/wx_emoji/OlaTef8nbNwrx2yCBBaaictrcFZGbrDbEPFB96n3Rve8hjj0xCFpcyQ/'
         qDebug(str(imgurl))
 
-        req = ['get', imgurl, {}]
+        req = requests.Request('get', imgurl)
         rid = self.wxa._reqth.request(req)
 
         return

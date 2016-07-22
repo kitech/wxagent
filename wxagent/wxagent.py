@@ -79,7 +79,7 @@ class ReqThread(QThread):
                 # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
                 res = self._sess.send(preq, timeout=35)
                 # self.doreqcb(res if 'res' in locals() else None, req, reqid)
-            except requests.ReadTimeout:
+            except requests.exceptions.ReadTimeout:
                 # TODO
                 pass
             except Exception as ex:

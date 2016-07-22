@@ -25,6 +25,18 @@ class FileStore:
         return h.hexdigest()
 
 
+# need pyocclient-0.3 release
+class OwnCloudFileStor(FileStore):
+    def __init__(self):
+        return
+
+    def uploadData(data):
+        return
+
+    def uploadFile(fname):
+        return
+
+
 class QiniuFileStore(FileStore):
     def __init__(self):
         return
@@ -39,21 +51,24 @@ class QiniuFileStore(FileStore):
         secret_key = qiniu_seckey
         bucket_name = qiniu_bucket_name
 
+        print(access_key, secret_key, bucket_name)
         q = qiniu.Auth(access_key, secret_key)
+        # 由于本机时间错误，导致计算了出的token立即失效：
+        # text_body:{"error":"expired token"}
+        token = q.upload_token(bucket_name, expires=3600*24)
         key = 'helloqt.png'
         key = FileStore.md5sum(data)
         # data = 'hello qiniu!'
         # data = load_from_file(PATH)
-        token = q.upload_token(bucket_name)
-        print('uploading file:', key)
+        print('uploading file:', key, token)
         ret, info = qiniu.put_data(token, key, data)
         if ret is not None:
             print('upload file All is OK', ret)
+            url = 'http://7xn2rb.com1.z0.glb.clouddn.com/%s' % key
+            return url
         else:
             print(ret, '=====', info)  # error message in info
-
-        url = 'http://7xn2rb.com1.z0.glb.clouddn.com/%s' % key
-        return url
+        return str(info)
 
     def uploadFile(fname):
         data = b''
@@ -61,6 +76,11 @@ class QiniuFileStore(FileStore):
             data = f.read()
 
         return QiniuFileStore.uploadData(data)
+
+
+def _test_qiniu_upload():
+    u = QiniuFileStore.uploadData('aaaaaaaaaaaaaaaaaaaaaaa'.encode())
+    print(u)
 
 
 class ImgurFileStore(FileStore):
@@ -139,7 +159,7 @@ class VnFileStore(FileStore):
         return
 
     def uploadData(data):
-        # return 'nourl'
+        return 'nourl'
         if type(data) == QByteArray:
             data = data.data()
 
@@ -184,3 +204,4 @@ class VnFileStore(FileStore):
         if not url.startswith('https://'): print('upload error: ', hdrval.getvalue())
 
         return url
+

@@ -2,6 +2,7 @@
 
 import os, sys
 import json, re
+import html
 import enum
 import time
 import magic
@@ -152,7 +153,7 @@ class WX2Tox(TX2Any):
                 logstr += '\n\nname: %s' % msg.FileName
                 logstr += '\nsize: %s' % msg.FileSize
             else:
-                fileurl = msg.Url
+                fileurl = html.unescape(msg.Url)
                 logstr += '> %s' % fileurl
                 logstr += '\n\nname: %s' % msg.FileName
             self.sendMessageToTox(msg, logstr)

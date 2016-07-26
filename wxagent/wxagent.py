@@ -81,6 +81,7 @@ class ReqThread(QThread):
                 # self.doreqcb(res if 'res' in locals() else None, req, reqid)
             except requests.exceptions.ReadTimeout:
                 # TODO
+                qDebug('timeout: ' + req.url)
                 pass
             except Exception as ex:
                 qDebug(str(ex).encode())
@@ -318,7 +319,6 @@ class WXAgent(TXAgent):
                 pass
             else: qDebug('not impled:' + scan_code)
 
-        #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxnewloginpage?'):
             qDebug('got wxuin and wxsid and other important cookie:')
             self.cookies = cookies
@@ -341,7 +341,6 @@ class WXAgent(TXAgent):
             self.getBaseInfo()
 
         #############
-        #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxinit?'):
             qDebug('wxinited.:' + str(type(hcc)))
             self.wxinitRawData = hcc
@@ -365,7 +364,6 @@ class WXAgent(TXAgent):
             self.syncCheck()
             ########
 
-        #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxgetcontact?'):
             qDebug('get contact:' + str(len(hcc)))
             self.wxFriendRawData = hcc
@@ -375,7 +373,6 @@ class WXAgent(TXAgent):
             self.emitDBusLoginSuccess()
 
             #########
-        #elif url.startswith('https://webpush2.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?'):
         elif url.startswith(self.webpushUrlStart + '/cgi-bin/mmwebwx-bin/synccheck?'):
             qDebug('sync check result:' + str(hcc))
 
@@ -393,7 +390,7 @@ class WXAgent(TXAgent):
             # selector: 5: ???
             # selector: 1: ???
             # selector: 0: 无新消息
-            # retcode: 1100:???
+            # retcode: 1100:??? 你在手机上登出了微信，债见
             # retcode: 1101:??? 会话已退出/结束
             # retcode: 1102: 用户在手机端主动退出
             # retcode: 1205: ???
@@ -426,16 +423,16 @@ class WXAgent(TXAgent):
                 elif selector == '1':  # 不确定是什么事件，先试试能否收到事件内容
                     self.webSync()
                     pass
-                elif selector == '2':
+                elif selector == '2':  # TODO, confirm this
                     self.webSync()
                     pass
-                elif selector == '4':  # TODO,confirm this，像是群成员列表有变化
+                elif selector == '4':  # TODO, confirm this，像是群成员列表有变化
                     self.webSync()
                     pass
-                elif selector == '5':  # TODO,confirm this，不知道什么消息
+                elif selector == '5':  # TODO, confirm this，不知道什么消息
                     self.webSync()
                     pass
-                elif selector == '6':  # TODO,confirm this
+                elif selector == '6':  # TODO, confirm this
                     self.webSync()
                     pass
                 elif selector == '7':
@@ -444,7 +441,6 @@ class WXAgent(TXAgent):
                 else: qDebug('Unknown selector value:' + str(selector))
 
         ##############
-        #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxsync?'):
             qDebug('web sync result: %d, %d' % (len(hcc), status_code))
 
@@ -499,19 +495,16 @@ class WXAgent(TXAgent):
                 qDebug('can not decode hcc base info')
 
             #######
-        #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxlogout?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxlogout?'):
             qDebug('logouted...')
             QTimer.singleShot(3, self.refresh)
 
             ########
-        #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxsendmsg?'):
             qDebug('sendmsg...')
             self.saveContent('sendmsg.json', hcc, reply, req)
 
             ########
-        #elif url.startswith('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
         elif url.startswith(self.urlBase + '/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?'):
             qDebug('getbatchcontact done...')
             self.saveContent('getbatchcontact.json', hcc, reply, req)

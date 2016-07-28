@@ -17,11 +17,22 @@
     cp -v wxagent/secfg.py.example wxagent/secfg.py
     vim wxagent/secfg.py
     python3 -m wxagent.wx2any
-    
+
+
+### TODOs
+
+- [ ] python 3.5 type hint
+- [ ] replace ThreadPoolExecutor with asyncio
+- [ ] drop QThread thread
+- [ ] real multiple protocol IM room
+
 
 ### Documentation
 [Proposal想法](https://github.com/kitech/wxagent/blob/master/doc/proposal.md)
+
 [Ubuntu安装](https://github.com/kitech/wxagent/blob/master/doc/build.md)
+
 [ChangeLog](https://github.com/kitech/wxagent/blob/master/doc/changes.md)
+
 [依赖需求包](https://github.com/kitech/wxagent/blob/master/requirements.txt)
 

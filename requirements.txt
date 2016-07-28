@@ -1,6 +1,8 @@
 PyQt5>=5.4.0
 pytox>=0.1.0
 sleekxmpp
+requests
+gevent
 
 qiniu
 PyExecJS

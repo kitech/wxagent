@@ -1,3 +1,4 @@
+
 import enum
 
 WXAGENT_SERVICE_NAME = 'io.qtc.wxagent'
@@ -22,3 +23,8 @@ class WXMsgType(enum.IntEnum):
     MT_X51 = 51  # 像是好友之间的图片消息
     MT_X10000 = 10000  # 系统通知？
     MT_X10002 = 10002  # 用户撤回了一条消息
+
+
+USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.155 Safari/537.36'
+REFERER = 'https://wx2.qq.com/?lang=en_US'
+

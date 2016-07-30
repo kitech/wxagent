@@ -4,7 +4,7 @@ import os, sys
 import json, re
 import time
 
-import requests
+import requests, requests.utils
 import gevent.pool
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
@@ -106,7 +106,7 @@ class ReqThread(QThread):
         req = fures[1]
         reqid = fures[0]
         # qDebug(str(res.status_code) + ', ' + str(res.headers))
-        self._res_map[reqid] = [req, res]
+        self._res_map[reqid] = [req, res, self._sess.cookies]
         self._req_map.pop(reqid)
         jobj = self._ths.pop(reqid)
         self.reqFinished.emit(reqid)
@@ -140,6 +140,7 @@ class WXAgent(TXAgent):
         self.userAvatar = b''  # QByteArray
         self.rediect_url = ''
         self.cookies = []  # [requests.cookies.RequestCookieJar]
+        self.cookiesLoaded = None  # [requests.cookies.RequestCookieJar]
         self.wxPassTicket = ''
         self.wxDataTicket = ''
         self.wxinitRawData = b''  # QByteArray
@@ -163,6 +164,10 @@ class WXAgent(TXAgent):
         self.msgimage = b''   # QByteArray
         self.msgimagename = ''  # str
 
+        self.cookiesFile = './cookies.txt'
+        # load cookies
+        self.loadSession()
+
         # debug
         self.currentSelector = ''  # 0/1/2/3/4/5/6/7
 
@@ -180,6 +185,7 @@ class WXAgent(TXAgent):
         self.userAvatar = b''  # QByteArray
         self.rediect_url = ''
         self.cookies = []  # [request.cookies.RequestCookieJar]
+        self.cookiesLoaded = None  # [request.cookies.RequestCookieJar]
         self.wxPassTicket = ''
         self.wxDataTicket = ''
         self.wxinitRawData = b''  # QByteArray
@@ -203,6 +209,13 @@ class WXAgent(TXAgent):
 
     def doboot(self):
 
+        if self.cookiesLoaded is not None:
+            self.syncCheck()
+            for k in self.cookiesLoaded:
+                self.cookiesLoaded[k] = None
+            self.cookiesLoaded = None
+            return
+
         self.emitDBusBeginLogin()
 
         url = "https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx2.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=en_US"
@@ -215,12 +228,13 @@ class WXAgent(TXAgent):
 
     @pyqtSlot(int)
     def onReply2(self, rid: int):
-        req, res = self._reqth.getres(rid)
+        req, res, cookies = self._reqth.getres(rid)
         status_code = res.status_code
         error_no = 0
         url = req.url
         hcc = QByteArray(res.content)
-        cookies = res.cookies
+        qDebug(json.JSONEncoder().encode(requests.utils.dict_from_cookiejar(cookies)))
+        # self.saveFile('./cookies.txt', json.JSONEncoder().encode(requests.utils.dict_from_cookiejar(cookies)))
         return self.handleReply(status_code, error_no, url, hcc, cookies, res, req, rid)
 
     def handleReply(self, status_code, error_no, url, hcc, cookies, reply:requests.Response, req:list, reqid=None):
@@ -372,6 +386,9 @@ class WXAgent(TXAgent):
             self.asts.onLogin()
             self.emitDBusLoginSuccess()
 
+            # save cookies
+            self.saveSession(cookies)
+
             #########
         elif url.startswith(self.webpushUrlStart + '/cgi-bin/mmwebwx-bin/synccheck?'):
             qDebug('sync check result:' + str(hcc))
@@ -416,6 +433,7 @@ class WXAgent(TXAgent):
             elif retcode != '0':
                 qDebug('error sync check ret code:')
             else:
+                self.saveSession(cookies)
                 self.currentSelector = selector
                 if selector == '0':
                     self.syncCheck()
@@ -534,6 +552,29 @@ class WXAgent(TXAgent):
         # reply.deleteLater()
         return
 
+    def saveSession(self, cookies: requests.cookies.RequestsCookieJar):
+        sess = {'cookies': requests.utils.dict_from_cookiejar(cookies),
+                'SyncKey': self.wxSyncKey, 'initData': self.wxinitData,
+                'wxsid': self.wxsid, 'wxuin': self.wxuin,
+                'urlBase': self.urlBase, 'webpushUrlStart': self.webpushUrlStart}
+        self.saveFile(self.cookiesFile, json.JSONEncoder().encode(sess))
+        return
+
+    def loadSession(self):
+        if not os.path.exists(self.cookiesFile):
+            return
+
+        with open(self.cookiesFile) as f:
+            scc = f.read(os.path.getsize(self.cookiesFile))
+            self.cookiesLoaded = json.JSONDecoder().decode(scc)
+            self.wxSyncKey = self.cookiesLoaded['SyncKey'] if 'SyncKey' in self.cookiesLoaded else None
+            self.wxinitData = self.cookiesLoaded['initData']
+            self.wxsid = self.cookiesLoaded['wxsid']
+            self.wxuin = self.cookiesLoaded['wxuin']
+            self.urlBase = self.cookiesLoaded['urlBase']
+            self.webpushUrlStart = self.cookiesLoaded['webpushUrlStart']
+        return
+
     def createMsgImage(self, hcc):
         randnum = str(int(time.time()))
         self.msgimagename = 'img/mgs_image' + randnum + '.json'
@@ -619,7 +660,8 @@ class WXAgent(TXAgent):
                 (self.nowTime(), skey, self.wxsid, self.wxuin, self.devid, syncKey, pass_ticket)
 
         qDebug(nsurl)
-        req = requests.Request('get', nsurl)
+        cookies = self.cookiesLoaded['cookies'] if self.cookiesLoaded is not None else None
+        req = requests.Request('get', nsurl, cookies=cookies)
         self._reqth.request(req)
 
         return
@@ -904,6 +946,14 @@ class WXAgent(TXAgent):
         fp.write(hcc)
         fp.close()
 
+        return
+
+    # save str to file
+    def saveFile(self, name: str, scc: str):
+        fp = QFile(name)
+        fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
+        fp.write(scc.encode())
+        fp.close()
         return
 
     # begin dbus signals

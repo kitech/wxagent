@@ -159,7 +159,7 @@ class WXAgent(TXAgent):
         self.asyncQueue = {}  # {reply => id}
         self.refresh_count = 0
         self.urlBase = ''
-        self.webpushUrlStart = ''
+        self.pushUrlBase = ''
         self.msgimage = b''   # QByteArray
         self.msgimagename = ''  # str
 
@@ -291,7 +291,7 @@ class WXAgent(TXAgent):
                 qDebug("maybe need rerun refresh()...")
                 self.refresh()
             elif scan_code == '201':
-                self.pollLogin()
+                QTimer.singleShot(2000, self.pollLogin)
                 pass
             elif scan_code == '200':  # 扫描确认完成，登陆成功
                 # emit logined
@@ -305,13 +305,13 @@ class WXAgent(TXAgent):
                 nsurl = redir_url + '&fun=new&version=v2'
                 if nsurl.find('wx.qq.com') > 0:
                     self.urlBase = 'https://wx.qq.com'
-                    self.webpushUrlStart = 'https://webpush.weixin.qq.com'
+                    self.pushUrlBase = 'https://webpush.weixin.qq.com'
                 else:
                     self.urlBase = 'https://wx2.qq.com'
-                    self.webpushUrlStart = 'https://webpush2.weixin.qq.com'
+                    self.pushUrlBase = 'https://webpush2.weixin.qq.com'
                 qDebug(nsurl)
                 qDebug(self.urlBase)
-                qDebug(self.webpushUrlStart)
+                qDebug(self.pushUrlBase)
 
                 req = requests.Request('get', nsurl)
                 self._reqth.request(req)
@@ -373,7 +373,7 @@ class WXAgent(TXAgent):
             self.emitDBusLoginSuccess()
 
             #########
-        elif url.startswith(self.webpushUrlStart + '/cgi-bin/mmwebwx-bin/synccheck?'):
+        elif url.startswith(self.pushUrlBase + '/cgi-bin/mmwebwx-bin/synccheck?'):
             qDebug('sync check result:' + str(hcc))
 
             if status_code is None and error_no in [99, 8]:  # QNetworkReply.UnknownNetworkError
@@ -556,8 +556,8 @@ class WXAgent(TXAgent):
         ###
         nsurl = 'https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=4eDUw9zdPg==&tip=0&r=-1166218796'
         # v2 url: https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=gfNC8TeiPg==&tip=1&r=-1222670084&lang=en_US
-        nsurl = 'https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=%s&tip=1&r=%s&lang=en_US' % \
-                (self.qruuid, self.nowTime())
+        nsurl = 'https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=%s&tip=0&r=%s&lang=en_US&_=%s' % \
+                (self.qruuid, self.nowTime(), self.nowTime())
         qDebug(nsurl)
 
         req = requests.Request('get', nsurl)
@@ -612,10 +612,10 @@ class WXAgent(TXAgent):
         nsurl = 'https://webpush.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?callback=jQuery18309326978388708085_1377482079946&r=1377482079876&sid=QfLp+Z+FePzvOFoG&uin=2545437902&deviceid=e1615250492&synckey=(见以下说明)&_=1377482079876'
         #nsurl = 'https://webpush2.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?callback=&r=&skey=%s&sid=%s&uin=%s&deviceid=e1615250492&synckey=%s&_=' % \
         #        (skey, self.wxsid, self.wxuin, syncKey)
-        nsurl = self.webpushUrlStart+'/cgi-bin/mmwebwx-bin/synccheck?callback=&r=&skey=%s&sid=%s&uin=%s&deviceid=e1615250492&synckey=%s&_=' % \
+        nsurl = self.pushUrlBase+'/cgi-bin/mmwebwx-bin/synccheck?callback=&r=&skey=%s&sid=%s&uin=%s&deviceid=e1615250492&synckey=%s&_=' % \
                 (skey, self.wxsid, self.wxuin, syncKey)
         # v2 url:https://webpush2.weixin.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=1440036883783&skey=%40crypt_3ea2fe08_723d1e1bd7b4171657b58c6d2849b367&sid=9qxNHGgi9VP4%2FTx6&uin=979270107&deviceid=e669767113868147&synckey=1_638162182%7C2_638162328%7C3_638162098%7C11_638162315%7C201_1440036879%7C203_1440034958%7C1000_1440031958&lang=en_US&pass_ticket=%252BEdqKi12tfvM8ZZTdNeh4GLO9LFfwKLQRpqWk8LRYVWFkDE6%252FZJJXurz79ARX%252FIT
-        nsurl = self.webpushUrlStart+'/cgi-bin/mmwebwx-bin/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&lang=en_US&pass_ticket=%s' % \
+        nsurl = self.pushUrlBase+'/cgi-bin/mmwebwx-bin/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&lang=en_US&pass_ticket=%s' % \
                 (self.nowTime(), skey, self.wxsid, self.wxuin, self.devid, syncKey, pass_ticket)
 
         qDebug(nsurl)

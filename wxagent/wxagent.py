@@ -216,15 +216,15 @@ class WXAgent(TXAgent):
     @pyqtSlot(int)
     def onReply2(self, rid: int):
         req, res = self._reqth.getres(rid)
-        status_code = res.status_code
-        error_no = 0
+        status_code = res.status_code if res is not None else None
+        error_no = 0 if res is not None else QNetworkReply.TimeoutError
         url = req.url
-        hcc = QByteArray(res.content)
-        cookies = res.cookies
+        hcc = QByteArray(res.content) if res is not None else QByteArray()
+        cookies = res.cookies if res is not None else None
         return self.handleReply(status_code, error_no, url, hcc, cookies, res, req, rid)
 
-    def handleReply(self, status_code, error_no, url, hcc, cookies, reply:requests.Response, req:list, reqid=None):
-        qDebug('content-length: %d, %d, %d, RN: %d' % (len(hcc), status_code, error_no, reqid))
+    def handleReply(self, status_code, error_no, url, hcc, cookies, reply: requests.Response, req: list, reqid=None):
+        qDebug('content-length: %d, %s, %s, RN: %s' % (len(hcc), str(status_code), str(error_no), str(reqid)))
 
         # TODO 考虑添加个retry_times_before_refresh
         if status_code is None and error_no in [99, 8]:
@@ -290,7 +290,7 @@ class WXAgent(TXAgent):
             elif scan_code == '400':
                 qDebug("maybe need rerun refresh()...")
                 self.refresh()
-            elif scan_code == '201':
+            elif scan_code == '201':  # 扫描但未确认
                 QTimer.singleShot(2000, self.pollLogin)
                 pass
             elif scan_code == '200':  # 扫描确认完成，登陆成功

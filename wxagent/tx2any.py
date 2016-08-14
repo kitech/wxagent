@@ -42,6 +42,24 @@ class Chatroom():
         return
 
 
+# seems fine in test, but here not fine.
+class HotfixDBusHandler(QObject):
+    def __init__(self, parent=None):
+        super(HotfixDBusHandler, self).__init__(parent)
+        return
+
+    @pyqtSlot(QDBusMessage)
+    def onmsg(self, msg):
+        return
+
+
+def hotfixDBusBlock(sysbus):
+    # hotfix issue #26
+    # sysbus.registerObject('/hotfixidontknowwhy', HotfixDBusHandler())  # but can not help
+    # why can just use `self` here?
+    sysbus.registerObject('/hotfixidontknowwhy', self)
+    return
+
 #
 #
 #
@@ -82,6 +100,12 @@ class TX2Any(QObject):
     def initDBus(self):
         if len(self.agent_service) == 0: raise 'need set self.agent_service value.'
         if len(self.agent_service_path) == 0: raise 'need set self.agent_service_path value.'
+
+        # hotfix issue #26
+        # hotfixDBusBlock(self.sysbus)
+        # self.sysbus.registerObject('/hotfixidontknowwhy', HotfixDBusHandler())  # but can not help
+        # why can just use `self` here?
+        self.sysbus.registerObject('/hotfixidontknowwhy', self)
 
         if qVersion() >= '5.5':
             self.sysiface = QDBusInterface(self.agent_service, self.agent_service_path,

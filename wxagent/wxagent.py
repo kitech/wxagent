@@ -9,7 +9,7 @@ import gevent.pool
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
 from PyQt5.QtCore import *
-from PyQt5.QtNetwork import *
+from PyQt5.QtNetwork import QNetworkReply
 from PyQt5.QtDBus import *
 
 from .wxcommon import *

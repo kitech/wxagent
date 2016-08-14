@@ -54,6 +54,9 @@ class ToxSettings():
             if not os.path.exists(self.path):
                 # copy current path qtox.ini to dst
                 srcfile = os.path.dirname(__file__) + '/../etc/qtox.ini'
+                if not os.path.exists(srcfile):
+                    qDebug('nodes source file not found: {} => {}'.format(srcfile, self.path))
+                    sys.exit(-1)
                 distutils.file_util.copy_file(srcfile, self.path)
                 self.qsets = QSettings(self.path, QSettings.IniFormat)
                 pass

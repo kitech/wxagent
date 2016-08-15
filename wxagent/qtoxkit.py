@@ -40,10 +40,6 @@ class ToxSettings():
         self.qsets = QSettings(self.path, QSettings.IniFormat)
         self.data = self.sdir + '/tkdata'
 
-        # TODO 去掉手动维护的friend_list变量和文件
-        self.friend_list = QSettings(self.sdir + '/toxkit.friend.lst', QSettings.IniFormat)
-
-        
         if persist is True:
             if not os.path.exists(self.bdir):
                 os.mkdir(self.bdir)
@@ -92,57 +88,13 @@ class ToxSettings():
     def saveData(self, data):
         if self.persist is False: return 0
         if len(data) == 0: return 0
-        
+
         fp = QFile(self.data)
         fp.open(QIODevice.ReadWrite | QIODevice.Truncate)
         n = fp.write(data)
         fp.close()
-        
+
         return n
-
-    def saveFriends(self, friends):
-        if self.persist is False: return
-        
-        self.friend_list.beginGroup('FriendList')
-        fn = len(friends)
-        self.friend_list.setValue('size', str(fn))
-        i = 0
-        for fid in friends:
-            self.friend_list.setValue(str(i), fid)
-            i += 1
-        self.friend_list.endGroup()
-        return
-
-    def loadFriends(self):
-        if self.persist is False: return []
-        
-        self.friend_list.beginGroup('FriendList')
-        fn = self.friend_list.value('size')
-        if fn == None: fn = 0
-        else: fn = int(fn)
-
-        friends = []
-        if fn > 0:
-            for i in range(0, fn):
-                fid = self.friend_list.value(str(i))
-                #qDebug(fid)
-                friends.append(fid)
-                
-        qDebug('load friend done: %d' % len(friends))
-        
-        ###
-        hcfriends = [
-            # '398C8161D038FD328A573FFAA0F5FAAF7FFDE5E8B4350E7D15E6AFD0B993FC529FA90C343627',
-            # '4610913CF8D2BC6A37C93A680E468060E10335178CA0D23A33B9EABFCDF81A46DF5DDE32954A',
-            # '2645081363C7E8B5090523098A563D3BE3A6D92227B251E55FE42FBBA277500DC80EF1F7CF4A',
-        ]
-
-        for f in hcfriends:
-            if f not in friends:
-                friends.append(f)
-
-        self.friend_list.endGroup()
-        return friends
 
 
 class ToxSlot(Tox):
@@ -218,8 +170,7 @@ class QToxKit(QThread):
     newGroupAction = pyqtSignal(int, int, 'QString')
     groupTitleChanged = pyqtSignal(int, int, 'QString')
     groupNamelistChanged = pyqtSignal(int, int, int)
-    
-    
+
     def __init__(self, identifier = 'anon', persist = True, parent = None):
         super(QToxKit, self).__init__(parent)
         self.sets = ToxSettings(identifier, persist)
@@ -230,8 +181,7 @@ class QToxKit(QThread):
         self.bootstrapStartTime = None
         self.bootstrapFinishTime = None
         self.first_connected = True
-        self.friends = []
-        
+
         self.tox = Tox(self.opts)
         self.tox = None
 
@@ -264,12 +214,11 @@ class QToxKit(QThread):
         return
 
     def makeTox(self):
-        self.friends = self.sets.loadFriends()
-        
+
         self.opts.savedata_data = self.sets.getSaveData()
         qDebug(str(type(self.opts.savedata_data)))
         print(len(self.opts.savedata_data), self.opts.savedata_data[0:32])
-        
+
         self.tox = ToxSlot(self.opts)
         myaddr = self.tox.self_get_address()
         qDebug(str(self.tox.self_get_address()))
@@ -390,42 +339,8 @@ class QToxKit(QThread):
         qDebug('friend count: %d' % fnum)
         # 为什么friend count是0个呢？，难道是因为没有记录吗？是因为每次加好友没有保存savedata
         # 果然是这个样子的
-            
-        
-        friends = self.friends
-        if status is True and self.first_connected:
-            self.first_connected = False
-
-            flist = self.tox.self_get_friend_list()
-            qDebug(str(flist))
-            for f in flist:
-                s = self.tox.friend_get_status(f)
-                qDebug('%d: status = %d' % (f, s))
-                # self.tox.friend_delete(f)
-
-            #for friend in friends:
-            #    self.tox.friend_add_norequest(friend)
-
-            cnter = 0
-            n = 0
-            for friend in friends:
-                if cnter < 3 or cnter >= (len(friends) - 3):
-                    try:
-                        self.tox.friend_add_norequest(friends[cnter])
-                        pass
-                    except Exception as e:
-                        qDebug(str(e.args))
-                    n += 1
-                cnter += 1
-            qDebug('add old friend: %d/%d' % (n, len(friends)))
-            # self.connected.emit()
-            
-            newdata = self.tox.get_savedata()
-            # print(len(newdata), newdata[0:32])
-            self.sets.saveData(newdata)
 
         # 如果掉线了，则尝试再找几个nodes，添加到bootstrap地址。
-        
         return
 
     def selfSetStatusMessage(self, status_message):
@@ -436,21 +351,12 @@ class QToxKit(QThread):
         qDebug(str(pubkey))
         qDebug(str(data))
 
-        if pubkey in self.friends:
-            qDebug('already in friendlist:')
-            self.friendAdded.emit(pubkey)
-            return
-        
-        self.friends.append(pubkey)
-        self.sets.saveFriends(self.friends)
-        
         fnum = self.tox.friend_add_norequest(pubkey)
         qDebug(str(fnum))
 
         self.friendAdded.emit(pubkey)
         # self.tox.send_message(fnum, 'hehe accept')
 
-        
         newdata = self.tox.get_savedata()
         # print(len(newdata), newdata[0:32])
         self.sets.saveData(newdata)

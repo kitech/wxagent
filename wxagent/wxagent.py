@@ -121,10 +121,8 @@ class WXAgent(TXAgent):
     qrpicGotten = pyqtSignal('QByteArray')
     asyncRequestDone = pyqtSignal(int, 'QByteArray')
 
-    def __init__(self, asvc, parent=None):
+    def __init__(self, parent=None):
         super(WXAgent, self).__init__(parent)
-
-        self.asvc = asvc
 
         self._reqth = ReqThread()
         self._reqth.reqFinished.connect(self.onReply2, Qt.QueuedConnection)
@@ -199,6 +197,10 @@ class WXAgent(TXAgent):
         self.asts.onRefresh()
         self.doboot()
         self.refresh_count += 1
+        return
+
+    def Login(self):
+        self.doboot()
         return
 
     def doboot(self):

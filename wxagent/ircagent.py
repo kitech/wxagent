@@ -17,6 +17,6 @@ class IRCAgent(BaseAgent):
     def RecvMessage(self):
         return
 
-    def PushMessage(self):
+    def SendMessageX(self):
         return
 

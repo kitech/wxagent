@@ -22,6 +22,7 @@ class RoundTableServer(QObject):
         super(RoundTableServer, self).__init__(parent)
         self.sysbus = QDBusConnection.systemBus()
         self.msgsvc = RoundTableService()
+        self.agents = []
 
         self.init_dbus_service()
         self.register_dbus_service()
@@ -36,7 +37,7 @@ class RoundTableServer(QObject):
         bret = sysbus.registerService(WXAGENT_SERVICE_NAME)
         if bret is False:
             err = sysbus.lastError()
-            print(err.name(), err.message())
+            qDebug('error: {}, {}'.format(err.name(), err.message()))
             exit()
         qDebug(str(sysbus.name()))
         iface = sysbus.interface()
@@ -57,7 +58,7 @@ class RoundTableServer(QObject):
         qDebug(str(bret))
         if bret is False:
             err = sysbus.lastError()
-            print('register error:', err.name(), err.message())
+            qDebug('register error:{} {}'.format(err.name(), err.message()))
             exit()
 
         return
@@ -104,13 +105,29 @@ class RoundTableServer(QObject):
         # from .xmppagent import XmppAgent
         # from .slackagent import SlackAgent
 
-        agts = []
+        agts = self.agents
         agts.append(WXAgent())
         agts.append(IRCAgent())
         agts.append(ToxAgent())
 
         for agt in agts:
+            agt.PushMessage.connect(self.onPushMessage, Qt.QueuedConnection)
             agt.Login()
 
         return
 
+    @pyqtSlot(str)
+    def onPushMessage(self, msg):
+        sder = self.sender()
+        clsname = sder.__class__.__name__
+        qDebug(('pushing msg to rtbus: {}, {}'.format(clsname, msg[0:32])).encode())
+
+        sigmsg = QDBusMessage.createSignal(WXAGENT_EVENT_BUS_PATH_CLIENT, WXAGENT_EVENT_BUS_IFACE_CLIENT, "PushMessage")
+
+        sigmsg.setArguments([msg, clsname])
+
+        sysbus = self.sysbus
+        bret = sysbus.send(sigmsg)
+        qDebug(str(bret))
+
+        return

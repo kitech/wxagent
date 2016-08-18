@@ -17,6 +17,7 @@ from .wxsession import *
 from .wxprotocol import *
 from .txagent import TXAgent, AgentCookieJar
 
+
 # from dbus.mainloop.pyqt5 import DBusQtMainLoop
 # DBusQtMainLoop(set_as_default = True)
 
@@ -203,6 +204,13 @@ class WXAgent(TXAgent):
         self.doboot()
         return
 
+    def SendMessageX(self, msg: dict):
+        encmsg = json.JSONEncoder(ensure_ascii=False).encode(msg)
+        a = self.PushMessage.emit(encmsg)
+        qDebug('hereee: {}({})={}'.format(a, str(type(encmsg)), encmsg[0:32]))
+        return
+
+    #######
     def doboot(self):
 
         self.emitDBusBeginLogin()
@@ -910,6 +918,14 @@ class WXAgent(TXAgent):
 
     # begin dbus signals
     def emitDBusBeginLogin(self):
+        args = {
+            'op': 'begin_login',
+            'params': [123],
+        }
+
+        self.SendMessageX(args)
+        if True: return
+
         # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "beginlogin")
         sigmsg.setArguments([123])
@@ -927,6 +943,13 @@ class WXAgent(TXAgent):
         qrpic64 = self.qrpic.toBase64()
         qrpic64str = qrpic64.data().decode()
         sigmsg.setArguments([123, qrpic64str])
+
+        args = {
+            'op': 'got_qrcode',
+            'params': [qrpic64str, 123],
+        }
+        self.SendMessageX(args)
+        if True: return
 
         sysbus = QDBusConnection.systemBus()
         bret = sysbus.send(sigmsg)
@@ -1297,6 +1320,7 @@ def register_dbus_service(wxasvc):
 
 
 def main():
+    raise "don't"
     app = QCoreApplication(sys.argv)
     import wxagent.qtutil as qtutil
     qtutil.pyctrl()

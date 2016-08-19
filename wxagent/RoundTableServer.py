@@ -106,9 +106,9 @@ class RoundTableServer(QObject):
         # from .slackagent import SlackAgent
 
         agts = self.agents
-        agts.append(WXAgent())
+        # agts.append(WXAgent())
         agts.append(IRCAgent())
-        agts.append(ToxAgent())
+        # agts.append(ToxAgent())
 
         for agt in agts:
             agt.PushMessage.connect(self.onPushMessage, Qt.QueuedConnection)
@@ -120,7 +120,7 @@ class RoundTableServer(QObject):
     def onPushMessage(self, msg):
         sder = self.sender()
         clsname = sder.__class__.__name__
-        qDebug(('pushing msg to rtbus: {}, {}'.format(clsname, msg[0:32])).encode())
+        qDebug(('pushing msg to rtbus: {}, {}'.format(clsname, msg[0:56])).encode())
 
         sigmsg = QDBusMessage.createSignal(WXAGENT_EVENT_BUS_PATH_CLIENT, WXAGENT_EVENT_BUS_IFACE_CLIENT, "PushMessage")
 

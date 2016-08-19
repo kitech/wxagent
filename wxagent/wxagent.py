@@ -204,12 +204,6 @@ class WXAgent(TXAgent):
         self.doboot()
         return
 
-    def SendMessageX(self, msg: dict):
-        encmsg = json.JSONEncoder(ensure_ascii=False).encode(msg)
-        a = self.PushMessage.emit(encmsg)
-        qDebug('hereee: {}({})={}'.format(a, str(type(encmsg)), encmsg[0:32]))
-        return
-
     #######
     def doboot(self):
 

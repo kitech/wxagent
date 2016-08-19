@@ -1,6 +1,8 @@
 from PyQt5.QtCore import *
 from .baseagent import BaseAgent
 
+from .qirc import QIRC
+
 
 class IRCAgent(BaseAgent):
     def __init__(self, parent=None):
@@ -9,6 +11,11 @@ class IRCAgent(BaseAgent):
 
     def Login(self):
         qDebug('heree')
+        self._irc = QIRC()
+        self._irc.connected.connect(self.onIRCConnected, Qt.QueuedConnection)
+        self._irc.disconnected.connect(self.onIRCDisconnected, Qt.QueuedConnection)
+        self._irc.newMessage.connect(self.onIRCNewMessage, Qt.QueuedConnection)
+        self._irc.start()
         return
 
     def Logout(self):
@@ -17,6 +24,21 @@ class IRCAgent(BaseAgent):
     def RecvMessage(self):
         return
 
-    def SendMessageX(self):
+    # ######################
+    def onIRCConnected(self):
+        qDebug('hrerere')
+        args = self.makeBusMessage(None, 'connected')
+        self.SendMessageX(args)
         return
 
+    def onIRCDisconnected(self):
+        qDebug('hrerere')
+        args = self.makeBusMessage(None, 'disconnected')
+        self.SendMessageX(args)
+        return
+
+    def onIRCNewMessage(self, msg):
+        qDebug(msg[0:32].encode())
+        args = self.makeBusMessage('message', None, msg)
+        self.SendMessageX(args)
+        return

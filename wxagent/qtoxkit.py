@@ -1,5 +1,5 @@
 import sys, time
-
+import os, distutils.file_util
 from PyQt5.QtCore import *
 from pytox import *
 
@@ -8,13 +8,13 @@ class ToxOptions():
     def __init__(self):
         self.ipv6_enabled = True
         self.udp_enabled = True
-        self.proxy_type = 0 # 1=http, 2=socks
+        self.proxy_type = 0  # 1=http, 2=socks
         self.proxy_host = ''
         self.proxy_port = 0
         self.start_port = 0
         self.end_port = 0
         self.tcp_port = 0
-        self.savedata_type = 0 # 1=toxsave, 2=secretkey
+        self.savedata_type = 0  # 1=toxsave, 2=secretkey
         self.savedata_data = b''
         self.savedata_length = 0
 
@@ -27,9 +27,9 @@ class ToxDhtServer():
         self.name = ''
         return
 
-import os, distutils.file_util
+
 class ToxSettings():
-    def __init__(self, identifier = 'anon', persist = True):
+    def __init__(self, identifier='anon', persist=True):
         self.persist = persist
         self.ident = identifier
         # $HOME/.config/toxkit/{identifier}/
@@ -56,7 +56,7 @@ class ToxSettings():
                 distutils.file_util.copy_file(srcfile, self.path)
                 self.qsets = QSettings(self.path, QSettings.IniFormat)
                 pass
-        
+
         return
 
     def getDhtServerList(self):
@@ -77,7 +77,7 @@ class ToxSettings():
 
     def getSaveData(self):
         if self.persist is False: return b''
-        
+
         print(self.data)
         fp = QFile(self.data)
         fp.open(QIODevice.ReadOnly)
@@ -137,7 +137,7 @@ class ToxSlot(Tox):
         # ret = self.file_send_chunk(args[0], args[1], args[2], data)
         qDebug(str(ret))
         return
-    
+
     def on_friend_request(self, *args):
         qDebug('herhe')
         print(args)
@@ -148,8 +148,9 @@ class ToxSlot(Tox):
         print(args)
         return
 
-### 支持qt signal slots
-### 支持永久存储与不存储
+
+# 支持qt signal slots
+# 支持永久存储与不存储
 class QToxKit(QThread):
     connectChanged = pyqtSignal(bool)
     connected = pyqtSignal()
@@ -164,14 +165,14 @@ class QToxKit(QThread):
     fileRecvChunk = pyqtSignal('QString', int, int, 'QString')
     fileChunkRequest = pyqtSignal('QString', int, int, int)
 
-    ### group old api
+    # group old api
     groupInvite = pyqtSignal(int, int, 'QString')
     newGroupMessage = pyqtSignal(int, int, 'QString')
     newGroupAction = pyqtSignal(int, int, 'QString')
     groupTitleChanged = pyqtSignal(int, int, 'QString')
     groupNamelistChanged = pyqtSignal(int, int, int)
 
-    def __init__(self, identifier = 'anon', persist = True, parent = None):
+    def __init__(self, identifier='anon', persist=True, parent=None):
         super(QToxKit, self).__init__(parent)
         self.sets = ToxSettings(identifier, persist)
 

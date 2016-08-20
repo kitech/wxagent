@@ -1,3 +1,4 @@
+import json
 
 from PyQt5.QtCore import *
 from PyQt5.QtDBus import *
@@ -17,9 +18,9 @@ class RoundTableService(QObject):
         return 'aaa'
 
 
-class RoundTableServer(QObject):
+class RoundTableClient(QObject):
     def __init__(self, parent=None):
-        super(RoundTableServer, self).__init__(parent)
+        super(RoundTableClient, self).__init__(parent)
         self.sysbus = QDBusConnection.systemBus()
         self.msgsvc = RoundTableService()
         self.agents = []
@@ -34,6 +35,7 @@ class RoundTableServer(QObject):
     ##########
     def init_dbus_service(self):
         sysbus = self.sysbus
+        # conflicts with server
         bret = sysbus.registerService(WXAGENT_SERVICE_NAME)
         if bret is False:
             err = sysbus.lastError()
@@ -68,8 +70,8 @@ class RoundTableServer(QObject):
         self.agent_service = WXAGENT_SERVICE_NAME
         self.agent_service_path = WXAGENT_SEND_PATH
         self.agent_service_iface = WXAGENT_IFACE_NAME
-        self.agent_event_path = WXAGENT_EVENT_BUS_PATH_SERVER
-        self.agent_event_iface = WXAGENT_EVENT_BUS_IFACE_SERVER
+        self.agent_event_path = WXAGENT_EVENT_BUS_PATH_CLIENT
+        self.agent_event_iface = WXAGENT_EVENT_BUS_IFACE_CLIENT
 
         # hotfix sysbus.connect hang
         if qVersion() >= '5.6' and qVersion() <= '5.7.9':
@@ -98,24 +100,27 @@ class RoundTableServer(QObject):
     @pyqtSlot(QDBusMessage)
     def onDBusNewMessage(self, msg):
         print(msg, msg.service(), ',', msg.path(), ',', msg.interface(), ',', msg.arguments())
+        args = self.makeBusMessage(None, 'disconnected recved', msg.arguments())
+        self.SendMessageX(args)
         return
 
     def loginAllProtocols(self):
-        from .wxagent import WXAgent
-        from .ircagent import IRCAgent
-        from .toxagent import ToxAgent
-        # from .xmppagent import XmppAgent
-        # from .slackagent import SlackAgent
 
-        agts = self.agents
-        # agts.append(WXAgent())
-        agts.append(IRCAgent())
-        agts.append(ToxAgent())
+        return
 
-        for agt in agts:
-            agt.PushMessage.connect(self.onPushMessage, Qt.QueuedConnection)
-            agt.Login()
+    def SendMessageX(self, msg: dict):
+        encmsg = json.JSONEncoder(ensure_ascii=False).encode(msg)
+        encmsg = encmsg.replace("\n", '')
+        a = self.onPushMessage(encmsg)
+        qDebug('hereee: {}({})={}'.format(a, str(type(encmsg)), encmsg[0:32]).encode())
+        return
 
+    def makeBusMessage(self, op: str, evt: str, *args):
+        if op is not None:
+            return {'op': op, 'params': args, }
+        if evt is not None:
+            return {'evt': evt, 'params': args, }
+        raise 'wtf'
         return
 
     @pyqtSlot(str)
@@ -124,8 +129,8 @@ class RoundTableServer(QObject):
         clsname = sder.__class__.__name__
         qDebug(('pushing msg to rtbus: {}, {}'.format(clsname, msg[0:56])).encode())
 
-        path = WXAGENT_EVENT_BUS_PATH_CLIENT
-        iface = WXAGENT_EVENT_BUS_IFACE_CLIENT
+        path = WXAGENT_EVENT_BUS_PATH_SERVER
+        iface = WXAGENT_EVENT_BUS_IFACE_SERVER
         sigmsg = QDBusMessage.createSignal(path, iface, "PushMessage")
 
         sigmsg.setArguments([msg, clsname])

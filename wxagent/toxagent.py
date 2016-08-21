@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+import json
 
 from PyQt5.QtCore import *
 from .baseagent import BaseAgent
@@ -29,6 +30,21 @@ class ToxAgent(BaseAgent):
 
     def RecvMessage(self):
         return
+
+    # override
+    def onRpcCall(self, argv):
+        func = argv[0]
+        ret = None
+        qDebug('hereeeee: {}'.format(argv).encode())
+
+        if func == 'friendExists':
+            ret = self.toxkit.friendExists(argv[1])
+        elif func == 'sendMessage':
+            ret = self.toxkit.sendMessage(argv[1], argv[2])
+        else:
+            qDebug('not supported now: {}'.format(func))
+
+        return ret
 
     # ##########################
     # abstract method implemention
@@ -151,6 +167,8 @@ class ToxAgent(BaseAgent):
             # self.toxkit.friendAddNorequest(friendId)
             pass
 
+        args = self.makeBusMessage(None, self.funcName(), status)
+        self.SendMessageX(args)
         return
 
     def onToxnetMessage(self, friendId, msgtype, msg):
@@ -162,6 +180,9 @@ class ToxAgent(BaseAgent):
         # 等待，总之是wxagent支持的命令，
 
         self.newMessage.emit(msg)
+
+        args = self.makeBusMessage(None, self.funcName(), friendId, msgtype, msg)
+        self.SendMessageX(args)
 
         return
 
@@ -185,6 +206,8 @@ class ToxAgent(BaseAgent):
             self.SendMessageX(args)
             True
 
+        args = self.makeBusMessage(None, self.funcName(), friendId, status)
+        self.SendMessageX(args)
         return
 
     def onToxnetFileChunkReuqest(self, friendId, file_number, position, length):
@@ -210,11 +233,15 @@ class ToxAgent(BaseAgent):
         qDebug(('gn=%s,pn=%s,mlen=%s,mp=%s' %
                 (group_number, peer_number, len(message), message[0:27])).encode())
 
+        args = self.makeBusMessage(None, self.funcName(), group_number, peer_number, message)
+        self.SendMessageX(args)
+
         if peer_number == 0:  # it myself sent message, omit
             return
 
         str_group_number = str(group_number)
         self.newGroupMessage.emit(str_group_number, message)
+
         return
 
     def onToxnetGroupNamelistChanged(self, group_number, peer_number, change_type):
@@ -222,6 +249,9 @@ class ToxAgent(BaseAgent):
         chop = {0: 'add', 1: 'del', 2: 'name'}[change_type]
         info = {0: 'why 0?', 1: 'myself %sed' % chop,
                 2: 'toxpeer %sed' % chop, 3: 'who is there? wtf?'}
+
+        args = self.makeBusMessage(None, self.funcName(), group_number, peer_number, change_type)
+        self.SendMessageX(args)
 
         # 判断组员数
         number_peers = self.toxkit.groupNumberPeers(group_number)

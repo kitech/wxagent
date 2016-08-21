@@ -23,8 +23,7 @@ class ToxRelay(IMRelay):
         self.peer_user = ''
         self.nick_name = ''
 
-        self.toxkit = None  # QToxKit
-
+        self.toxkit = None
         self.initToxnet()
         return
 
@@ -101,16 +100,6 @@ class ToxRelay(IMRelay):
         self.fixstatus = defaultdict(bool)
 
         qDebug('hrehhrere')
-        ident = 'qq2tox'
-        self.toxkit = QToxKit(ident, True)
-        self.toxkit.connectChanged.connect(self.onToxnetConnectStatus, Qt.QueuedConnection)
-        self.toxkit.newMessage.connect(self.onToxnetMessage, Qt.QueuedConnection)
-        self.toxkit.friendConnectionStatus.connect(self.onToxnetFriendStatus, Qt.QueuedConnection)
-        self.toxkit.fileChunkRequest.connect(self.onToxnetFileChunkReuqest, Qt.QueuedConnection)
-        self.toxkit.fileRecvControl.connect(self.onToxnetFileRecvControl, Qt.QueuedConnection)
-        self.toxkit.newGroupMessage.connect(self.onToxnetGroupMessage, Qt.QueuedConnection)
-        self.toxkit.groupNamelistChanged.connect(self.onToxnetGroupNamelistChanged, Qt.QueuedConnection)
-
         return
 
     def onToxnetConnectStatus(self, status):

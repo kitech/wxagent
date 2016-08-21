@@ -2,8 +2,8 @@
 import enum
 
 WXAGENT_SERVICE_NAME = 'io.qtc.roundtable'
-WXAGENT_SEND_PATH = '/io/qtc/roundtable'
-WXAGENT_IFACE_NAME = 'io.qtc.roundtable.iface'
+WXAGENT_SERVICE_PATH = '/io/qtc/roundtable'
+WXAGENT_SERVICE_IFACE = 'io.qtc.roundtable.iface'
 
 WXAGENT_EVENT_BUS_PATH = '/io/qtc/roundtable/signals'
 WXAGENT_EVENT_BUS_IFACE = 'io.qtc.roundtable.signals'

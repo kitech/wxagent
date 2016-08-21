@@ -83,6 +83,7 @@ class StartupManager(QObject):
 
 
 def main():
+    if qVersion() < '5.5.0': raise 'not supported qt version < 5.5.0'
     app = QCoreApplication(sys.argv)
     pyctrl()
 

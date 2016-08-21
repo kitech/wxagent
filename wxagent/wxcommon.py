@@ -5,10 +5,8 @@ WXAGENT_SERVICE_NAME = 'io.qtc.roundtable'
 WXAGENT_SEND_PATH = '/io/qtc/roundtable'
 WXAGENT_IFACE_NAME = 'io.qtc.roundtable.iface'
 
-WXAGENT_EVENT_BUS_PATH_CLIENT = '/io/qtc/roundtable/signals_client'
-WXAGENT_EVENT_BUS_IFACE_CLIENT = 'io.qtc.roundtable.signals_client'
-WXAGENT_EVENT_BUS_PATH_SERVER = '/io/qtc/roundtable/signals_server'
-WXAGENT_EVENT_BUS_IFACE_SERVER = 'io.qtc.roundtable.signals_server'
+WXAGENT_EVENT_BUS_PATH = '/io/qtc/roundtable/signals'
+WXAGENT_EVENT_BUS_IFACE = 'io.qtc.roundtable.signals'
 
 
 ######

@@ -21,23 +21,17 @@ from .unimessage import *
 from .botcmd import *
 from .filestore import QiniuFileStore, VnFileStore
 
-from .tx2any import TX2Any, Chatroom
+from .basecontroller import BaseController, Chatroom
 
 
 #
 #
-#
-class WX2Tox(TX2Any):
+class WechatController(BaseController):
 
-    def __init__(self, parent=None):
+    def __init__(self, rt, parent=None):
         "docstring"
-        super(WX2Tox, self).__init__(parent)
+        super(WechatController, self).__init__(rt, parent)
 
-        self.agent_service = WXAGENT_SERVICE_NAME
-        self.agent_service_path = WXAGENT_SEND_PATH
-        self.agent_service_iface = WXAGENT_IFACE_NAME
-        self.agent_event_path = WXAGENT_EVENT_BUS_PATH
-        self.agent_event_iface = WXAGENT_EVENT_BUS_IFACE
         self.relay_src_pname = 'WXU'
 
         self.initDBus()
@@ -413,15 +407,8 @@ class WX2Tox(TX2Any):
         from_username = groupchat.FromUser.UserName
         to_username = groupchat.ToUser.UserName
         args = [from_username, to_username, mcc, 1, 'more', 'even more']
-        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
-
-        rr = QDBusReply(reply)
-        if rr.isValid():
-            qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        else:
-            qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
-
-        ### TODO send message faild
+        retv = self.remoteCall('sendmessage', *args)  # 注意把args扩展开
+        # TODO send message faild
 
         return
 
@@ -435,14 +422,7 @@ class WX2Tox(TX2Any):
         # qDebug(mcc.decode())
 
         args = [from_username, to_username, mcc, 1, 'more', 'even more']
-        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
-
-        rr = QDBusReply(reply)
-        if rr.isValid():
-            qDebug(str(rr.value()) + ',' + str(type(rr.value())))
-        else:
-            qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
-
+        retv = self.remoteCall('sendmessage', *args)  # 注意把args扩展开
         # TODO send message faild
 
         return
@@ -453,14 +433,7 @@ class WX2Tox(TX2Any):
         to_username = groupchat.ToUser.UserName
 
         args = [to_username, from_username, mcc, 1, 'more', 'even more']
-        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
-
-        rr = QDBusReply(reply)
-        if rr.isValid():
-            qDebug(str(rr.value()) + ',' + str(type(rr.value())))
-        else:
-            qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
-
+        retv = self.remoteCall('sendmessage', *args)  # 注意把args扩展开
         # TODO send message faild
 
         return
@@ -483,14 +456,7 @@ class WX2Tox(TX2Any):
             assert(self.txses.me is not None)
 
         args = [from_username, to_username, mcc, 1, 'more', 'even more']
-        reply = self.sysiface.call('sendmessage', *args)  # 注意把args扩展开
-
-        rr = QDBusReply(reply)
-        if rr.isValid():
-            qDebug(str(rr.value()) + ',' + str(type(rr.value())))
-        else:
-            qDebug('rpc call error: %s,%s' % (rr.error().name(), rr.error().message()))
-
+        retv = self.remoteCall('sendmessage', *args)  # 注意把args扩展开
         # TODO send message faild
 
         return
@@ -501,32 +467,20 @@ class WX2Tox(TX2Any):
 
         self.txses = WXSession()
 
-        reply = self.sysiface.call('getinitdata', 123, 'a1', 456)
-        rr = QDBusReply(reply)
-        # TODO check reply valid
-
-        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        data64 = rr.value().encode()   # to bytes
+        retv = self.remoteCall('getinitdata', 123, 'a1', 456)
+        data64 = retv.encode()
         data = QByteArray.fromBase64(data64)
         self.txses.processInitData(data)
         self.saveContent('initdata.json', data)
 
-        reply = self.sysiface.call('getcontact', 123, 'a1', 456)
-        rr = QDBusReply(reply)
-
-        # TODO check reply valid
-        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        data64 = rr.value().encode()   # to bytes
+        retv = self.remoteCall('getcontact', 123, 'a1', 456)
+        data64 = retv.encode()
         data = QByteArray.fromBase64(data64)
         self.txses.processContactData(data)
         self.saveContent('contact.json', data)
 
-        reply = self.sysiface.call('getgroups', 123, 'a1', 456)
-        rr = QDBusReply(reply)
-
-        # TODO check reply valid
-        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        GroupNames = json.JSONDecoder().decode(rr.value())
+        retv = self.remoteCall('getgroups', 123, 'a1', 456)
+        GroupNames = json.JSONDecoder().decode(retv)
 
         self.txses.addGroupNames(GroupNames)
 
@@ -536,25 +490,15 @@ class WX2Tox(TX2Any):
         return
 
     def checkWXLogin(self):
-        reply = self.sysiface.call('islogined', 'a0', 123, 'a1')
-        qDebug(str(reply))
-        rr = QDBusReply(reply)
-
-        if not rr.isValid(): return False
-        qDebug(str(rr.value()) + ',' + str(type(rr.value())))
-        if rr.value() is False:
-            return False
+        retv = self.remoteCall('islogined', 'a0', 123, 'a1')
+        if retv is False:
+            return retv
 
         return True
 
     def getGroupsFromDBus(self):
-
-        reply = self.sysiface.call('getgroups', 123, 'a1', 456)
-        rr = QDBusReply(reply)
-
-        # TODO check reply valid
-        qDebug(str(len(rr.value())) + ',' + str(type(rr.value())))
-        GroupNames = json.JSONDecoder().decode(rr.value())
+        retv = self.remoteCall('getgroups', 123, 'a1', 456)
+        GroupNames = json.JSONDecoder().decode(retv)
 
         return GroupNames
 
@@ -571,11 +515,7 @@ class WX2Tox(TX2Any):
              arg0.append(melem)
 
         argjs = json.JSONEncoder().encode(arg0)
-        pcall = self.sysiface.asyncCall('getbatchcontact', argjs)
-        watcher = QDBusPendingCallWatcher(pcall)
-        # watcher.finished.connect(self.onGetBatchContactDone)
-        watcher.finished.connect(self.onGetBatchGroupDone)
-        self.asyncWatchers[watcher] = arg0
+        self.asyncRemoteCall(self.onGetBatchContactDone, 'getbatchcontact', argjs)
         reqcnt += 1
 
         qDebug('async reqcnt: ' + str(reqcnt))
@@ -583,26 +523,8 @@ class WX2Tox(TX2Any):
         return
 
     # @param watcher QDBusPengindCallWatcher
-    def onGetBatchGroupDone(self, watcher):
-        pendReply = QDBusPendingReply(watcher)
-        qDebug(str(watcher))
-        qDebug(str(pendReply.isValid()))
-        if pendReply.isValid():
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(type(hcc)))
-        else:
-            hcc = pendReply.argumentAt(0)
-            qDebug(str(len(hcc)))
-            qDebug(str(hcc))
-            return
-
-        message = pendReply.reply()
-        args = message.arguments()
-        # qDebug(str(len(args)))
-
-        hcc = args[0]  # QByteArray
-        strhcc = self.hcc2str(hcc)
-        hccjs = json.JSONDecoder().decode(strhcc)
+    def onGetBatchGroupDone(self, retv):
+        hccjs = json.JSONDecoder().decode(retv)
 
         # print(strhcc)
         # self.saveContent('groups.json', hcc)
@@ -740,36 +662,6 @@ class WX2Tox(TX2Any):
         self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
 
         return groupchat
-
-
-# hot fix
-g_w2t = None
-
-
-def on_app_about_close():
-    qDebug('hereee')
-    global g_w2t
-
-    g_w2t.peerRelay.disconnectIt()
-    return
-
-
-def main():
-    app = QCoreApplication(sys.argv)
-    import wxagent.qtutil as qtutil
-    qtutil.pyctrl()
-
-    w2t = WX2Tox()
-
-    global g_w2t
-    g_w2t = w2t
-    app.aboutToQuit.connect(on_app_about_close)
-
-    app.exec_()
-    return
-
-
-if __name__ == '__main__': main()
 
 
 

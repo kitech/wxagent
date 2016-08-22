@@ -6,12 +6,12 @@ from PyQt5.QtDBus import *
 from .basecontroller import BaseController
 from .wxcommon import *
 
-from .toxrelay import ToxRelay
+from .xmpprelay import XmppRelay
 
 
-class ToxCallProxy(QObject):
+class XmppCallProxy(QObject):
     def __init__(self, ctrl, parent=None):
-        super(ToxCallProxy, self).__init__(parent)
+        super(XmppCallProxy, self).__init__(parent)
         self.ctrl = ctrl
         return
 
@@ -56,11 +56,11 @@ class ToxCallProxy(QObject):
         return self.ctrl.remoteCall(self.ctrl.rt.funcName(), group_number)
 
 
-class ToxController(BaseController):
+class XmppController(BaseController):
     def __init__(self, rt, parent=None):
-        super(ToxController, self).__init__(rt, parent)
-        self.relay = ToxRelay()
-        self.relay.toxkit = ToxCallProxy(self)
+        super(XmppController, self).__init__(rt, parent)
+        self.relay = XmppRelay()
+        self.relay.xmpp = XmppCallProxy(self)
         return
 
     def initSession(self):
@@ -68,20 +68,19 @@ class ToxController(BaseController):
 
     def replyMessage(self, msgo):
         qDebug(msgo['sender']['channel'])
-        from .secfg import peer_tox_user
+        from .secfg import peer_xmpp_user
 
-        self.relay.sendMessage(msgo['params'][0], peer_tox_user)
+        self.relay.sendMessage(msgo['params'][0], peer_xmpp_user)
         return
 
     def updateSession(self, msgo):
         qDebug('heree')
         evt = msgo['evt']
         params = msgo['params']
-        if evt == 'onToxnetConnectStatus': self.relay.onToxnetConnectStatus(*params)
-        elif evt == 'onToxnetFriendStatus': self.relay.onToxnetFriendStatus(*params)
-        elif evt == 'onToxnetGroupMessage': self.relay.onToxnetGroupMessage(*params)
-        elif evt == 'onToxnetGroupNamelistChanged': self.relay.onToxnetGroupNamelistChanged(*params)
-        elif evt == 'onToxnetMessage': self.relay.onToxnetMessage(*params)
+        if evt == 'on_connected': self.relay.on_connected(*params)
+        elif evt == 'on_disconnected': self.relay.on_disconnected(*params)
+        elif evt == 'on_message': self.relay.on_message(*params)
+        elif evt == 'on_muc_message': self.relay.on_muc_message(*params)
         else: pass
         return
 

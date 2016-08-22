@@ -7,7 +7,7 @@ xmpp_pass = '1234567'
 peer_xmpp_user = 'kjsifse@xmpp.jp'
 xmpp_server = 'b.xmpp.jp:5222'  # optional, empty for auto
 # xmpp_conference_host = 'conference.' + xmpp_user.split('@')[1]  # 这个有可能能够动态取出来。
-
+xmpp_conf_pass = '1234567'
 
 # for file storage
 qiniu_acckey = ''

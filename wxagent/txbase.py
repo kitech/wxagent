@@ -2,7 +2,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
 
 from .agentstats import AgentStats
-from .baseagent import BaseAgent
 
 
 # 带获取所有cookie扩展功能的定制类
@@ -15,10 +14,10 @@ class AgentCookieJar(QNetworkCookieJar):
 
 
 # XXAgent基类，实现共有的抽象功能
-class TXAgent(BaseAgent):
+class TXBase(QObject):
 
     def __init__(self, parent=None):
-        super(TXAgent, self).__init__(parent)
+        super(TXBase, self).__init__(parent)
 
         self.acj = AgentCookieJar()
         self.nam = QNetworkAccessManager()

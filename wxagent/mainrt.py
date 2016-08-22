@@ -4,7 +4,7 @@ from .qtutil import pyctrl
 
 from .wxcommon import *
 
-from .wxagent import WXAgent
+from .wechatagent import WechatAgent
 from .ircagent import IRCAgent
 from .toxagent import ToxAgent
 from .roundtable import RoundTable
@@ -15,7 +15,7 @@ from .roundtable import RoundTable
 class StartupManager(QObject):
     def __init__(self, parent=None):
         super(StartupManager, self).__init__(parent)
-        self.protocols = {'wx': WXAgent, 'irc': IRCAgent, 'tox': ToxAgent,
+        self.protocols = {'wechat': WechatAgent, 'irc': IRCAgent, 'tox': ToxAgent,
                           'roundtable': RoundTable}
         self.procs = {}
         # self.loginAllProtocols()
@@ -82,6 +82,18 @@ class StartupManager(QObject):
         return
 
 
+# hot fix
+g_w2t = None
+
+
+def on_app_about_close():
+    qDebug('hereee')
+    global g_w2t
+
+    # g_w2t.peerRelay.disconnectIt()
+    return
+
+
 def main():
     if qVersion() < '5.5.0': raise 'not supported qt version < 5.5.0'
     app = QCoreApplication(sys.argv)
@@ -89,6 +101,10 @@ def main():
 
     rto = StartupManager()
     rto.start()
+
+    global g_w2t
+    g_w2t = rto
+    app.aboutToQuit.connect(on_app_about_close)
 
     qDebug('qtloop...{}'.format(rto))
     sys.exit(app.exec_())

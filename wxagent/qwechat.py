@@ -15,7 +15,7 @@ from PyQt5.QtDBus import *
 from .wxcommon import *
 from .wxsession import *
 from .wxprotocol import *
-from .txagent import TXAgent, AgentCookieJar
+from .txbase import TXBase, AgentCookieJar
 
 
 # from dbus.mainloop.pyqt5 import DBusQtMainLoop
@@ -118,12 +118,12 @@ class ReqThread(QThread):
 
 
 ######
-class WXAgent(TXAgent):
+class QWechat(TXBase):
     qrpicGotten = pyqtSignal('QByteArray')
     asyncRequestDone = pyqtSignal(int, 'QByteArray')
 
     def __init__(self, parent=None):
-        super(WXAgent, self).__init__(parent)
+        super(QWechat, self).__init__(parent)
 
         self._reqth = ReqThread()
         self._reqth.reqFinished.connect(self.onReply2, Qt.QueuedConnection)

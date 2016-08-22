@@ -33,9 +33,10 @@ class ToxAgent(BaseAgent):
 
     # override
     def onRpcCall(self, argv):
+        qDebug('hereeeee: {}'.format(argv).encode()[0:78])
+
         func = argv[0]
         ret = None
-        qDebug('hereeeee: {}'.format(argv).encode())
 
         if func == 'friendExists':
             ret = self.toxkit.friendExists(argv[1])

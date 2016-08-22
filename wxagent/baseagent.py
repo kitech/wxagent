@@ -82,7 +82,9 @@ class BaseAgent(QObject):
         if bret is False:
             err = sysbus.lastError()
             qDebug('error: {}, {}'.format(err.name(), err.message()))
-            # exit()
+            qDebug('service: {}'.format(self.service_name))
+            raise 'wtf'
+            exit()
         qDebug(str(sysbus.baseService()))
         qDebug(str(sysbus.name()))
         iface = sysbus.interface()
@@ -148,7 +150,8 @@ class BaseAgent(QObject):
 
     @pyqtSlot(QDBusMessage)
     def onDBusNewMessage(self, msg):
-        print(msg, msg.service(), ',', msg.path(), ',', msg.interface(), ',', msg.arguments())
+        qDebug('hehreere')
+        # print(msg, msg.service(), ',', msg.path(), ',', msg.interface(), ',', msg.arguments())
         self.messageHandler(msg)
         return
 

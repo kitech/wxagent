@@ -3,6 +3,8 @@ import json
 from PyQt5.QtCore import *
 from .baseagent import BaseAgent
 from .toxcontroller import ToxController
+from .wechatcontroller import WechatController
+
 
 # TODO should be based on BaseHandler?
 class RoundTable(BaseAgent):
@@ -15,6 +17,7 @@ class RoundTable(BaseAgent):
 
     def Login(self):
         self.ctrls['ToxAgent'] = ToxController(self)
+        self.ctrls['WechatAgent'] = WechatController(self)
 
         for ctrl in self.ctrls:
             self.ctrls[ctrl].initSession()
@@ -36,10 +39,12 @@ class RoundTable(BaseAgent):
     def processOperator(self, msgo):
         if msgo['src'] == 'IRCAgent':
             self.processOperatorIRC(msgo)
+        elif msgo['src'] == 'RoundTable':
+            self.processOperatorRoundTable(msgo)
         return
 
     def processOperatorIRC(self, msgo):
-        rules = ['ToxAgent', 'WXAgent', 'XmppAgent']
+        rules = ['ToxAgent', 'WechatAgent', 'XmppAgent']
         remsg = 're: ' + msgo['params'][0]
         args = self.makeBusMessage('reply', None, remsg)
         # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
@@ -51,6 +56,14 @@ class RoundTable(BaseAgent):
             if self.ctrls.get(rule) is not None:
                 self.ctrls[rule].replyMessage(args)
 
+        return
+
+    def processOperatorRoundTable(self, msgo):
+        if msgo['op'] == 'showpiclink':
+            remsg = msgo['params'][0]
+            args = self.makeBusMessage('reply', None, remsg)
+            args['sender'] = msgo
+            self.ctrls['ToxAgent'].replyMessage(args)
         return
 
     def processEvent(self, msgo):

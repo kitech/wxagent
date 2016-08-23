@@ -329,7 +329,6 @@ class BaseController(BaseController0):
                 url = url1 + "\n" + url2
                 # self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
                 args = self.rt.makeBusMessage('showpiclink', None, 'qrcode url:' + url)
-                args['channel'] = ''
                 self.rt.SendMessageX(args)
             else:
                 self.need_send_qrfile = True

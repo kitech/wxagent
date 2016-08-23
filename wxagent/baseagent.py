@@ -68,9 +68,9 @@ class BaseAgent(QObject):
 
     def makeBusMessage(self, op: str, evt: str, *args):
         if op is not None:
-            return {'op': op, 'params': args, }
+            return {'op': op, 'params': args, 'channel': '', }
         if evt is not None:
-            return {'evt': evt, 'params': args, }
+            return {'evt': evt, 'params': args, 'channel': '', }
         raise 'wtf'
         return
 
@@ -176,8 +176,8 @@ class BaseAgent(QObject):
 
         return
 
-    def onRpcCall(self, msg):
-        qDebug(self.__class__.__name__ + ',' + str(msg))
+    def onRpcCall(self, argv):
+        qDebug(self.__class__.__name__ + ',' + str(argv))
         return
 
     def funcName(self):

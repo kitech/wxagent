@@ -7,6 +7,7 @@ from .wxcommon import *
 from .wechatagent import WechatAgent
 from .ircagent import IRCAgent
 from .toxagent import ToxAgent
+from .xmppagent import XmppAgent
 from .roundtable import RoundTable
 # from .xmppagent import XmppAgent
 # from .slackagent import SlackAgent
@@ -16,6 +17,7 @@ class StartupManager(QObject):
     def __init__(self, parent=None):
         super(StartupManager, self).__init__(parent)
         self.protocols = {'wechat': WechatAgent, 'irc': IRCAgent, 'tox': ToxAgent,
+                          'xmpp': XmppAgent,
                           'roundtable': RoundTable}
         self.procs = {}
         # self.loginAllProtocols()

@@ -1,4 +1,4 @@
-# xmpp protocol IM relay class
+# xmpp protocol IM agen class
 
 import os, sys
 import json, re
@@ -9,14 +9,15 @@ from PyQt5.QtCore import *
 
 import sleekxmpp
 
-from .imrelay import IMRelay
+from .baseagent import BaseAgent
+from .qsleek import QSleek
 from .unimessage import XmppMessage
 
 
-class XmppRelay(IMRelay):
+class XmppAgent(BaseAgent):
 
     def __init__(self, parent=None):
-        super(XmppRelay, self).__init__(parent)
+        super(XmppAgent, self).__init__(parent)
 
         self.unimsgcls = XmppMessage
         self.src_pname = ''
@@ -27,8 +28,30 @@ class XmppRelay(IMRelay):
 
         self.xmpp = None  # ClientXMPP()
 
-        self.initXmpp()
         return
+
+    def Login(self):
+        self.xmpp = QSleek()
+        self.xmpp.connected.connect(self.on_connected, Qt.QueuedConnection)
+        self.xmpp.disconnected.connect(self.on_disconnected, Qt.QueuedConnection)
+        self.xmpp.newMessage.connect(self.on_message, Qt.QueuedConnection)
+        self.xmpp.newGroupMessage.connect(self.on_muc_message, Qt.QueuedConnection)
+        return
+
+    def onRpcCall(self, argv):
+        qDebug('hereeeee: {}'.format(argv).encode()[0:78])
+
+        func = argv[0]
+        ret = None
+
+        if func == 'friendExists':
+            ret = self.xmpp.friendExists(argv[1])
+        elif func == 'send_message':
+            ret = self.xmpp.sendMessage(argv[2], argv[1])
+        else:
+            qDebug('not supported now: {}'.format(func))
+
+        return ret
 
     # abstract method implemention
     # @return True|False
@@ -62,11 +85,11 @@ class XmppRelay(IMRelay):
     def isConnected(self):
         # st = self.xmpp.state.current_state
         # qDebug(str(st))
-        return self.is_connected
+        return self.xmpp.is_connected
 
     def isPeerConnected(self, peer):
         # qDebug(str(self.fixstatus))
-        return self.fixstatus[peer]
+        return self.xmppfixstatus[peer]
 
     def createChatroom(self, room_key, title):
         room_ident = '%s.%s' % (self.src_pname, room_key)
@@ -81,81 +104,23 @@ class XmppRelay(IMRelay):
     def groupNumberPeers(self, group_number):
         return self.muc_number_peers(group_number)
 
-    # raw xmpp protocol handler
-    def initXmpp(self):
-        from .secfg import xmpp_user, xmpp_pass, peer_xmpp_user, xmpp_server
-        self.self_user = xmpp_user
-        self.peer_user = peer_xmpp_user
-        self.xmpp_server = xmpp_server
-        self.xmpp_conference_host = 'conference.' + xmpp_user.split('@')[1]
 
-        loglevel = logging.DEBUG
-        loglevel = logging.WARNING
-        logging.basicConfig(level=loglevel, format='%(levelname)-8s %(message)s')
-
-        self.nick_name = 'yatbot0inmuc'
-        self.peer_jid = peer_xmpp_user
-        self.is_connected = False
-        self.fixrooms = defaultdict(list)
-        self.fixstatus = defaultdict(bool)
-        self.xmpp = sleekxmpp.ClientXMPP(jid=xmpp_user, password=xmpp_pass)
-
-        self.xmpp.auto_authorize = True
-        self.xmpp.auto_subscribe = True
-
-        self.xmpp.register_plugin('xep_0030')
-        self.xmpp.register_plugin('xep_0045')
-        self.xmpp.register_plugin('xep_0004')
-        self.plugin_muc = self.xmpp.plugin['xep_0045']
-
-        self.xmpp.add_event_handler('connected', self.on_connected)
-        self.xmpp.add_event_handler('connection_failed', self.on_connection_failed)
-        self.xmpp.add_event_handler('disconnected', self.on_disconnected)
-
-        self.xmpp.add_event_handler('session_start', self.on_session_start)
-        self.xmpp.add_event_handler('message', self.on_message)
-        self.xmpp.add_event_handler('groupchat_message', self.on_muc_message)
-        self.xmpp.add_event_handler('groupchat_invite', self.on_groupchat_invite)
-        self.xmpp.add_event_handler('got_online', self.on_muc_online)
-        self.xmpp.add_event_handler('groupchat_presence', self.on_groupchat_presence)
-        self.xmpp.add_event_handler('presence', self.on_presence)
-        self.xmpp.add_event_handler('presence_available', self.on_presence_avaliable)
-
-        qDebug(str(self.xmpp.boundjid.host) + '...........')
-        self.start()
-
-        return
-
-    def run(self):
-        qDebug('hhehehe')
-        server = None
-        # server = ('xmpp.jp', 5222)
-        # server = ('b.xmpp.jp', 5222)
-        if self.xmpp_server is not None and len(self.xmpp_server) > 0:
-            server = tuple(self.xmpp_server.split(':'))
-        if self.xmpp.connect(server, use_tls=True):
-            self.xmpp.process(block=True)
-            qDebug('Xmpp instance Done.')
-        else:
-            qDebug('unable to connect,' + str(self.jid))
-        return
-
-    def on_connected(self, what):
+    def on_connected(self, what=None):
         qDebug('hreere:' + str(what))
-        # self.is_connected = True
-        # self.connected.emit()
+        args = self.makeBusMessage(None, self.funcName())
+        self.SendMessageX(args)
         return
 
     def on_connection_failed(self):
         qDebug('hreere')
-        self.is_connected = False
-        self.disconnected.emit()
+        args = self.makeBusMessage(None, self.funcName())
+        self.SendMessageX(args)
         return
 
-    def on_disconnected(self, what):
+    def on_disconnected(self, what=None):
         qDebug('hreere:' + str(what))
-        self.is_connected = False
-        self.disconnected.emit()
+        args = self.makeBusMessage(None, self.funcName())
+        self.SendMessageX(args)
         return
 
     def on_session_start(self, event):
@@ -170,46 +135,14 @@ class XmppRelay(IMRelay):
 
     def on_message(self, msg):
         qDebug(b'hhere:' + str(msg).encode())
-
-        if msg['type'] in ('chat', 'normal'):
-            # msg.reply("Thanks for sending 000\n%(body)s" % msg).send()
-            # self.xmpp.send_message(mto=msg['from'], mbody='Thanks 国为 for sending:\n%s' % msg['body'])
-            self.newMessage.emit(msg['body'])
-        elif msg['type'] in ('groupchat'):
-            mto = msg['from'].bare
-            # print(msg['from'], "\n")
-            # qDebug(mto)
-
-            if msg['from'].resource == self.peer_jid.split('@')[0]:
-                mgroup = msg['from'].user
-                mbody = msg['body']
-                self.newGroupMessage.emit(mgroup, mbody)
-            else:  # myself send
-                pass
-
-            if msg['from'] != 'yatest1@conference.xmpp.jp/yatbot0inmuc' and \
-               msg['from'] != 'yatest0@conference.xmpp.jp/yatbot0inmuc':
-                pass
-                # self.xmpp.send_message(mto=mto, mbody='Thanks 国为 for sending:\n%s' % msg['body'],
-                #                       mtype='groupchat')
-            else:
-                pass
-
-        # import traceback
-        # traceback.print_stack()
-        # qDebug('done msg...')
+        args = self.makeBusMessage(self.funcName(), None, msg)
+        self.SendMessageX(args)
         return
 
-    def on_muc_message(self, msg):
-        # qDebug(b'hhere:' + str(msg).encode())
-
-        #if msg['mucnick'] != self.nick and self.nick in msg['body']:
-        #   qDebug('want reply.......')
-            # self.send_message(mto=msg['from'].bare,
-            #                  mbody="I heard that, %s." % msg['mucnick'],
-            #                  mtype='groupchat')
-        #    pass
-
+    def on_muc_message(self, mgroup, msg):
+        qDebug(b'hhere:' + str(msg).encode())
+        args = self.makeBusMessage(self.funcName(), None, mgroup, msg)
+        self.SendMessageX(args)
         return
 
     def on_groupchat_invite(self, inv):

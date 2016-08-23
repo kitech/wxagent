@@ -40,6 +40,9 @@ class WechatController(BaseController):
         self.startWXBot()
         return
 
+    def replyMessage(self, msgo):
+        return
+
     def botcmdHandler(self, msg):
         # 汇总消息好友发送过来的消息当作命令处理
         # getqrcode

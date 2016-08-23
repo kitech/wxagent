@@ -25,9 +25,8 @@ class XmppRelay(IMRelay):
         self.peer_user = ''
         self.nick_name = ''
 
-        self.xmpp = None  # ClientXMPP()
+        self.xmpp = None  # XmppCallProxy
 
-        self.initXmpp()
         return
 
     # abstract method implemention
@@ -71,76 +70,17 @@ class XmppRelay(IMRelay):
     def createChatroom(self, room_key, title):
         room_ident = '%s.%s' % (self.src_pname, room_key)
         room_ident = '%s.%s' % (self.src_pname, self._roomify_name(title))
-        self.create_muc2(room_ident, title)
+        self.xmpp.create_muc2(room_ident, title)
         return room_ident.lower()
 
     def groupInvite(self, group_number, peer):
-        self.muc_invite(group_number, peer)
+        self.xmpp.muc_invite(group_number, peer)
         return
 
     def groupNumberPeers(self, group_number):
-        return self.muc_number_peers(group_number)
+        return self.xmpp.muc_number_peers(group_number)
 
-    # raw xmpp protocol handler
-    def initXmpp(self):
-        from .secfg import xmpp_user, xmpp_pass, peer_xmpp_user, xmpp_server
-        self.self_user = xmpp_user
-        self.peer_user = peer_xmpp_user
-        self.xmpp_server = xmpp_server
-        self.xmpp_conference_host = 'conference.' + xmpp_user.split('@')[1]
-
-        loglevel = logging.DEBUG
-        loglevel = logging.WARNING
-        logging.basicConfig(level=loglevel, format='%(levelname)-8s %(message)s')
-
-        self.nick_name = 'yatbot0inmuc'
-        self.peer_jid = peer_xmpp_user
-        self.is_connected = False
-        self.fixrooms = defaultdict(list)
-        self.fixstatus = defaultdict(bool)
-        self.xmpp = sleekxmpp.ClientXMPP(jid=xmpp_user, password=xmpp_pass)
-
-        self.xmpp.auto_authorize = True
-        self.xmpp.auto_subscribe = True
-
-        self.xmpp.register_plugin('xep_0030')
-        self.xmpp.register_plugin('xep_0045')
-        self.xmpp.register_plugin('xep_0004')
-        self.plugin_muc = self.xmpp.plugin['xep_0045']
-
-        self.xmpp.add_event_handler('connected', self.on_connected)
-        self.xmpp.add_event_handler('connection_failed', self.on_connection_failed)
-        self.xmpp.add_event_handler('disconnected', self.on_disconnected)
-
-        self.xmpp.add_event_handler('session_start', self.on_session_start)
-        self.xmpp.add_event_handler('message', self.on_message)
-        self.xmpp.add_event_handler('groupchat_message', self.on_muc_message)
-        self.xmpp.add_event_handler('groupchat_invite', self.on_groupchat_invite)
-        self.xmpp.add_event_handler('got_online', self.on_muc_online)
-        self.xmpp.add_event_handler('groupchat_presence', self.on_groupchat_presence)
-        self.xmpp.add_event_handler('presence', self.on_presence)
-        self.xmpp.add_event_handler('presence_available', self.on_presence_avaliable)
-
-        qDebug(str(self.xmpp.boundjid.host) + '...........')
-        self.start()
-
-        return
-
-    def run(self):
-        qDebug('hhehehe')
-        server = None
-        # server = ('xmpp.jp', 5222)
-        # server = ('b.xmpp.jp', 5222)
-        if self.xmpp_server is not None and len(self.xmpp_server) > 0:
-            server = tuple(self.xmpp_server.split(':'))
-        if self.xmpp.connect(server, use_tls=True):
-            self.xmpp.process(block=True)
-            qDebug('Xmpp instance Done.')
-        else:
-            qDebug('unable to connect,' + str(self.jid))
-        return
-
-    def on_connected(self, what):
+    def on_connected(self, what=None):
         qDebug('hreere:' + str(what))
         # self.is_connected = True
         # self.connected.emit()
@@ -152,7 +92,7 @@ class XmppRelay(IMRelay):
         self.disconnected.emit()
         return
 
-    def on_disconnected(self, what):
+    def on_disconnected(self, what=None):
         qDebug('hreere:' + str(what))
         self.is_connected = False
         self.disconnected.emit()

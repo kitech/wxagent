@@ -36,6 +36,9 @@ class XmppAgent(BaseAgent):
         self.xmpp.disconnected.connect(self.on_disconnected, Qt.QueuedConnection)
         self.xmpp.newMessage.connect(self.on_message, Qt.QueuedConnection)
         self.xmpp.newGroupMessage.connect(self.on_muc_message, Qt.QueuedConnection)
+        self.xmpp.peerConnected.connect(self.on_peer_connected, Qt.QueuedConnection)
+        self.xmpp.peerDisconnected.connect(self.on_peer_disconnected, Qt.QueuedConnection)
+        self.xmpp.peerEnterGroup.connect(self.on_peer_enter_group, Qt.QueuedConnection)
         return
 
     def onRpcCall(self, argv):
@@ -48,6 +51,14 @@ class XmppAgent(BaseAgent):
             ret = self.xmpp.friendExists(argv[1])
         elif func == 'send_message':
             ret = self.xmpp.sendMessage(argv[2], argv[1])
+        elif func == 'muc_send_message':
+            ret = self.xmpp.sendGroupMessage(argv[2], argv[1])
+        elif func == 'muc_number_peers':
+            ret = self.xmpp.groupNumberPeers(argv[1])
+        elif func == 'muc_invite':
+            ret = self.xmpp.groupInvite(argv[1], argv[2])
+        elif func == 'create_muc2':
+            ret = self.xmpp.create_muc2(argv[1], argv[2])
         else:
             qDebug('not supported now: {}'.format(func))
 
@@ -123,6 +134,24 @@ class XmppAgent(BaseAgent):
         self.SendMessageX(args)
         return
 
+    def on_peer_connected(self, peer):
+        qDebug('hereee:' + str(peer))
+        args = self.makeBusMessage(None, self.funcName(), peer)
+        self.SendMessageX(args)
+        return
+
+    def on_peer_disconnected(self, peer):
+        qDebug('hereee:' + str(peer))
+        args = self.makeBusMessage(None, self.funcName(), peer)
+        self.SendMessageX(args)
+        return
+
+    def on_peer_enter_group(self, peer):
+        qDebug('hereee:' + str(peer))
+        args = self.makeBusMessage(None, self.funcName(), peer)
+        self.SendMessageX(args)
+        return
+
     def on_session_start(self, event):
         qDebug('hhere:' + str(event))
 
@@ -155,82 +184,6 @@ class XmppAgent(BaseAgent):
             muc_nick = self.nick_name
             self.plugin_muc.joinMUC(room, muc_nick)
             # self.groupInvite.emit(room)
-        return
-
-    def on_muc_online(self, presense):
-        qDebug(b'hreree' + str(presense).encode())
-        room = presense['from'].bare
-        peer_jid = self.peer_jid
-        reason = 'hello come here:' + room
-        # mfrom = presense['to']
-
-        qDebug(('muc room is:' + room).encode())
-        if room == self.xmpp.boundjid:  # not a room
-            qDebug(('not a valid muc room:' + room).encode())
-            return
-
-        qDebug(self.xmpp.boundjid.host)
-        if room.split('@')[1] == self.xmpp.boundjid.host:
-            qDebug(('not a valid muc room:' + room).encode())
-            return
-
-        form = self.plugin_muc.getRoomConfig(room)
-        # print(form)
-        # for f in form.field:
-        #    print("%40s\t%15s\t%s" % (f, form.field[f]['type'], form.field[f]['value']))
-
-        # http://xmpp.org/extensions/xep-0045.html#createroom-reserved
-        form.field['muc#roomconfig_roomname']['value'] = "jioefefjoifjoife"
-        form.field['muc#roomconfig_roomdesc']['value'] = "Script configured room"
-        form.field['muc#roomconfig_persistentroom']['value'] = False
-        form.field['muc#roomconfig_publicroom']['value'] = False
-        form.field['public_list']['value'] = False
-        form.field['muc#roomconfig_moderatedroom']['value'] = False
-        form.field['allow_private_messages']['value'] = False
-        form.field['muc#roomconfig_enablelogging']['value'] = False
-        form.field['muc#roomconfig_changesubject']['value'] = True
-        form.field['muc#roomconfig_maxusers']['value'] = ('2')
-        form.field['muc#roomconfig_membersonly']['value'] = True  # 只能邀请加入，出现407，需要怎么办呢？
-        # TODO 调整配置参数后，首次邀请出现了报错，407需要注册。
-        # self.plugin_muc.setAffiliation方法先把对方账号设置为成员。
-
-        form.set_type('submit')
-        self.plugin_muc.setRoomConfig(room, form)
-
-        form = self.plugin_muc.getRoomConfig(room)
-        # print(form)
-        # for f in form.field:
-        #    print("%40s\t%15s\t%s" % (f, form.field[f]['type'], form.field[f]['value']))
-
-        # self.plugin_muc.invite(room, peer_jid, reason=reason)  # , mfrom=mfrom)
-
-        # 可用的配置项列表
-        #            FORM_TYPE                 hidden ['http://jabber.org/protocol/muc#roomconfig']
-        #                muc#roomconfig_roomname            text-single
-        #                muc#roomconfig_roomdesc            text-single
-        #          muc#roomconfig_persistentroom                boolean False
-        #              muc#roomconfig_publicroom                boolean True
-        #                            public_list                boolean True
-        #   muc#roomconfig_passwordprotectedroom                boolean False
-        #              muc#roomconfig_roomsecret           text-private
-        #                muc#roomconfig_maxusers            list-single 200
-        #                   muc#roomconfig_whois            list-single moderators
-        #             muc#roomconfig_membersonly                boolean False
-        #           muc#roomconfig_moderatedroom                boolean True
-        #                     members_by_default                boolean True
-        #           muc#roomconfig_changesubject                boolean True
-        #                 allow_private_messages                boolean True
-        #   allow_private_messages_from_visitors            list-single anyone
-        #                      allow_query_users                boolean True
-        #            muc#roomconfig_allowinvites                boolean False
-        #      muc#roomconfig_allowvisitorstatus                boolean True
-        #  muc#roomconfig_allowvisitornickchange                boolean True
-        #      muc#roomconfig_allowvoicerequests                boolean True
-        # muc#roomconfig_voicerequestmininterval            text-single 1800
-        #                      captcha_protected                boolean False
-        #       muc#roomconfig_captcha_whitelist              jid-multi None
-        #           muc#roomconfig_enablelogging                boolean True
-
         return
 
     def on_groupchat_presence(self, presence):

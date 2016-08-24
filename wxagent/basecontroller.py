@@ -140,13 +140,14 @@ class BaseController(BaseController0):
         return
 
     def initRelay(self):
-        from .secfg import relay_type
-        if relay_type is None or relay_type == '' or relay_type not in ('xmpp', 'tox'):
-            raise 'relay type not set or invalid relay type. see secfg.py.'
+        # from .secfg import relay_type
+        # if relay_type is None or relay_type == '' or relay_type not in ('xmpp', 'tox'):
+        #    raise 'relay type not set or invalid relay type. see secfg.py.'
         # relay_type = 'xmpp'
         # relay_type = 'tox'
-        self.peerRelay = IMRelayFactory.create(relay_type)
-        self.peerRelay.src_pname = self.relay_src_pname
+        # self.peerRelay = IMRelayFactory.create(relay_type)
+        # self.peerRelay.src_pname = self.relay_src_pname
+        self.peerRelay.src_name = self.__class__.__name__
 
         relay = self.peerRelay
         relay.connected.connect(self.onRelayConnected, Qt.QueuedConnection)

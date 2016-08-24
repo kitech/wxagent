@@ -5,6 +5,7 @@ from .baseagent import BaseAgent
 from .toxcontroller import ToxController
 from .wechatcontroller import WechatController
 from .xmppcontroller import XmppController
+from .irccontroller import IRCController
 
 
 # TODO should be based on BaseHandler?
@@ -18,8 +19,9 @@ class RoundTable(BaseAgent):
 
     def Login(self):
         self.ctrls['ToxAgent'] = ToxController(self)
-        self.ctrls['WechatAgent'] = WechatController(self)
+        # self.ctrls['WechatAgent'] = WechatController(self)
         self.ctrls['XmppAgent'] = XmppController(self)
+        self.ctrls['IRCAgent'] = IRCController(self)
 
         for ctrl in self.ctrls:
             self.ctrls[ctrl].initSession()

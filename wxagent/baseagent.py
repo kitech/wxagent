@@ -56,7 +56,11 @@ class BaseAgent(QObject):
     def RecvMessage(self):
         return
 
+    # rename to PushMessageToBus
     def SendMessageX(self, msg: dict):
+        return self.PushMessageToBus(msg)
+
+    def PushMessageToBus(self, msg: dict):
         msg['src'] = self.__class__.__name__
         msg['dest'] = ['all'] if msg.get('dest') is None else msg['dest']
         msg['ttl'] = 0 if msg.get('ttl') is None else msg['ttl']

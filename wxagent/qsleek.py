@@ -250,7 +250,7 @@ class QSleek(QThread):
         form = self.plugin_muc.getRoomConfig(room)
         # print(form)
         # for f in form.field:
-        #    print("%40s\t%15s\t%s" % (f, form.field[f]['type'], form.field[f]['value']))
+        #     print("%40s\t%15s\t%s" % (f, form.field[f]['type'], form.field[f]['value']))
 
         # http://xmpp.org/extensions/xep-0045.html#createroom-reserved
         form.field['muc#roomconfig_roomname']['value'] = "jioefefjoifjoife"
@@ -260,7 +260,7 @@ class QSleek(QThread):
         form.field['public_list']['value'] = False
         form.field['muc#roomconfig_moderatedroom']['value'] = False
         form.field['allow_private_messages']['value'] = False
-        form.field['muc#roomconfig_enablelogging']['value'] = False
+        # form.field['muc#roomconfig_enablelogging']['value'] = False
         form.field['muc#roomconfig_changesubject']['value'] = True
         form.field['muc#roomconfig_maxusers']['value'] = ('2')
         form.field['muc#roomconfig_membersonly']['value'] = True  # 只能邀请加入，出现407，需要怎么办呢？

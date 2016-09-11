@@ -42,6 +42,16 @@ class ToxAgent(BaseAgent):
             ret = self.toxkit.friendExists(argv[1])
         elif func == 'sendMessage':
             ret = self.toxkit.sendMessage(argv[1], argv[2])
+        elif func == 'groupchatSendMessage':
+            ret = self.toxkit.groupchatSendMessage(argv[1], argv[2])
+        elif func == 'groupchatAdd':
+            ret = self.toxkit.groupchatAdd()
+        elif func == 'groupNumberPeers':
+            ret = self.toxkit.groupNumberPeers(argv[1])
+        elif func == 'groupchatSetTitle':
+            ret = self.toxkit.groupchatSetTitle(argv[1], argv[2])
+        elif func == 'groupchatInviteFriend':
+            ret = self.toxkit.groupchatInviteFriend(argv[1], argv[2])
         else:
             qDebug('not supported now: {}'.format(func))
 
@@ -241,7 +251,7 @@ class ToxAgent(BaseAgent):
             return
 
         str_group_number = str(group_number)
-        self.newGroupMessage.emit(str_group_number, message)
+        # self.newGroupMessage.emit(str_group_number, message)
 
         return
 
@@ -262,7 +272,8 @@ class ToxAgent(BaseAgent):
         # 据说要这么写更好，少用return控制流程
         if number_peers >= 2 and change_type == self.toxkit.CHAT_CHANGE_PEER_NAME:
             # 上游需要字符串类型的group标识。
-            self.peerEnterGroup.emit(str(group_number))
+            # self.peerEnterGroup.emit(str(group_number))
+            pass
 
         if number_peers != 2: return
         if change_type != 2: return  # 好像只有CHANGE_PEER_NAME才能保证对方进入群组了。

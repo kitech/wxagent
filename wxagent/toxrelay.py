@@ -6,6 +6,8 @@ from collections import defaultdict
 from PyQt5.QtCore import *
 
 from .qtoxkit import *
+from pytox import Tox
+
 
 from .imrelay import IMRelay
 from .unimessage import ToxMessage
@@ -196,7 +198,7 @@ class ToxRelay(IMRelay):
         qDebug('np: %d, %s' % (number_peers, pinfo))
 
         # 据说要这么写更好，少用return控制流程
-        if number_peers >= 2 and change_type == self.toxkit.CHAT_CHANGE_PEER_NAME:
+        if number_peers >= 2 and change_type == Tox.CHAT_CHANGE_PEER_NAME:
             # 上游需要字符串类型的group标识。
             self.peerEnterGroup.emit(str(group_number))
 

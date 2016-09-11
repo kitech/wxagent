@@ -3,7 +3,7 @@ import json
 from PyQt5.QtCore import *
 from PyQt5.QtDBus import *
 
-from .basecontroller import BaseController
+from .basecontroller import BaseController, Chatroom
 from .wxcommon import *
 
 from .toxrelay import ToxRelay
@@ -39,7 +39,7 @@ class ToxCallProxy(QObject):
         qDebug('hehree')
         return self.ctrl.remoteCall(self.ctrl.rt.funcName(), peer)
 
-    def groupAdd(self):
+    def groupchatAdd(self):
         qDebug('hehree')
         return self.ctrl.remoteCall(self.ctrl.rt.funcName())
 
@@ -61,6 +61,8 @@ class ToxController(BaseController):
         super(ToxController, self).__init__(rt, parent)
         self.relay = ToxRelay()
         self.relay.toxkit = ToxCallProxy(self)
+        self.peerRelay = self.relay
+        self.initRelay()
         return
 
     def initSession(self):
@@ -71,7 +73,55 @@ class ToxController(BaseController):
         from .secfg import peer_tox_user
 
         self.relay.sendMessage(msgo['params'][0], peer_tox_user)
+        self.replyGroupMessage(msgo)
         return
+
+    def replyGroupMessage(self, msgo):
+        groupchat = None
+        mkey = None
+        title = ''
+
+        mkey = msgo['sender']['channel']
+        title = "It's title: " + msgo['sender']['channel']
+        fmtcc = msgo['params'][0]
+
+        if mkey in self.txchatmap:
+            groupchat = self.txchatmap[mkey]
+
+        if groupchat is not None:
+            # assert groupchat is not None
+            # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
+            number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
+            if number_peers < 2:
+                groupchat.unsend_queue.append(fmtcc)
+                # reinvite peer into group
+                self.peerRelay.groupInvite(groupchat.group_number, self.peerRelay.peer_user)
+            else:
+                self.peerRelay.sendGroupMessage(fmtcc, groupchat.group_number)
+        else:
+            groupchat = self.createChatroom(msgo, mkey, title)
+            groupchat.unsend_queue.append(fmtcc)
+            qDebug('groupchat not exists, create it:' + mkey)
+
+        return
+
+    def createChatroom(self, msgo, mkey, title):
+
+        group_number = ('WXU.%s' % mkey).lower()
+        group_number = self.peerRelay.createChatroom(mkey, title)
+        groupchat = Chatroom()
+        groupchat.group_number = group_number
+        # groupchat.FromUser = msg.FromUser
+        # groupchat.ToUser = msg.ToUser
+        # groupchat.FromUserName = msg.FromUserName
+        groupchat.msgo = msgo
+        self.txchatmap[mkey] = groupchat
+        self.relaychatmap[group_number] = groupchat
+        groupchat.title = title
+
+        self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
+
+        return groupchat
 
     def updateSession(self, msgo):
         qDebug('heree')

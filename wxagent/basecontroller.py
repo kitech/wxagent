@@ -24,6 +24,8 @@ class Chatroom():
         self.group_number = -1
         self.peer_number = -1
 
+        self.msgo = None
+
         # 以收到消息创建聊天群组时的from/to定义
         self.FromUser = None
         self.ToUser = None

@@ -16,8 +16,9 @@ class WechatAgent(BaseAgent):
         return
 
     def Login(self):
-        self.wechat = QWechat()
-        # self.wechat.Login()
+        self.wechat = QWechat(self)
+        self.wechat._agent = self
+        self.wechat.Login()
         return
 
     # override
@@ -33,6 +34,7 @@ class WechatAgent(BaseAgent):
             ret = self.wechat.sendMessage(argv[1], argv[2])
         elif func == 'getqrpic':
             ret = QByteArray(self.wechat.qrpic).toBase64().data().decode()
+            qDebug(str(len(ret)))
         elif func == 'islogined':
             ret = self.wechat.logined
         else:

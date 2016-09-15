@@ -19,7 +19,7 @@ class RoundTable(BaseAgent):
 
     def Login(self):
         self.ctrls['ToxAgent'] = ToxController(self)
-        # self.ctrls['WechatAgent'] = WechatController(self)
+        self.ctrls['WechatAgent'] = WechatController(self)
         self.ctrls['XmppAgent'] = XmppController(self)
         self.ctrls['IRCAgent'] = IRCController(self)
 
@@ -30,7 +30,8 @@ class RoundTable(BaseAgent):
 
     def messageHandler(self, msg):
         qDebug('herhere')
-        print(msg, msg.service(), ',', msg.path(), ',', msg.interface(), ',', msg.arguments())
+        print(msg, msg.service(), ',', msg.path(), ',', msg.interface(), ',')
+        qDebug(str(msg.arguments())[0:56])
         msgo = json.JSONDecoder().decode(msg.arguments()[0])
         if msgo.get(self.OP) is not None:
             self.processOperator(msgo)

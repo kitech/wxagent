@@ -125,6 +125,7 @@ class QWechat(TXBase):
     def __init__(self, parent=None):
         super(QWechat, self).__init__(parent)
 
+        self._agent = None  # BaseAgent
         self._reqth = ReqThread()
         self._reqth.reqFinished.connect(self.onReply2, Qt.QueuedConnection)
         self._reqth.start()
@@ -198,6 +199,10 @@ class QWechat(TXBase):
         self.asts.onRefresh()
         self.doboot()
         self.refresh_count += 1
+        return
+
+    def SendMessageX(self, args: dict):
+        self._agent.SendMessageX(args)
         return
 
     def Login(self):
@@ -913,7 +918,7 @@ class QWechat(TXBase):
     # begin dbus signals
     def emitDBusBeginLogin(self):
         args = {
-            'op': 'begin_login',
+            'evt': 'begin_login',
             'params': [123],
         }
 
@@ -939,7 +944,7 @@ class QWechat(TXBase):
         sigmsg.setArguments([123, qrpic64str])
 
         args = {
-            'op': 'got_qrcode',
+            'evt': 'got_qrcode',
             'params': [qrpic64str, 123],
         }
         self.SendMessageX(args)

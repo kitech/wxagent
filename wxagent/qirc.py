@@ -18,9 +18,10 @@ class QIRC(QThread):
         self._server = self._client.server()
         qDebug('hehrere')
         print(self._server)
-        r = self._server.connect('weber.freenode.net', 6667, 'devnull')
+        r = self._server.connect('weber.freenode.net', 8000, 'devnull2')
         qDebug(str(self._server.is_connected()))
-        self._server.join('#roundtablex')
+        jret = self._server.join('#roundtablex1')
+        qDebug(str(jret))
         self._server.add_global_handler('pubmsg', self.onPublicMessage)
         self._server.add_global_handler('privmsg', self.onPrivateMessage)
 

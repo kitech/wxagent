@@ -22,8 +22,29 @@ from .botcmd import *
 from .filestore import QiniuFileStore, VnFileStore
 
 from .basecontroller import BaseController, Chatroom
+# from .wechatrelay import WechatCallProxy, WechatRelay
 
 
+class WechatCallProxy(QObject):
+    def __init__(self, ctrl, parent=None):
+        super(WechatCallProxy, self).__init__(parent)
+        self.ctrl = ctrl
+
+        #
+        self.peer_user = ''
+        return
+
+    def islogined(self, a, b, c):
+        return self.ctrl.remoteCall('islogined', a, b, c)
+
+    def getqrpic(self, a, b, c):
+        return self.ctrl.remoteCall('getqrpic', a, b, c)
+
+    def isPeerConnected(self, peer):
+        return self.ctrl.remoteCall('islogined', 1, 2, 3)
+
+
+# controller逻辑处理层功能，而relay做网络层/远程通信功能
 #
 #
 class WechatController(BaseController):
@@ -33,14 +54,29 @@ class WechatController(BaseController):
         super(WechatController, self).__init__(rt, parent)
 
         self.relay_src_pname = 'WXU'
+        self.peerRelay = WechatCallProxy(self)
 
         self.initDBus()
-        self.initRelay()
-        self.initListener()
+        # self.initRelay()
+        # self.initListener()
         self.startWXBot()
         return
 
     def replyMessage(self, msgo):
+        return
+
+    def updateSession(self, msgo):
+        qDebug('heree')
+        evt = msgo['evt']
+        params = msgo['params']
+        if evt == 'onToxnetConnectStatus': self.relay.onToxnetConnectStatus(*params)
+        elif evt == 'onToxnetFriendStatus': self.relay.onToxnetFriendStatus(*params)
+        elif evt == 'onToxnetGroupMessage': self.relay.onToxnetGroupMessage(*params)
+        elif evt == 'onToxnetGroupNamelistChanged': self.relay.onToxnetGroupNamelistChanged(*params)
+        elif evt == 'onToxnetMessage': self.relay.onToxnetMessage(*params)
+        elif evt == 'got_qrcode': self.onDBusGotQRCode2(QByteArray(params[0].encode()))
+        elif evt == 'begin_login': self.onDBusBeginLogin2()
+        else: pass
         return
 
     def botcmdHandler(self, msg):
@@ -493,7 +529,8 @@ class WechatController(BaseController):
         return
 
     def checkWXLogin(self):
-        retv = self.remoteCall('islogined', 'a0', 123, 'a1')
+        # retv = self.remoteCall('islogined', 'a0', 123, 'a1')
+        retv = self.peerRelay.islogined('a0', 123, 'a1')
         if retv is False:
             return retv
 

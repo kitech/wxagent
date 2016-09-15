@@ -343,26 +343,34 @@ class BaseController(BaseController0):
         # clear smth.
         return
 
+    def onDBusBeginLogin2(self):
+        return
+
     @pyqtSlot(QDBusMessage)
     def onDBusGotQRCode(self, message):
         args = message.arguments()
         # qDebug(str(message.arguments()))
         qrpic64str = args[1]
         qrpic = QByteArray.fromBase64(qrpic64str.encode())
+        return self.onDBusGotQRCode2(qrpic)
 
+    def onDBusGotQRCode2(self, qrpic: QByteArray):
         self.qrpic = qrpic
         fname = self.genQRCodeSaveFileName()
         self.saveContent(fname, qrpic)
         self.qrfile = fname
 
         tkc = False
-        tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
+        # tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
+        tkc = True
         if tkc is True:
             # url = filestore.upload_file(self.qrpic)
             url1 = QiniuFileStore.uploadData(self.qrpic)
             url2 = VnFileStore.uploadData(self.qrpic)
             url = url1 + "\n" + url2
-            self.peerRelay.sendMessage('qrpic url:' + url, self.peerRelay.peer_user)
+            # self.peerRelay.sendMessage('qrpic url:' + url, self.peerRelay.peer_user)
+            args = self.rt.makeBusMessage('showpiclink', None, 'qrcode url:' + url)
+            self.rt.SendMessageX(args)
         else:
             self.need_send_qrfile = True
 
@@ -495,7 +503,7 @@ class BaseController(BaseController0):
     # def getConnState(self):
 
     def getQRCode(self):
-        retv = self.remoteCall('getqrpic', 123, 'a1', 456)
+        retv = self.peerRelay.getqrpic(123, 'a1', 456)
         qrpic64 = retv.encode('utf8')   # to bytes
         qrpic = QByteArray.fromBase64(qrpic64)
 

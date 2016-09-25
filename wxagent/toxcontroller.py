@@ -69,7 +69,7 @@ class ToxController(BaseController):
         return
 
     def replyMessage(self, msgo):
-        qDebug(msgo['sender']['channel'])
+        qDebug(str(msgo['sender']['channel']))
         from .secfg import peer_tox_user
 
         self.relay.sendMessage(msgo['params'][0], peer_tox_user)

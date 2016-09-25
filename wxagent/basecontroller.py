@@ -43,6 +43,9 @@ class Chatroom():
         self.FromUserName = ''  # case for newsapp/xxx
         return
 
+    def toJson(self):
+        return
+
 
 class BaseController0(QObject):
     def __init__(self, rt, parent=None):
@@ -268,7 +271,7 @@ class BaseController(BaseController0):
         return
 
     def onRelayGroupMessage(self, group_number, message):
-        qDebug(('hehee' + str(group_number)).encode())
+        qDebug(('hehee:' + str(group_number)).encode())
         groupchat = None
         if group_number in self.relaychatmap:
             groupchat = self.relaychatmap[group_number]
@@ -276,6 +279,7 @@ class BaseController(BaseController0):
             qDebug('can not find assoc chatroom')
             return
 
+        qDebug((json.JSONEncoder().encode(groupchat.__dict__)).encode())
         qDebug(('will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.ToUser.NickName)).encode())
         if groupchat.FromUser is not None:
             qDebug(('or will send wx msg:%s,%s' % (groupchat.ToUser.Uin, groupchat.FromUser.NickName)).encode())

@@ -19,9 +19,14 @@ class IRCCallProxy(QObject):
         qDebug('hehree')
         return self.ctrl.remoteCall(self.ctrl.rt.funcName(), friendId)
 
-    def send_message(self, mto, mbody):
+    def sendMessage(self, msg):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), mto, mbody)
+        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), msg)
+        return
+
+    def sendGroupMessage(self, msg, group):
+        qDebug('hehree')
+        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), msg, group)
         return
 
 
@@ -36,9 +41,12 @@ class IRCController(BaseController):
         return
 
     def replyMessage(self, msgo):
-        qDebug(msgo['sender']['channel'])
+        qDebug(str(msgo['sender']['channel']))
         # from .secfg import peer_xmpp_user
 
+        msg = 'hehehheeeee'
+        msg = str(msgo['params'])
+        self.relay.sendGroupMessage(msg, 'grouppppp')
         # self.relay.sendMessage(msgo['params'][0], peer_xmpp_user)
         return
 
@@ -69,4 +77,12 @@ class IRCRelay(IMRelay):
 
     def onIRCNewMessage(self, msg):
         qDebug(msg[0:32].encode())
+        return
+
+    def sendMessage(self, msg):
+        self.xmpp.sendMessage(msg)
+        return
+
+    def sendGroupMessage(self, msg, group):
+        self.xmpp.sendGroupMessage(msg, group)
         return

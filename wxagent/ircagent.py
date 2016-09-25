@@ -24,6 +24,24 @@ class IRCAgent(BaseAgent):
     def RecvMessage(self):
         return
 
+    # override
+    def onRpcCall(self, argv):
+        qDebug('hereeeee: {}'.format(argv).encode()[0:78])
+
+        func = argv[0]
+        ret = None
+
+        if func == 'friendExists':
+            ret = self.toxkit.friendExists(argv[1])
+        elif func == 'sendMessage':
+            ret = self._irc.sendMessage(argv[1])
+        elif func == 'sendGroupMessage':
+            ret = self._irc.sendGroupMessage(argv[1], argv[2])
+        else:
+            qDebug('not supported now: {}'.format(func))
+
+        return ret
+
     # ######################
     def onIRCConnected(self):
         qDebug('hrerere')

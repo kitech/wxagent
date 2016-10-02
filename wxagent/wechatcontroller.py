@@ -79,6 +79,11 @@ class WechatController(BaseController):
         else: pass
         return
 
+    def fillContext(self, msgo):
+        msgtxt = str(msgo)
+        qDebug(msgtxt.encode())
+        return msgo
+
     def botcmdHandler(self, msg):
         # 汇总消息好友发送过来的消息当作命令处理
         # getqrcode

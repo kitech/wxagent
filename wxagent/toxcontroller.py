@@ -55,6 +55,10 @@ class ToxCallProxy(QObject):
         qDebug('hehree')
         return self.ctrl.remoteCall(self.ctrl.rt.funcName(), group_number)
 
+    def groupchatGetTitle(self, group_number):
+        qDebug('hehree')
+        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), group_number)
+
 
 class ToxController(BaseController):
     def __init__(self, rt, parent=None):
@@ -72,7 +76,9 @@ class ToxController(BaseController):
         qDebug(str(msgo['sender']['channel']))
         from .secfg import peer_tox_user
 
-        self.relay.sendMessage(msgo['params'][0], peer_tox_user)
+        msg = msgo['params'][0]
+        msg = str(msgo)
+        self.relay.sendMessage(msg, peer_tox_user)
         self.replyGroupMessage(msgo)
         return
 
@@ -82,8 +88,11 @@ class ToxController(BaseController):
         title = ''
 
         mkey = msgo['sender']['channel']
-        title = "It's title: " + msgo['sender']['channel']
+        qDebug(str(mkey).encode())
+        title = "It's title: " + str(msgo['sender']['channel'])
         fmtcc = msgo['params'][0]
+        fmtcc = str(msgo)
+        qDebug(fmtcc.encode())
 
         if mkey in self.txchatmap:
             groupchat = self.txchatmap[mkey]
@@ -134,4 +143,25 @@ class ToxController(BaseController):
         elif evt == 'onToxnetMessage': self.relay.onToxnetMessage(*params)
         else: pass
         return
+
+    def fillContext(self, msgo):
+        msgtxt = str(msgo)
+        qDebug(msgtxt.encode())
+        qDebug(str(self.txchatmap.keys()).encode())
+        qDebug(str(self.relaychatmap.keys()).encode())
+
+        group_number = msgo['params'][0]
+        group_number_str = str(group_number)
+        title1 = self.relay.groupchatGetTitle(group_number)
+        if self.relaychatmap.get(group_number_str) is None:
+            title2 = None
+        else:
+            title2 = self.relaychatmap[group_number_str].title
+
+        qDebug((str(title1) + ',' + str(title2)).encode())
+
+        msgo['context'] = {
+            'channel': 'abccc',
+        }
+        return msgo
 

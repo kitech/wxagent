@@ -50,6 +50,8 @@ class ToxAgent(BaseAgent):
             ret = self.toxkit.groupNumberPeers(argv[1])
         elif func == 'groupchatSetTitle':
             ret = self.toxkit.groupchatSetTitle(argv[1], argv[2])
+        elif func == 'groupchatGetTitle':
+            ret = self.toxkit.groupchatGetTitle(argv[1])
         elif func == 'groupchatInviteFriend':
             ret = self.toxkit.groupchatInviteFriend(argv[1], argv[2])
         else:

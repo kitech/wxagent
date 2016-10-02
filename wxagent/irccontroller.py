@@ -45,7 +45,7 @@ class IRCController(BaseController):
         # from .secfg import peer_xmpp_user
 
         msg = 'hehehheeeee'
-        msg = str(msgo['params'])
+        msg = str(msgo)
         self.relay.sendGroupMessage(msg, 'grouppppp')
         # self.relay.sendMessage(msgo['params'][0], peer_xmpp_user)
         return
@@ -59,6 +59,14 @@ class IRCController(BaseController):
         elif evt == 'onIRCNewMessage': self.relay.onIRCNewMessage(*params)
         else: pass
         return
+
+    def fillContext(self, msgo):
+        msgtxt = str(msgo)
+        qDebug(msgtxt.encode())
+        msgo['context'] = {
+            'channel': msgo['channel'],
+        }
+        return msgo
 
 
 class IRCRelay(IMRelay):

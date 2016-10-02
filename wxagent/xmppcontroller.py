@@ -57,14 +57,18 @@ class XmppController(BaseController):
         return
 
     def replyMessage(self, msgo):
-        qDebug(msgo['sender']['channel'])
+        qDebug(str(msgo['sender']['channel']).encode())
         from .secfg import peer_xmpp_user
         channel = msgo['sender']['channel']
-        self.relay.sendMessage(msgo['params'][0], peer_xmpp_user)
+
+        msg = msgo['params'][0]
+        msg = str(msgo)
+        self.relay.sendMessage(msg, peer_xmpp_user)
         # self.relay.sendGroupMessage(msgo['params'][0], channel)
         txmsg = TXMessage()
         txmsg.FromUserName = self.peerRelay.self_user
         txmsg.Content = msgo['params'][0]
+        txmsg.Content = msg
         self.dispatchGroupChat(channel, txmsg)
         return
 
@@ -82,10 +86,15 @@ class XmppController(BaseController):
         else: pass
         return
 
+    def fillContext(self, msgo):
+        msgtxt = str(msgo)
+        qDebug(msgtxt.encode())
+        return msgo
+
     def dispatchGroupChat(self, channel, msg):
         groupchat = None
         mkey = channel
-        title = '' + channel + channel
+        title = '' + str(channel) + str(channel)
         fmtcc = msg.Content
 
         if mkey in self.txchatmap:

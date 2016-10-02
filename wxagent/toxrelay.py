@@ -87,6 +87,10 @@ class ToxRelay(IMRelay):
         number_peers = self.toxkit.groupNumberPeers(group_number)
         return number_peers
 
+    def groupchatGetTitle(self, group_number):
+        title = self.toxkit.groupchatGetTitle(group_number)
+        return title
+
     # raw toxcore protocol handler
     def initToxnet(self):
         from .secfg import peer_tox_user

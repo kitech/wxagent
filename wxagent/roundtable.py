@@ -33,7 +33,19 @@ class RoundTable(BaseAgent):
         print(msg, msg.service(), ',', msg.path(), ',', msg.interface(), ',')
         qDebug(str(msg.arguments())[0:66])
         msgo = json.JSONDecoder().decode(msg.arguments()[0])
+
         if msgo.get(self.OP) is not None:
+            if msgo['src'] == 'IRCAgent':
+                msgo = self.ctrls['IRCAgent'].fillContext(msgo)
+            elif msgo['src'] == 'XmppAgent':
+                msgo = self.ctrls['XmppAgent'].fillContext(msgo)
+            elif msgo['src'] == 'ToxAgent':
+                msgo = self.ctrls['ToxAgent'].fillContext(msgo)
+            elif msgo['src'] == 'WechatAgent':
+                msgo = self.ctrls['WechatAgent'].fillContext(msgo)
+            else:
+                qDebug('unsupported agent:' + msgo['src'])
+
             self.processOperator(msgo)
         elif msgo.get(self.EVT) is not None:
             self.processEvent(msgo)
@@ -50,6 +62,8 @@ class RoundTable(BaseAgent):
             self.processOperatorTox(msgo)
         elif msgo['src'] == 'RoundTable':
             self.processOperatorRoundTable(msgo)
+        else:
+            qDebug('not supported agent: ' + msgo['src'])
         return
 
     def processOperatorIRC(self, msgo):
@@ -68,7 +82,7 @@ class RoundTable(BaseAgent):
         return
 
     def processOperatorXmpp(self, msgo):
-        rules = ['ToxAgent', 'WechatAgent']
+        rules = ['ToxAgent', 'WechatAgent', 'IRCAgent']
         remsg = 're: ' + msgo['params'][0]
         args = self.makeBusMessage('reply', None, remsg)
         # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
@@ -84,8 +98,8 @@ class RoundTable(BaseAgent):
 
     def processOperatorTox(self, msgo):
         rules = ['IRCAgent', 'WechatAgent', 'XmppAgent']
-        rules = ['IRCAgent']
-        print(msgo['params'])
+        rules = ['IRCAgent', 'XmppAgent']
+        qDebug(str(msgo['params']).encode())
         remsg = 're: ' + msgo['params'][2]
         args = self.makeBusMessage('reply', None, remsg)
         # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']

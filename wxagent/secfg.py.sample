@@ -13,6 +13,8 @@ xmpp_conf_pass = '1234567'
 irc_user = ''
 peer_irc_user = ''
 irc_hannel = ''
+irc_host = ''
+irc_port = 8000
 
 # for file storage
 qiniu_acckey = ''

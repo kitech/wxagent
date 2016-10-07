@@ -70,6 +70,10 @@ class XmppRelay(IMRelay):
     def createChatroom(self, room_key, title):
         room_ident = '%s.%s' % (self.src_pname, room_key)
         room_ident = '%s.%s' % (self.src_pname, self._roomify_name(title))
+        qDebug(self.src_pname.encode())
+        qDebug(self._roomify_name(title).encode())
+        qDebug(room_ident)
+        room_ident = room_key
         self.xmpp.create_muc2(room_ident, title)
         return room_ident.lower()
 
@@ -331,6 +335,8 @@ class XmppRelay(IMRelay):
                 nch = '*'
             elif ch in (' '):
                 nch = '+'
+            elif ch in ('#'):
+                nch = '.'
             elif ch in ('<', '>', '(', ')'):
                 nch = '.'
             elif ch in ('，'):  # 全角标点

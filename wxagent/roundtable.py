@@ -66,6 +66,7 @@ class RoundTable(BaseAgent):
             qDebug('not supported agent: ' + msgo['src'])
         return
 
+    # TODO drop sender
     def processOperatorIRC(self, msgo):
         rules = ['ToxAgent', 'WechatAgent', 'XmppAgent']
         remsg = 're: ' + msgo['params'][0]
@@ -81,6 +82,7 @@ class RoundTable(BaseAgent):
 
         return
 
+    # TODO drop sender
     def processOperatorXmpp(self, msgo):
         rules = ['ToxAgent', 'WechatAgent', 'IRCAgent']
         remsg = 're: ' + msgo['params'][0]
@@ -96,6 +98,7 @@ class RoundTable(BaseAgent):
 
         return
 
+    # TODO drop sender
     def processOperatorTox(self, msgo):
         rules = ['IRCAgent', 'WechatAgent', 'XmppAgent']
         rules = ['IRCAgent', 'XmppAgent']
@@ -113,6 +116,7 @@ class RoundTable(BaseAgent):
 
         return
 
+    # TODO drop sender
     def processOperatorRoundTable(self, msgo):
         if msgo['op'] == 'showpiclink':
             remsg = msgo['params'][0]

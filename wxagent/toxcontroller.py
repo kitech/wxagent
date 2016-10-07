@@ -73,13 +73,25 @@ class ToxController(BaseController):
         return
 
     def replyMessage(self, msgo):
-        qDebug(str(msgo['sender']['channel']))
-        from .secfg import peer_tox_user
+        qDebug(str(msgo).encode())
 
-        msg = msgo['params'][0]
-        msg = str(msgo)
-        self.relay.sendMessage(msg, peer_tox_user)
-        self.replyGroupMessage(msgo)
+        if msgo['sender'].get('context') is None:
+            qDebug(str(msgo['sender']['channel']))
+            from .secfg import peer_tox_user
+
+            msg = msgo['params'][0]
+            msg = str(msgo)
+            self.relay.sendMessage(msg, peer_tox_user)
+        else:
+            qDebug(str(msgo['sender']['channel']))
+            qDebug(str(msgo['sender']['context']['channel']))
+            from .secfg import peer_tox_user
+
+            msg = msgo['params'][0]
+            msg = str(msgo)
+            self.relay.sendMessage(msg, peer_tox_user)
+            self.replyGroupMessage(msgo)
+
         return
 
     def replyGroupMessage(self, msgo):
@@ -88,11 +100,17 @@ class ToxController(BaseController):
         title = ''
 
         mkey = msgo['sender']['channel']
+        mkey = msgo['sender']['context']['channel']
         qDebug(str(mkey).encode())
-        title = "It's title: " + str(msgo['sender']['channel'])
+        title = "It's title: " + str(msgo['sender']['context']['channel'])
+        title = str(msgo['sender']['context']['channel'])
         fmtcc = msgo['params'][0]
         fmtcc = str(msgo)
         qDebug(fmtcc.encode())
+
+        if len(mkey) == 0:
+            qDebug('maybe invalid channel, omit')
+            return
 
         if mkey in self.txchatmap:
             groupchat = self.txchatmap[mkey]
@@ -161,7 +179,7 @@ class ToxController(BaseController):
         qDebug((str(title1) + ',' + str(title2)).encode())
 
         msgo['context'] = {
-            'channel': 'abccc',
+            'channel': title1,
         }
         return msgo
 

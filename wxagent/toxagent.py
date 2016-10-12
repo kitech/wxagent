@@ -250,7 +250,7 @@ class ToxAgent(BaseAgent):
             return
 
         args = self.makeBusMessage('message', None, group_number, peer_number, message)
-        args['channel'] = group_number
+        args = self.setCtxChannel(args, group_number)
         self.SendMessageX(args)
 
         str_group_number = str(group_number)

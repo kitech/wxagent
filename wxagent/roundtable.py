@@ -66,13 +66,12 @@ class RoundTable(BaseAgent):
             qDebug('not supported agent: ' + msgo['src'])
         return
 
-    # TODO drop sender
     def processOperatorIRC(self, msgo):
         rules = ['ToxAgent', 'WechatAgent', 'XmppAgent']
         remsg = 're: ' + msgo['params'][0]
         args = self.makeBusMessage('reply', None, remsg)
         # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
-        args['sender'] = msgo
+        args['context'] = msgo['context']
         # self.SendMessageX(args)
 
         for rule in rules:
@@ -82,13 +81,12 @@ class RoundTable(BaseAgent):
 
         return
 
-    # TODO drop sender
     def processOperatorXmpp(self, msgo):
         rules = ['ToxAgent', 'WechatAgent', 'IRCAgent']
-        remsg = 're: ' + msgo['params'][0]
+        remsg = 're: ' + msgo['params'][1]
         args = self.makeBusMessage('reply', None, remsg)
         # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
-        args['sender'] = msgo
+        args['context'] = msgo['context']
         # self.SendMessageX(args)
 
         for rule in rules:
@@ -98,7 +96,6 @@ class RoundTable(BaseAgent):
 
         return
 
-    # TODO drop sender
     def processOperatorTox(self, msgo):
         rules = ['IRCAgent', 'WechatAgent', 'XmppAgent']
         rules = ['IRCAgent', 'XmppAgent']
@@ -106,7 +103,7 @@ class RoundTable(BaseAgent):
         remsg = 're: ' + msgo['params'][2]
         args = self.makeBusMessage('reply', None, remsg)
         # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
-        args['sender'] = msgo
+        args['context'] = msgo['context']
         # self.SendMessageX(args)
 
         for rule in rules:
@@ -116,12 +113,11 @@ class RoundTable(BaseAgent):
 
         return
 
-    # TODO drop sender
     def processOperatorRoundTable(self, msgo):
         if msgo['op'] == 'showpiclink':
             remsg = msgo['params'][0]
             args = self.makeBusMessage('reply', None, remsg)
-            args['sender'] = msgo
+            args['context'] = msgo['context']
             self.ctrls['ToxAgent'].replyMessage(args)
             # self.ctrls['XmppAgent'].replyMessage(args)
         return

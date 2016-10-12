@@ -58,10 +58,10 @@ class XmppController(BaseController):
         return
 
     def replyMessage(self, msgo):
-        qDebug(str(msgo['sender']['channel']).encode())
+        qDebug(str(msgo['context']['channel']).encode())
         from .secfg import peer_xmpp_user
         qDebug(str(msgo).encode())
-        channel = msgo['sender']['context']['channel']
+        channel = msgo['context']['channel']
         nchannel = self.relay._roomify_name(channel)
         self.chnamemap[nchannel] = channel
         channel = nchannel

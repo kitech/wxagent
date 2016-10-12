@@ -75,16 +75,15 @@ class ToxController(BaseController):
     def replyMessage(self, msgo):
         qDebug(str(msgo).encode())
 
-        if msgo['sender'].get('context') is None:
-            qDebug(str(msgo['sender']['channel']))
+        # 这是个什么分支，没有channel的情况应该是p2p消息
+        if msgo.get('context') is None:
             from .secfg import peer_tox_user
 
             msg = msgo['params'][0]
             msg = str(msgo)
             self.relay.sendMessage(msg, peer_tox_user)
         else:
-            qDebug(str(msgo['sender']['channel']))
-            qDebug(str(msgo['sender']['context']['channel']))
+            qDebug(str(msgo['context']['channel']))
             from .secfg import peer_tox_user
 
             msg = msgo['params'][0]
@@ -99,11 +98,10 @@ class ToxController(BaseController):
         mkey = None
         title = ''
 
-        mkey = msgo['sender']['channel']
-        mkey = msgo['sender']['context']['channel']
+        mkey = msgo['context']['channel']
         qDebug(str(mkey).encode())
-        title = "It's title: " + str(msgo['sender']['context']['channel'])
-        title = str(msgo['sender']['context']['channel'])
+        title = "It's title: " + str(msgo['context']['channel'])
+        title = str(msgo['context']['channel'])
         fmtcc = msgo['params'][0]
         fmtcc = str(msgo)
         qDebug(fmtcc.encode())

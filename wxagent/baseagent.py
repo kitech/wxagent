@@ -70,16 +70,27 @@ class BaseAgent(QObject):
         qDebug('hereee: {}({})={}'.format(a, str(type(encmsg)), encmsg[0:32]).encode())
         return
 
+    # @param op 操作，需要响应的
+    # @param evt 事件，不需要响应的
     def makeBusMessage(self, op: str, evt: str, *args):
         if op is not None:
-            return {'op': op, 'params': args, 'channel': '', }
+            return {'op': op, 'params': args,
+                    'context': {
+                        'channel': '',
+                    }}
         if evt is not None:
-            return {'evt': evt, 'params': args, 'channel': '', }
+            return {'evt': evt, 'params': args,
+                    'context': {
+                        'channel': '',
+                    }}
         raise 'wtf'
         return
 
+    def setCtxChannel(self, msg, channel):
+        msg['context']['channel'] = channel
+        return msg
 
-    ##########
+    #
     def init_dbus_service(self):
         sysbus = self.sysbus
         bret = sysbus.registerService(self.service_name)

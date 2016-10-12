@@ -58,6 +58,6 @@ class IRCAgent(BaseAgent):
     def onIRCNewMessage(self, msg):
         qDebug(msg[0:32].encode())
         args = self.makeBusMessage('message', None, msg)
-        args['channel'] = self._irc._channel
+        args = self.setCtxChannel(args, self._irc._channel)
         self.SendMessageX(args)
         return

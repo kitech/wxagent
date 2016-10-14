@@ -72,7 +72,7 @@ class XmppRelay(IMRelay):
         room_ident = '%s.%s' % (self.src_pname, self._roomify_name(title))
         qDebug(self.src_pname.encode())
         qDebug(self._roomify_name(title).encode())
-        qDebug(room_ident)
+        qDebug(room_ident.encode())
         room_ident = room_key
         self.xmpp.create_muc2(room_ident, title)
         return room_ident.lower()

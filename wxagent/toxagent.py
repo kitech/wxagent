@@ -142,7 +142,7 @@ class ToxAgent(BaseAgent):
         self.toxkit.fileRecvControl.connect(self.onToxnetFileRecvControl, Qt.QueuedConnection)
         self.toxkit.newGroupMessage.connect(self.onToxnetGroupMessage, Qt.QueuedConnection)
         self.toxkit.groupNamelistChanged.connect(self.onToxnetGroupNamelistChanged, Qt.QueuedConnection)
-
+        self.toxkit.groupInvite.connect(self.onToxnetGroupInvite, Qt.QueuedConnection)
         return
 
     def onToxnetConnectStatus(self, status):
@@ -192,11 +192,9 @@ class ToxAgent(BaseAgent):
         # islogined
         # 等待，总之是wxagent支持的命令，
 
-        self.newMessage.emit(msg)
-
         args = self.makeBusMessage(None, self.funcName(), friendId, msgtype, msg)
         self.SendMessageX(args)
-
+        # self.newMessage.emit(msg)
         return
 
     def onToxnetFriendStatus(self, friendId, status):
@@ -283,3 +281,11 @@ class ToxAgent(BaseAgent):
         # change_type为0,1,2，分别表示？？？
 
         return
+
+    def onToxnetGroupInvite(self, friend_number, group_type, group_pubkey):
+        # TODO check friend_number role
+        rc = self.toxkit.groupchatJoin(friend_number, group_pubkey)
+        # qDebug(str(rc))
+        args = self.makeBusMessage(None, self.funcName(), friend_number, group_type, group_pubkey)
+        self.SendMessageX(args)
+        return rc

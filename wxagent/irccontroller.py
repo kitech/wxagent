@@ -41,7 +41,7 @@ class IRCController(BaseController):
         return
 
     def replyMessage(self, msgo):
-        qDebug(str(msgo['context']['channel']))
+        qDebug(str(msgo['context']['channel']).encode())
         # from .secfg import peer_xmpp_user
 
         msg = 'hehehheeeee'

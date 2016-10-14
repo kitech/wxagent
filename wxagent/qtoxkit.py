@@ -413,7 +413,7 @@ class QToxKit(QThread):
         except Exception as ex:
             return False
         return rc
-    
+
     def onFriendMessage(self, fno, msg_type, msg):
         # qDebug('here')
         u8msg = msg.encode('utf8') # str ==> bytes
@@ -421,7 +421,7 @@ class QToxKit(QThread):
         u8msg = str(u8msg, encoding='utf8')
         #print(u8msg) # ok, python utf8 string
         # qDebug(u8msg.encode('utf-8')) # should ok, python utf8 bytes
-        
+
         fid = self.tox.friend_get_public_key(fno)
         # print('hehre: fnum=%s, fid=%s, msg=' % (str(fno), str(fid)), u8msg)
         self.newMessage.emit(fid, msg_type, msg)
@@ -430,8 +430,8 @@ class QToxKit(QThread):
     def onFriendStatus(self, fno, status):
         qDebug('hehre: fnum=%s, status=%s' % (str(fno), str(status)))
         fid = self.tox.friend_get_public_key(fno)
-        #if status == 0: self.friendConnected.emit(fid)
-        
+        # if status == 0: self.friendConnected.emit(fid)
+
         return
 
     def friendGetConnectionStatus(self, friend_pubkey):
@@ -451,7 +451,7 @@ class QToxKit(QThread):
         for msgn in self._splitmessage(msg_inbytes, mlen):
             msgn_instr = msgn.decode()
             mid = self.tox.friend_send_message(fno, Tox.MESSAGE_TYPE_NORMAL, msgn_instr)
-            
+
         return
 
     # 中文字符串分割
@@ -473,9 +473,9 @@ class QToxKit(QThread):
             sub = s.encode()[:n].decode(errors='ignore')
             s = s[len(sub):]
             yield sub
-        
+
         return
-    
+
     def sendMessage_dep(self, fid, msg):
         fno = self.tox.friend_by_public_key(fid)
         mlen = 1371 - 1  # TODO 这应该是bytes，现在是以字符串方式处理，对于宽字符串可能能转为bytes后长度就超过了。
@@ -493,7 +493,7 @@ class QToxKit(QThread):
 
         friend_pubkey = self.tox.friend_get_public_key(friend_number)
         self.fileRecv.emit(friend_pubkey, file_number, file_size, filename)
-        
+
         return
 
     # @param data bytes
@@ -501,7 +501,7 @@ class QToxKit(QThread):
         a = (friend_number, file_number, position, data)
         # qDebug(str(a))
         udata = data.decode('utf8')
-        
+
         friend_pubkey = self.tox.friend_get_public_key(friend_number)
         self.fileRecvChunk.emit(friend_pubkey, file_number, position, udata)
         return
@@ -521,13 +521,13 @@ class QToxKit(QThread):
         friend_number = self.tox.friend_by_public_key(friend_pubkey)
         bret = self.tox.file_send_chunk(friend_number, file_number, position, data)
         return bret
-    
+
     def fileControl(self, friend_pubkey, file_number, control):
         friend_number = self.tox.friend_by_public_key(friend_pubkey)
         bret = self.tox.file_control(friend_number, file_number, control)
-        
+
         return bret
-    
+
     def onFileRecvControl(self, friend_number, file_number, control):
         friend_id = self.tox.friend_get_public_key(friend_number)
         # file_id = '%128s' % ' '
@@ -536,7 +536,7 @@ class QToxKit(QThread):
         # qDebug(str(len(file_id)))
 
         self.fileRecvControl.emit(friend_id, file_number, control)
-        
+
         return
 
     ####### from tox_old
@@ -551,7 +551,7 @@ class QToxKit(QThread):
     def groupchatGetTitle(self, group_number):
         title = self.tox.group_get_title(group_number)
         return title
-    
+
     def groupchatSetTitle(self, group_number, title):
         rc = self.tox.group_set_title(group_number, title)
         return rc
@@ -560,7 +560,7 @@ class QToxKit(QThread):
         friend_number = self.tox.friend_by_public_key(friendId)
         rc = self.tox.invite_friend(friend_number, group_number)
         return rc
-        
+
     def groupchatSendMessage(self, group_number, msg):
         # MAX_GROUP_MESSAGE_DATA_LEN
         mlen = 1371 - 10  # TODO 这应该是bytes，现在是以字符串方式处理，对于宽字符串可能能转为bytes后长度就超过了。
@@ -571,11 +571,17 @@ class QToxKit(QThread):
             rc = self.tox.group_message_send(group_number, msgn_instr)
         return rc
 
-    
-    def onGroupInvite(self, friend_number, group_type, invite_msg):
-        self.groupInvite.emit(friend_number, group_type, invite_msg)
+    def groupchatJoin(self, friend_number, group_pubkey):
+        bahex = QByteArray.fromHex(QByteArray(group_pubkey.encode()).data())
+        rc = self.tox.join_groupchat(friend_number, bahex.data())
+        return rc
+
+    # @param group_pubkey data's hex encoded string
+    def onGroupInvite(self, friend_number, group_type, group_pubkey):
+        ba = QByteArray(group_pubkey)
+        bahex = ba.toHex()
+        self.groupInvite.emit(friend_number, group_type, bahex.data().decode())
         return
-    
 
     def onGroupMessage(self, group_number, peer_number, msg):
         qDebug('stacked.')
@@ -591,7 +597,7 @@ class QToxKit(QThread):
         qDebug('stacked.')
         self.groupTitleChanged.emit(group_number, peer_number, title)
         return
-    
+
     def onGroupNamelistChange(self, group_number, peer_number, change):
         qDebug('stacked.')
         self.groupNamelistChanged.emit(group_number, peer_number, change)

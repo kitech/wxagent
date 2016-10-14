@@ -112,6 +112,9 @@ class ToxController(BaseController):
 
         if mkey in self.txchatmap:
             groupchat = self.txchatmap[mkey]
+        else:
+            qDebug('room not found: {}'.format(mkey).encode())
+            qDebug(str(self.txchatmap.keys()).encode())
 
         if groupchat is not None:
             # assert groupchat is not None

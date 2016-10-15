@@ -283,8 +283,13 @@ class ToxAgent(BaseAgent):
         return
 
     def onToxnetGroupInvite(self, friend_number, group_type, group_pubkey):
+        qDebug('{},{},{}'.format(friend_number, group_type, group_pubkey).encode())
         # TODO check friend_number role
-        rc = self.toxkit.groupchatJoin(friend_number, group_pubkey)
+        rc = None
+        if group_type == 0:  # Tox.GROUPCHAT_TYPE_TEXT
+            rc = self.toxkit.groupchatJoin(friend_number, group_type, group_pubkey)
+        else:  # tox.GROUPCHAT_TYPE_AV
+            rc = self.toxkit.AVGroupchatJoin(friend_number, group_type, group_pubkey)
         # qDebug(str(rc))
         args = self.makeBusMessage(None, self.funcName(), friend_number, group_type, group_pubkey)
         self.SendMessageX(args)

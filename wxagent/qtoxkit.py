@@ -185,6 +185,7 @@ class QToxKit(QThread):
 
         self.tox = Tox(self.opts)
         self.tox = None
+        self.toxav = None
 
         # TODO
         self.bootstrapTimeout = 30000  #
@@ -571,10 +572,29 @@ class QToxKit(QThread):
             rc = self.tox.group_message_send(group_number, msgn_instr)
         return rc
 
-    def groupchatJoin(self, friend_number, group_pubkey):
+    def groupchatJoin(self, friend_number, group_type, group_pubkey):
         bahex = QByteArray.fromHex(QByteArray(group_pubkey.encode()).data())
-        rc = self.tox.join_groupchat(friend_number, bahex.data())
-        return rc
+        # qDebug('{}'.format(len(bahex)).encode())
+        try:
+            rc = self.tox.join_groupchat(friend_number, group_type, bahex.data())
+        except Exception as ex:
+            qDebug(str(ex).encode())
+        return
+
+    def AVGroupchatJoin(self, friend_number, group_type, group_pubkey):
+        bahex = QByteArray.fromHex(QByteArray(group_pubkey.encode()).data())
+        # qDebug('{}'.format(len(bahex)).encode())
+        try:
+            self._get_toxav()
+            rc = self.toxav.join_av_groupchat(friend_number, bahex.data())
+        except Exception as ex:
+            qDebug(str(ex).encode())
+        return
+
+    def _get_toxav(self):
+        if self.toxav is None:
+            self.toxav = ToxAV(self.tox)
+        return self.toxav
 
     # @param group_pubkey data's hex encoded string
     def onGroupInvite(self, friend_number, group_type, group_pubkey):

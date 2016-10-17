@@ -17,22 +17,22 @@ class IRCCallProxy(QObject):
 
     def friendExists(self, friendId):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), friendId)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), friendId)
 
     def sendMessage(self, msg):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), msg)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), msg)
         return
 
     def sendGroupMessage(self, msg, group):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), msg, group)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), msg, group)
         return
 
 
 class IRCController(BaseController):
-    def __init__(self, rt, parent=None):
-        super(IRCController, self).__init__(rt, parent)
+    def __init__(self, rtab, parent=None):
+        super(IRCController, self).__init__(rtab, parent)
         self.relay = IRCRelay()
         self.relay.xmpp = IRCCallProxy(self)
         return

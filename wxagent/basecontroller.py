@@ -48,10 +48,10 @@ class Chatroom():
 
 
 class BaseController0(QObject):
-    def __init__(self, rt, parent=None):
+    def __init__(self, rtab, parent=None):
         "docstring"
         super(BaseController0, self).__init__(parent)
-        self.rt = rt
+        self.rtab = rtab
         return
 
     def initSession(self):
@@ -67,7 +67,7 @@ class BaseController0(QObject):
         service_iface = WXAGENT_SERVICE_IFACE + '.' + name
 
         iface = QDBusInterface(service_name, service_path,
-                               service_iface, self.rt.sysbus)
+                               service_iface, self.rtab.sysbus)
         return iface
 
     def remoteCall(self, func, *argv):
@@ -246,8 +246,6 @@ class BaseController(BaseController0):
                 # groupchat.unsend_queue.append(fmtcc)  # 也许是这个函数返回值有问题，即使返回错误也可能发送成功。
             idx += 1
 
-
-
         return
 
     def onRelayMessage(self, msg):
@@ -335,8 +333,8 @@ class BaseController(BaseController0):
                 url2 = VnFileStore.uploadData(self.qrpic)
                 url = url1 + "\n" + url2
                 # self.peerRelay.sendMessage('qrcode url:' + url, self.peerRelay.peer_user)
-                args = self.rt.makeBusMessage('showpiclink', None, 'qrcode url:' + url)
-                self.rt.SendMessageX(args)
+                args = self.rtab.makeBusMessage('showpiclink', None, 'qrcode url:' + url)
+                self.rtab.SendMessageX(args)
             else:
                 self.need_send_qrfile = True
         return
@@ -373,8 +371,8 @@ class BaseController(BaseController0):
             url2 = VnFileStore.uploadData(self.qrpic)
             url = url1 + "\n" + url2
             # self.peerRelay.sendMessage('qrpic url:' + url, self.peerRelay.peer_user)
-            args = self.rt.makeBusMessage('showpiclink', None, 'qrcode url:' + url)
-            self.rt.SendMessageX(args)
+            args = self.rtab.makeBusMessage('showpiclink', None, 'qrcode url:' + url)
+            self.rtab.SendMessageX(args)
         else:
             self.need_send_qrfile = True
 
@@ -491,6 +489,9 @@ class BaseController(BaseController0):
     # def dispatchxxxChatToTox(self, msg, fmtcc):
 
     # def createChatroom(self, msg, mkey, title):
+    #    需要统一判断chatroom类型的方法
+
+    # def fillChatroom(self, msgo, mkey=None, title=None, group_number=None):
     #    需要统一判断chatroom类型的方法
 
     # def sendMessageToWX(self, groupchat, mcc):

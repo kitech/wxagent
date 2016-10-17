@@ -49,9 +49,9 @@ class WechatCallProxy(QObject):
 #
 class WechatController(BaseController):
 
-    def __init__(self, rt, parent=None):
+    def __init__(self, rtab, parent=None):
         "docstring"
-        super(WechatController, self).__init__(rt, parent)
+        super(WechatController, self).__init__(rtab, parent)
 
         self.relay_src_pname = 'WXU'
         self.peerRelay = WechatCallProxy(self)
@@ -279,8 +279,19 @@ class WechatController(BaseController):
             mkey = msg.ToUser.cname()
             title = '%s@WXU' % msg.ToUser.NickName
 
+        if self.rtab.unichats.existContrl(mkey, self.__class__.__name__):
+            groupchat = self.rtab.unichats.get(mkey, self.__class__.__name__)
+        else:
+            qDebug('room not found: {}'.format(mkey).encode())
+            qDebug(str(self.rtab.unichats.dumpKeys()).encode())
+
         if mkey in self.txchatmap:
             groupchat = self.txchatmap[mkey]
+        else:
+            qDebug('room not found: {}'.format(mkey).encode())
+            qDebug(str(self.txchatmap.keys()).encode())
+
+        if groupchat is not None:
             # assert groupchat is not None
             # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
             number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
@@ -339,9 +350,20 @@ class WechatController(BaseController):
                     qDebug('maybe a temp group and without nickname')
                     title = 'TGC%s@WXU' % msg.ToUser.cname()
 
+        if self.rtab.unichats.existContrl(mkey, self.__class__.__name__):
+            groupchat = self.rtab.unichats.get(mkey, self.__class__.__name__)
+        else:
+            qDebug('room not found: {}'.format(mkey).encode())
+            qDebug(str(self.rtab.unichats.dumpKeys()).encode())
+
         if mkey in self.txchatmap:
             groupchat = self.txchatmap[mkey]
             # assert groupchat is not None
+        else:
+            qDebug('room not found: {}'.format(mkey).encode())
+            qDebug(str(self.txchatmap.keys()).encode())
+
+        if groupchat is not None:
             # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
             number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
@@ -388,11 +410,20 @@ class WechatController(BaseController):
             qDebug('wtf???')
             assert(self.txses.me is not None)
 
+        if self.rtab.unichats.existContrl(mkey, self.__class__.__name__):
+            groupchat = self.rtab.unichats.get(mkey, self.__class__.__name__)
+        else:
+            qDebug('room not found: {}'.format(mkey).encode())
+            qDebug(str(self.rtab.unichats.dumpKeys()).encode())
+
         if mkey in self.txchatmap:
             groupchat = self.txchatmap[mkey]
+            # assert groupchat is not None
+        else:
+            qDebug('room not found: {}'.format(mkey).encode())
+            qDebug(str(self.txchatmap.keys()).encode())
 
         if groupchat is not None:
-            # assert groupchat is not None
             # 有可能groupchat已经就绪，但对方还没有接收请求，这时发送失败，消息会丢失
             number_peers = self.peerRelay.groupNumberPeers(groupchat.group_number)
             if number_peers < 2:
@@ -419,8 +450,33 @@ class WechatController(BaseController):
         self.txchatmap[mkey] = groupchat
         self.relaychatmap[group_number] = groupchat
         groupchat.title = title
+        self.rtab.unichats.add(mkey, self.__class__.__name__, groupchat)
 
         self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
+
+        return groupchat
+
+    def fillChatroom(self, msgo, mkey=None, title=None, group_numer=None):
+        mkey = str(msgo['context']['channel'])
+        qDebug(str(mkey).encode())
+        title = "T: " + str(msgo['context']['channel'])
+        title = str(msgo['context']['channel'])
+        group_number = msgo['params'][0]
+
+        # group_number = ('WXU.%s' % mkey).lower()
+        # group_number = self.peerRelay.createChatroom(mkey, title)
+        groupchat = Chatroom()
+        groupchat.group_number = group_number
+        # groupchat.FromUser = msg.FromUser
+        # groupchat.ToUser = msg.ToUser
+        # groupchat.FromUserName = msg.FromUserName
+        groupchat.msgo = msgo
+        self.txchatmap[mkey] = groupchat
+        self.relaychatmap[group_number] = groupchat
+        groupchat.title = title
+        self.rtab.unichats.add(mkey, self.__class__.__name__, groupchat)
+
+        # self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
 
         return groupchat
 

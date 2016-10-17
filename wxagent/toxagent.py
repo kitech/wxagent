@@ -244,16 +244,14 @@ class ToxAgent(BaseAgent):
         qDebug(('gn=%s,pn=%s,mlen=%s,mp=%s' %
                 (group_number, peer_number, len(message), message[0:27])).encode())
 
-        if peer_number == 0:  # it myself sent message, omit
-            return
-
         args = self.makeBusMessage('message', None, group_number, peer_number, message)
         args = self.setCtxChannel(args, group_number)
         self.SendMessageX(args)
 
-        str_group_number = str(group_number)
-        # self.newGroupMessage.emit(str_group_number, message)
+        if peer_number == 0:  # it myself sent message, omit
+            return
 
+        # self.newGroupMessage.emit(str(group_number), message)
         return
 
     def onToxnetGroupNamelistChanged(self, group_number, peer_number, change_type):

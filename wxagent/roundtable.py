@@ -6,6 +6,7 @@ from .toxcontroller import ToxController
 from .wechatcontroller import WechatController
 from .xmppcontroller import XmppController
 from .irccontroller import IRCController
+from .unionroom import UnionRoom
 
 
 # TODO should be based on BaseHandler?
@@ -15,6 +16,7 @@ class RoundTable(BaseAgent):
         self.protocols = {}
         self.ctrls = {}
         self.rules = {}
+        self.unichats = UnionRoom()
         return
 
     def Login(self):
@@ -31,18 +33,22 @@ class RoundTable(BaseAgent):
     def messageHandler(self, msg):
         qDebug('herhere')
         print(msg, msg.service(), ',', msg.path(), ',', msg.interface(), ',')
-        qDebug(str(msg.arguments())[0:66])
+        qDebug(str(msg.arguments())[0:66].encode())
         msgo = json.JSONDecoder().decode(msg.arguments()[0])
 
         if msgo.get(self.OP) is not None:
             if msgo['src'] == 'IRCAgent':
                 msgo = self.ctrls['IRCAgent'].fillContext(msgo)
+                self.ctrls['IRCAgent'].fillChatroom(msgo)
             elif msgo['src'] == 'XmppAgent':
                 msgo = self.ctrls['XmppAgent'].fillContext(msgo)
+                self.ctrls['XmppAgent'].fillChatroom(msgo)
             elif msgo['src'] == 'ToxAgent':
                 msgo = self.ctrls['ToxAgent'].fillContext(msgo)
+                self.ctrls['ToxAgent'].fillChatroom(msgo)
             elif msgo['src'] == 'WechatAgent':
                 msgo = self.ctrls['WechatAgent'].fillContext(msgo)
+                self.ctrls['WechatAgent'].fillChatroom(msgo)
             else:
                 qDebug('unsupported agent:' + msgo['src'])
 

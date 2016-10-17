@@ -17,52 +17,52 @@ class ToxCallProxy(QObject):
 
     def friendExists(self, friendId):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), friendId)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), friendId)
 
     def friendAdd(self, friendId, addMsg):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), friendId, addMsg)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), friendId, addMsg)
 
     def sendMessage(self, peer, msg):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), peer, msg)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), peer, msg)
 
     def groupchatSendMessage(self, group_number, msg):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), group_number, msg)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number, msg)
 
     def selfGetConnectionStatus(self):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName())
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName())
 
     def friendGetConnectionStatus(self, peer):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), peer)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), peer)
 
     def groupchatAdd(self):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName())
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName())
 
     def groupchatSetTitle(self, group_number, title):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), group_number, title)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number, title)
 
     def groupchatInviteFriend(self, group_number, peer):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), group_number, peer)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number, peer)
 
     def groupNumberPeers(self, group_number):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), group_number)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number)
 
     def groupchatGetTitle(self, group_number):
         qDebug('hehree')
-        return self.ctrl.remoteCall(self.ctrl.rt.funcName(), group_number)
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number)
 
 
 class ToxController(BaseController):
-    def __init__(self, rt, parent=None):
-        super(ToxController, self).__init__(rt, parent)
+    def __init__(self, rtab, parent=None):
+        super(ToxController, self).__init__(rtab, parent)
         self.relay = ToxRelay()
         self.relay.toxkit = ToxCallProxy(self)
         self.peerRelay = self.relay
@@ -100,7 +100,7 @@ class ToxController(BaseController):
 
         mkey = msgo['context']['channel']
         qDebug(str(mkey).encode())
-        title = "It's title: " + str(msgo['context']['channel'])
+        title = "T: " + str(msgo['context']['channel'])
         title = str(msgo['context']['channel'])
         fmtcc = msgo['params'][0]
         fmtcc = str(msgo)
@@ -110,8 +110,15 @@ class ToxController(BaseController):
             qDebug('maybe invalid channel, omit')
             return
 
+        if self.rtab.unichats.existContrl(mkey, self.__class__.__name__):
+            groupchat = self.rtab.unichats.get(mkey, self.__class__.__name__)
+        else:
+            qDebug('room not found: {}'.format(mkey).encode())
+            qDebug(str(self.rtab.unichats.dumpKeys()).encode())
+
         if mkey in self.txchatmap:
             groupchat = self.txchatmap[mkey]
+            # assert groupchat is not None
         else:
             qDebug('room not found: {}'.format(mkey).encode())
             qDebug(str(self.txchatmap.keys()).encode())
@@ -146,8 +153,33 @@ class ToxController(BaseController):
         self.txchatmap[mkey] = groupchat
         self.relaychatmap[group_number] = groupchat
         groupchat.title = title
+        self.rtab.unichats.add(mkey, self.__class__.__name__, groupchat)
 
         self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
+
+        return groupchat
+
+    def fillChatroom(self, msgo, mkey=None, title=None, group_number=None):
+        mkey = str(msgo['context']['channel'])
+        qDebug(str(mkey).encode())
+        title = "T: " + str(msgo['context']['channel'])
+        title = str(msgo['context']['channel'])
+        group_number = msgo['params'][0]
+
+        # group_number = ('WXU.%s' % mkey).lower()
+        # group_number = self.peerRelay.createChatroom(mkey, title)
+        groupchat = Chatroom()
+        groupchat.group_number = group_number
+        # groupchat.FromUser = msg.FromUser
+        # groupchat.ToUser = msg.ToUser
+        # groupchat.FromUserName = msg.FromUserName
+        groupchat.msgo = msgo
+        self.txchatmap[mkey] = groupchat
+        self.relaychatmap[group_number] = groupchat
+        groupchat.title = title
+        self.rtab.unichats.add(mkey, self.__class__.__name__, groupchat)
+
+        # self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
 
         return groupchat
 

@@ -82,6 +82,12 @@ class ToxRelay(IMRelay):
         rc = self.toxkit.groupchatInviteFriend(group_number, peer)
         return rc
 
+    def groupPeerNumberIsOurs(self, group_number, peer_number):
+        group_number = int(group_number)
+        peer_number = int(peer_number)
+        rc = self.toxkit.groupPeerNumberIsOurs(group_number, peer_number)
+        return rc
+
     def groupNumberPeers(self, group_number):
         group_number = int(group_number)
         number_peers = self.toxkit.groupNumberPeers(group_number)

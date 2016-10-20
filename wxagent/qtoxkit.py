@@ -596,6 +596,10 @@ class QToxKit(QThread):
             self.toxav = ToxAV(self.tox)
         return self.toxav
 
+    def groupchatPeerNumberIsOurs(self, group_number, peer_number):
+        rc = self.tox.group_peernumber_is_ours(group_number, peer_number)
+        return rc == 1
+
     # @param group_pubkey data's hex encoded string
     def onGroupInvite(self, friend_number, group_type, group_pubkey):
         ba = QByteArray(group_pubkey)

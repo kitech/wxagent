@@ -51,6 +51,10 @@ class ToxCallProxy(QObject):
         qDebug('hehree')
         return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number, peer)
 
+    def groupPeerNumberIsOurs(self, group_number, peer_number):
+        qDebug('hereee')
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number, peer_number)
+
     def groupNumberPeers(self, group_number):
         qDebug('hehree')
         return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number)
@@ -178,6 +182,7 @@ class ToxController(BaseController):
         self.relaychatmap[group_number] = groupchat
         groupchat.title = title
         self.rtab.unichats.add(mkey, self.__class__.__name__, groupchat)
+        self.rtab.unichats.addNumber(group_number, self.__class__.__name__, groupchat)
 
         # self.peerRelay.groupInvite(group_number, self.peerRelay.peer_user)
 
@@ -216,3 +221,10 @@ class ToxController(BaseController):
         }
         return msgo
 
+    # 防止消息的递归无限传播
+    def filterMessage(self, msgo):
+        group_number = msgo['params'][0]
+        peer_number = msgo['params'][1]
+        qDebug('gn={},pn={}'.format(group_number, peer_number))
+        rc = self.relay.groupPeerNumberIsOurs(group_number, peer_number)
+        return rc

@@ -54,6 +54,8 @@ class ToxAgent(BaseAgent):
             ret = self.toxkit.groupchatGetTitle(argv[1])
         elif func == 'groupchatInviteFriend':
             ret = self.toxkit.groupchatInviteFriend(argv[1], argv[2])
+        elif func == 'groupPeerNumberIsOurs':
+            ret = self.toxkit.groupchatPeerNumberIsOurs(argv[1], argv[2])
         else:
             qDebug('not supported now: {}'.format(func))
 
@@ -248,6 +250,7 @@ class ToxAgent(BaseAgent):
         args = self.setCtxChannel(args, group_number)
         self.SendMessageX(args)
 
+        # TODO 实现上应该检测peer_toxid, peer_number和创建群与邀请顺序有关
         if peer_number == 0:  # it myself sent message, omit
             return
 

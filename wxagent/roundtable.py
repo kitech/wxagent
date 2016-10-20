@@ -37,6 +37,7 @@ class RoundTable(BaseAgent):
         msgo = json.JSONDecoder().decode(msg.arguments()[0])
 
         if msgo.get(self.OP) is not None:
+            filtered = False
             if msgo['src'] == 'IRCAgent':
                 msgo = self.ctrls['IRCAgent'].fillContext(msgo)
                 self.ctrls['IRCAgent'].fillChatroom(msgo)
@@ -46,13 +47,17 @@ class RoundTable(BaseAgent):
             elif msgo['src'] == 'ToxAgent':
                 msgo = self.ctrls['ToxAgent'].fillContext(msgo)
                 self.ctrls['ToxAgent'].fillChatroom(msgo)
+                filtered = self.ctrls['ToxAgent'].filterMessage(msgo)
             elif msgo['src'] == 'WechatAgent':
                 msgo = self.ctrls['WechatAgent'].fillContext(msgo)
                 self.ctrls['WechatAgent'].fillChatroom(msgo)
             else:
                 qDebug('unsupported agent:' + msgo['src'])
 
-            self.processOperator(msgo)
+            if filtered:
+                qDebug('filtered: {} from {}'.format(filtered, msgo['src']))
+            else:
+                self.processOperator(msgo)
         elif msgo.get(self.EVT) is not None:
             self.processEvent(msgo)
         else:

@@ -43,11 +43,15 @@ class IRCController(BaseController):
     def replyMessage(self, msgo):
         qDebug(str(msgo['context']['channel']).encode())
         # from .secfg import peer_xmpp_user
+        channel = msgo['context']['channel']
 
         msg = 'hehehheeeee'
         msg = str(msgo)
-        self.relay.sendGroupMessage(msg, 'grouppppp')
+        self.relay.sendGroupMessage(msg, channel)
         # self.relay.sendMessage(msgo['params'][0], peer_xmpp_user)
+        return
+
+    def fillChatroom(self, msgo):
         return
 
     def updateSession(self, msgo):
@@ -63,9 +67,10 @@ class IRCController(BaseController):
     def fillContext(self, msgo):
         msgtxt = str(msgo)
         qDebug(msgtxt.encode())
-        # msgo['context'] = {
-        #    'channel': msgo['channel'],
-        # }
+        msgo['context'] = {
+            'channel': msgo['context']['channel'],
+            'content': msgo['params'][0],
+        }
         return msgo
 
 

@@ -15,6 +15,7 @@ class IRCAgent(BaseAgent):
         self._irc.connected.connect(self.onIRCConnected, Qt.QueuedConnection)
         self._irc.disconnected.connect(self.onIRCDisconnected, Qt.QueuedConnection)
         self._irc.newMessage.connect(self.onIRCNewMessage, Qt.QueuedConnection)
+        self._irc.newGroupMessage.connect(self.onIRCNewGroupMessage, Qt.QueuedConnection)
         self._irc.start()
         return
 
@@ -59,5 +60,12 @@ class IRCAgent(BaseAgent):
         qDebug(msg[0:32].encode())
         args = self.makeBusMessage('message', None, msg)
         args = self.setCtxChannel(args, self._irc._channel)
+        self.SendMessageX(args)
+        return
+
+    def onIRCNewGroupMessage(self, msg, channel):
+        qDebug(msg[0:32].encode())
+        args = self.makeBusMessage('message', None, msg)
+        args = self.setCtxChannel(args, channel)
         self.SendMessageX(args)
         return

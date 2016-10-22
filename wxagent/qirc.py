@@ -8,6 +8,7 @@ class QIRC(QThread):
     connected = pyqtSignal()
     disconnected = pyqtSignal()
     newMessage = pyqtSignal(str)
+    newGroupMessage = pyqtSignal(str, str)
 
     def __init__(self, parent=None):
         super(QIRC, self).__init__(parent)
@@ -46,12 +47,25 @@ class QIRC(QThread):
 
     def onPublicMessage(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         print(conn, evt, type(evt))
-        self.newMessage.emit(evt.arguments[0])
+        # self.newMessage.emit(evt.arguments[0])
+        self.newGroupMessage.emit(evt.arguments[0], evt.target)
         return
 
     def onPrivateMessage(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         print(conn, evt, type(evt))
-        self.newMessage.emit(evt.arguments[0])
+        # self.newMessage.emit(evt.arguments[0])
+        self.newGroupMessage.emit(evt.arguments[0], evt.target)
+        return
+
+    def groupAdd(self, channel):
+        self._server.join(channel)
+        return
+
+    def groupInvite(self, nick, channel):
+        ret = self._server.invite(nick, channel)
+        # qDebug(str(ret).encode())
+        # lst = self._server.list()
+        # qDebug(str(lst).encode())
         return
 
     def sendMessage(self, msg):
@@ -62,9 +76,14 @@ class QIRC(QThread):
             qDebug('not connected')
         return
 
-    def sendGroupMessage(self, msg, group):
+    def sendGroupMessage(self, msg, channel):
         if self._server.is_connected():
-            ret = self._server.privmsg(self._channel, msg)
+            self.groupAdd(channel)
+            self.groupInvite(self._peer_user, channel)
+            qDebug(str(channel).encode())
+            # qDebug(str(msg).encode())
+            # ret = self._server.privmsg(self._channel, msg)
+            ret = self._server.privmsg(channel, msg)
             qDebug(str(ret).encode())
         else:
             qDebug('not connected')

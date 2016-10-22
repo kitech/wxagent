@@ -92,6 +92,7 @@ class ToxController(BaseController):
 
             msg = msgo['params'][0]
             msg = str(msgo)
+            msg = msgo['context']['content'] if msgo.get('context').get('content') is not None else msg
             self.relay.sendMessage(msg, peer_tox_user)
             self.replyGroupMessage(msgo)
 
@@ -108,6 +109,7 @@ class ToxController(BaseController):
         title = str(msgo['context']['channel'])
         fmtcc = msgo['params'][0]
         fmtcc = str(msgo)
+        fmtcc = msgo['context']['content'] if msgo.get('context').get('content') is not None else fmtcc
         qDebug(fmtcc.encode())
 
         if len(mkey) == 0:
@@ -218,13 +220,21 @@ class ToxController(BaseController):
 
         msgo['context'] = {
             'channel': title1,
+            'content': str(msgo['params'])
         }
+
         return msgo
 
     # 防止消息的递归无限传播
     def filterMessage(self, msgo):
+        channel = msgo['context']['channel']
         group_number = msgo['params'][0]
         peer_number = msgo['params'][1]
         qDebug('gn={},pn={}'.format(group_number, peer_number))
         rc = self.relay.groupPeerNumberIsOurs(group_number, peer_number)
+        stopfwds = ['#archlinux-cn', '#archlinux-cn123']
+        for fwd in stopfwds:
+            if fwd == channel:
+                rc = rc or True
+                qDebug("stoped fwd: {}".format(fwd))
         return rc

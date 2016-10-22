@@ -576,7 +576,7 @@ class QToxKit(QThread):
         bahex = QByteArray.fromHex(QByteArray(group_pubkey.encode()).data())
         # qDebug('{}'.format(len(bahex)).encode())
         try:
-            rc = self.tox.join_groupchat(friend_number, group_type, bahex.data())
+            rc = self.tox.join_groupchat(friend_number, bahex.data())
         except Exception as ex:
             qDebug(str(ex).encode())
         return

@@ -79,6 +79,7 @@ class RoundTable(BaseAgent):
 
     def processOperatorIRC(self, msgo):
         rules = ['ToxAgent', 'WechatAgent', 'XmppAgent']
+        rules = ['ToxAgent', 'WechatAgent']
         remsg = 're: ' + msgo['params'][0]
         args = self.makeBusMessage('reply', None, remsg)
         # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
@@ -110,6 +111,7 @@ class RoundTable(BaseAgent):
     def processOperatorTox(self, msgo):
         rules = ['IRCAgent', 'WechatAgent', 'XmppAgent']
         rules = ['IRCAgent', 'XmppAgent']
+        rules = ['IRCAgent']
         qDebug(str(msgo['params']).encode())
         remsg = 're: ' + msgo['params'][2]
         args = self.makeBusMessage('reply', None, remsg)

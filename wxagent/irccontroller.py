@@ -47,6 +47,7 @@ class IRCController(BaseController):
 
         msg = 'hehehheeeee'
         msg = str(msgo)
+        msg = '({}) {}'.format(msgo['context']['fromuser'], msgo['context']['content'])
         self.relay.sendGroupMessage(msg, channel)
         # self.relay.sendMessage(msgo['params'][0], peer_xmpp_user)
         return
@@ -70,6 +71,7 @@ class IRCController(BaseController):
         msgo['context'] = {
             'channel': msgo['context']['channel'],
             'content': msgo['params'][0],
+            'fromuser': msgo['params'][1],
         }
         return msgo
 

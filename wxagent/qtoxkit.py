@@ -600,6 +600,10 @@ class QToxKit(QThread):
         rc = self.tox.group_peernumber_is_ours(group_number, peer_number)
         return rc == 1
 
+    def groupPeerName(self, group_number, peer_number):
+        rc = self.tox.group_peername(group_number, peer_number)
+        return rc
+
     # @param group_pubkey data's hex encoded string
     def onGroupInvite(self, friend_number, group_type, group_pubkey):
         ba = QByteArray(group_pubkey)

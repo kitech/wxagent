@@ -63,6 +63,10 @@ class ToxCallProxy(QObject):
         qDebug('hehree')
         return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number)
 
+    def groupPeerName(self, group_number, peer_number):
+        qDebug('hereeee')
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number, peer_number)
+
 
 class ToxController(BaseController):
     def __init__(self, rtab, parent=None):
@@ -110,6 +114,8 @@ class ToxController(BaseController):
         fmtcc = msgo['params'][0]
         fmtcc = str(msgo)
         fmtcc = msgo['context']['content'] if msgo.get('context').get('content') is not None else fmtcc
+        if msgo['context'].get('fromuser') is not None:
+            fmtcc = '({}) {}'.format(msgo['context']['fromuser'], fmtcc)
         qDebug(fmtcc.encode())
 
         if len(mkey) == 0:
@@ -218,9 +224,11 @@ class ToxController(BaseController):
 
         qDebug((str(title1) + ',' + str(title2)).encode())
 
+        peer_name = self.relay.groupPeerName(group_number, msgo['params'][1])
         msgo['context'] = {
             'channel': title1,
-            'content': str(msgo['params'])
+            'content': msgo['params'][len(msgo['params'])-1],
+            'fromuser': peer_name,
         }
 
         return msgo

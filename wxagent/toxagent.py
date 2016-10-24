@@ -56,6 +56,8 @@ class ToxAgent(BaseAgent):
             ret = self.toxkit.groupchatInviteFriend(argv[1], argv[2])
         elif func == 'groupPeerNumberIsOurs':
             ret = self.toxkit.groupchatPeerNumberIsOurs(argv[1], argv[2])
+        elif func == 'groupPeerName':
+            ret = self.toxkit.groupPeerName(argv[1], argv[2])
         else:
             qDebug('not supported now: {}'.format(func))
 

@@ -8,7 +8,7 @@ class QIRC(QThread):
     connected = pyqtSignal()
     disconnected = pyqtSignal()
     newMessage = pyqtSignal(str)
-    newGroupMessage = pyqtSignal(str, str)
+    newGroupMessage = pyqtSignal(str, str, str)
 
     def __init__(self, parent=None):
         super(QIRC, self).__init__(parent)
@@ -16,6 +16,8 @@ class QIRC(QThread):
 
     def run(self):
         self._user = 'devnull2'
+        self._user = '\_'
+        self._user = 'yobot'
         self._peer_user = 'kitech'
         self._channel = '#roundtablex1'
         self._host = 'weber.freenode.net'
@@ -48,13 +50,17 @@ class QIRC(QThread):
     def onPublicMessage(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         print(conn, evt, type(evt))
         # self.newMessage.emit(evt.arguments[0])
-        self.newGroupMessage.emit(evt.arguments[0], evt.target)
+        fromuser = evt.source.split('!~')[0]
+        fromaddr = evt.source.split('!~')[1]
+        self.newGroupMessage.emit(evt.arguments[0], evt.target, fromuser)
         return
 
     def onPrivateMessage(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         print(conn, evt, type(evt))
         # self.newMessage.emit(evt.arguments[0])
-        self.newGroupMessage.emit(evt.arguments[0], evt.target)
+        fromuser = evt.source.split('!~')[0]
+        fromaddr = evt.source.split('!~')[1]
+        self.newGroupMessage.emit(evt.arguments[0], evt.target, fromuser)
         return
 
     def groupAdd(self, channel):

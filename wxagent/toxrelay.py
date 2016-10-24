@@ -93,6 +93,12 @@ class ToxRelay(IMRelay):
         number_peers = self.toxkit.groupNumberPeers(group_number)
         return number_peers
 
+    def groupPeerName(self, group_number, peer_number):
+        group_number = int(group_number)
+        peer_number = int(peer_number)
+        peer_name = self.toxkit.groupPeerName(group_number, peer_number)
+        return peer_name
+
     def groupchatGetTitle(self, group_number):
         title = self.toxkit.groupchatGetTitle(group_number)
         return title

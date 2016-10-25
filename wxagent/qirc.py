@@ -20,6 +20,8 @@ class QIRC(QThread):
         self._user = 'yobot'
         self._peer_user = 'kitech'
         self._channel = '#roundtablex1'
+        # self._fixchans = ['#archlinux-cn-offtopic', '#linuxba', '#tox-cn123']
+        self._fixchans = ['#linuxba', '#tox-cn123']
         self._host = 'weber.freenode.net'
         self._port = 8000
 
@@ -29,10 +31,18 @@ class QIRC(QThread):
         print(self._server)
         r = self._server.connect(self._host, self._port, self._user)
         qDebug(str(self._server.is_connected()))
-        jret = self._server.join(self._channel)
-        qDebug(str(jret))
+
         self._server.add_global_handler('pubmsg', self.onPublicMessage)
         self._server.add_global_handler('privmsg', self.onPrivateMessage)
+        self._server.add_global_handler('error', self.onIRCError)
+        for evt in irc.events.protocol:
+            if self._server.handlers.get(evt) is None:
+                self._server.add_global_handler(evt, self.onIRCEvent)
+
+        jret = self._server.join(self._channel)
+        qDebug(str(jret))
+        for ch in self._fixchans:
+            self._server.join(ch)
 
         while True:
             self._client.process_once(timeout=0.05)
@@ -50,21 +60,36 @@ class QIRC(QThread):
     def onPublicMessage(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         print(conn, evt, type(evt))
         # self.newMessage.emit(evt.arguments[0])
-        fromuser = evt.source.split('!~')[0]
-        fromaddr = evt.source.split('!~')[1]
+        sep = '!~' if evt.source.find('!~') != -1 else '!'
+        fromuser = evt.source.split(sep)[0]
+        fromaddr = evt.source.split(sep)[1]
         self.newGroupMessage.emit(evt.arguments[0], evt.target, fromuser)
         return
 
     def onPrivateMessage(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         print(conn, evt, type(evt))
         # self.newMessage.emit(evt.arguments[0])
-        fromuser = evt.source.split('!~')[0]
-        fromaddr = evt.source.split('!~')[1]
+        sep = '!~' if evt.source.find('!~') != -1 else '!'
+        fromuser = evt.source.split(sep)[0]
+        fromaddr = evt.source.split(sep)[1]
         self.newGroupMessage.emit(evt.arguments[0], evt.target, fromuser)
         return
 
+    def onIRCError(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
+        qDebug('{}, {}. {}'.format(str(conn), str(evt), str(type(evt))).encode())
+        return
+
+    def onIRCMode(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
+        qDebug('{}, {}. {}'.format(str(conn), str(evt), str(type(evt))).encode())
+        return
+
+    def onIRCEvent(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
+        qDebug('{}, {}. {}'.format(str(conn), str(evt), str(type(evt))).encode())
+        return
+
     def groupAdd(self, channel):
-        self._server.join(channel)
+        rc = self._server.join(channel)
+        qDebug(str(rc))
         return
 
     def groupInvite(self, nick, channel):
@@ -84,13 +109,29 @@ class QIRC(QThread):
 
     def sendGroupMessage(self, msg, channel):
         if self._server.is_connected():
-            self.groupAdd(channel)
-            self.groupInvite(self._peer_user, channel)
-            qDebug(str(channel).encode())
-            # qDebug(str(msg).encode())
-            # ret = self._server.privmsg(self._channel, msg)
-            ret = self._server.privmsg(channel, msg)
-            qDebug(str(ret).encode())
+            if self.invalidName(channel):
+                self.groupAdd(channel)
+                self.groupInvite(self._peer_user, channel)
+                qDebug(str(channel).encode())
+                # qDebug(str(msg).encode())
+                # ret = self._server.privmsg(self._channel, msg)
+                ret = self._server.privmsg(channel, msg)
+                qDebug(str(ret).encode())
+            else:
+                qDebug('Invalid channel name: {}'.format(channel).encode())
+                return False
         else:
-            qDebug('not connected')
-        return
+            qDebug('not connected. retry...')
+            r = self._server.connect(self._host, self._port, self._user)
+            if self._server.is_connected():
+                return self.sendGroupMessage(msg, channel)
+            else:
+                return False
+        return True
+
+    def invalidName(self, name):
+        if name[0] != '#': return False
+        import re
+        # check cjk characters
+        mats = re.findall('[\u2E80-\u9FFF]', name)
+        return len(mats) == 0

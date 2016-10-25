@@ -447,6 +447,8 @@ class QToxKit(QThread):
     def sendMessage(self, fid, msg):
         fno = self.tox.friend_by_public_key(fid)
         mlen = 1371 - 1  # TODO 这应该是bytes，现在是以字符串方式处理，对于宽字符串可能能转为bytes后长度就超过了。
+        if msg is None or len(msg) == 0:
+            return
 
         msg_inbytes = msg.encode()
         for msgn in self._splitmessage(msg_inbytes, mlen):

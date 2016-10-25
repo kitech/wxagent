@@ -228,7 +228,7 @@ class BaseController(BaseController0):
 
     def onRelayPeerEnterGroup(self, group_number):
         qDebug(('hehee:' + group_number).encode())
-        qDebug(str(self.rtab.unichats.dumpKeys(ret=True)))
+        qDebug(str(self.rtab.unichats.dumpKeys(ret=True)).encode())
         qDebug(str(self.relaychatmap.keys()).encode())
 
         if self.relaychatmap.get(group_number) is None:

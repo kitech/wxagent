@@ -91,7 +91,7 @@ class ToxController(BaseController):
             msg = str(msgo)
             self.relay.sendMessage(msg, peer_tox_user)
         else:
-            qDebug(str(msgo['context']['channel']))
+            qDebug(str(msgo['context']['channel']).encode())
             from .secfg import peer_tox_user
 
             msg = msgo['params'][0]

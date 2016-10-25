@@ -6,6 +6,7 @@ from .toxcontroller import ToxController
 from .wechatcontroller import WechatController
 from .xmppcontroller import XmppController
 from .irccontroller import IRCController
+from .cmdcontroller import CmdController
 from .unionroom import UnionRoom
 
 
@@ -24,6 +25,7 @@ class RoundTable(BaseAgent):
         self.ctrls['WechatAgent'] = WechatController(self)
         self.ctrls['XmppAgent'] = XmppController(self)
         self.ctrls['IRCAgent'] = IRCController(self)
+        self.ctrls['CmdAgent'] = CmdController(self)
 
         for ctrl in self.ctrls:
             self.ctrls[ctrl].initSession()
@@ -75,6 +77,8 @@ class RoundTable(BaseAgent):
             self.processOperatorRoundTable(msgo)
         else:
             qDebug('not supported agent: ' + msgo['src'])
+
+        self.processCommand(msgo)
         return
 
     def processOperatorIRC(self, msgo):
@@ -133,6 +137,31 @@ class RoundTable(BaseAgent):
             args['context'] = msgo['context']
             self.ctrls['ToxAgent'].replyMessage(args)
             # self.ctrls['XmppAgent'].replyMessage(args)
+            return
+
+        if msgo['op'] == 'showtitle':
+            qDebug('hereeee')
+            qDebug(str(msgo).encode())
+            if msgo['context']['content'] == '':
+                return
+            msgo['src'] = msgo['context']['src']
+            if msgo['src'] == 'IRCAgent':
+                self.processOperatorIRC(msgo)
+            elif msgo['src'] == 'XmppAgent':
+                self.processOperatorXmpp(msgo)
+            elif msgo['src'] == 'ToxAgent':
+                self.processOperatorTox(msgo)
+                self.ctrls[msgo['src']].replyMessage(msgo)
+            # elif msgo['src'] == 'RoundTable':
+            #    self.processOperatorRoundTable(msgo)
+            else:
+                qDebug('not supported agent: ' + msgo['src'])
+            return
+
+        return
+
+    def processCommand(self, msgo):
+        self.ctrls['CmdAgent'].replyMessage(msgo)
         return
 
     def processEvent(self, msgo):

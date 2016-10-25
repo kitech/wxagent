@@ -34,6 +34,7 @@ class ToxAgent(BaseAgent):
     # override
     def onRpcCall(self, argv):
         qDebug('hereeeee: {}'.format(argv).encode()[0:78])
+        qDebug('hereeeee: {}'.format(argv).encode())
 
         func = argv[0]
         ret = None

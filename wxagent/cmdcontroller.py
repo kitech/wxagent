@@ -29,13 +29,14 @@ class CmdController(BaseController):
             return
 
         urls = self.extract_urls(msgo['context']['content'])
-        for url in urls:
-            print(url)
-            self.ufc += 1
-            self.msgos[self.ufc] = msgo
-            self.fetchers[self.ufc] = UrlFetcher(self.ufc, url)
-            self.fetchers[self.ufc].fetched.connect(self.onUrlFetched, Qt.QueuedConnection)
-            self.fetchers[self.ufc].start()
+        print(urls)
+
+        self.ufc = self.ufc + 1
+        self.msgos[self.ufc] = msgo
+        self.fetchers[self.ufc] = UrlFetcher(self.ufc, urls)
+        self.fetchers[self.ufc].fetched.connect(self.onUrlFetched, Qt.QueuedConnection)
+        self.fetchers[self.ufc].start()
+
         return
 
     def replyGroupMessage(self, msgo):
@@ -45,16 +46,30 @@ class CmdController(BaseController):
         fetcher = self.fetchers[seq]
         qDebug(str(fetcher))
 
-        d = pyquery.PyQuery(fetcher.resp.content.decode())
-        title = d('title').text()
-        qDebug(title.encode())
-
         msgo = self.msgos[seq]
         msgo['op'] = 'showtitle'
-        msgo['context']['content'] = title
         msgo['context']['src'] = msgo['src']
-        qDebug(str(msgo).encode())
-        self.rtab.SendMessageX(msgo)
+        for url in fetcher.resps:
+            resp = fetcher.resps[url]
+            if resp is None:
+                msgo['context']['content'] = '^ Error title'
+            else:
+                codecs = ['UTF-8', 'GB18030', 'ISO-8859-1']
+                for codec in codecs:
+                    try:
+                        d = pyquery.PyQuery(resp.content.decode(codec))
+                        title = d('title').text()
+                        qDebug('{} - {}'.format(codec, title).encode())
+                        msgo['context']['content'] = title
+                        break
+                    except:
+                        continue
+            us = self.extract_urls(msgo['context']['content'])
+            if len(us) > 0:
+                for u in us:
+                    msgo['context']['content'] = msgo['context']['content'].replace(u, 'DDD')
+            qDebug(str(msgo).encode())
+            self.rtab.SendMessageX(msgo)
 
         self.fetchers.pop(seq)
         self.msgos.pop(seq)
@@ -70,19 +85,30 @@ class CmdController(BaseController):
 class UrlFetcher(QThread):
     fetched = pyqtSignal(int)
 
-    def __init__(self, seq, url):
+    def __init__(self, seq, urls):
         super(UrlFetcher, self).__init__()
         self.seq = seq
-        self.url = url
-        self.resp = None
+        self.urls = urls
+        self.resps = {}
         return
 
     def run(self):
+        from requests.packages.urllib3.util.retry import Retry
+        from requests.adapters import HTTPAdapter
         headers = {'User-Agent': 'yobot/1.0'}
-        self.resp = requests.get(self.url, headers=headers)
-        # self.resp = requests.get(self.url)
-        resp = self.resp
-        print(resp.status_code, resp.encoding)
+        retries = Retry.from_int(1)
+        s = requests.Session()
+        s.mount('http://', HTTPAdapter(max_retries=retries))
+        s.mount('https://', HTTPAdapter(max_retries=retries))
+        qDebug(str(self.urls).encode())
+        for url in self.urls:
+            try:
+                resp = s.get(url, headers=headers)
+                print(resp.status_code, resp.encoding)
+                self.resps[url] = resp
+            except Exception as ex:
+                qDebug(str(ex).encode())
+                self.resps[url] = None
         self.fetched.emit(self.seq)
         return
 

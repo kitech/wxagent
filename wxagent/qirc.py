@@ -20,8 +20,8 @@ class QIRC(QThread):
         self._user = 'yobot'
         self._peer_user = 'kitech'
         self._channel = '#roundtablex1'
-        # self._fixchans = ['#archlinux-cn-offtopic', '#linuxba', '#tox-cn123']
-        self._fixchans = ['#linuxba', '#tox-cn123']
+        self._fixchans = ['#archlinux-cn-offtopic', '#linuxba', '#tox-cn123']
+        # self._fixchans = ['#tox-cn123']
         self._host = 'weber.freenode.net'
         self._port = 8000
 

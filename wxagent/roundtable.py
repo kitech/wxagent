@@ -147,6 +147,7 @@ class RoundTable(BaseAgent):
             msgo['src'] = msgo['context']['src']
             if msgo['src'] == 'IRCAgent':
                 self.processOperatorIRC(msgo)
+                self.ctrls[msgo['src']].replyMessage(msgo)
             elif msgo['src'] == 'XmppAgent':
                 self.processOperatorXmpp(msgo)
             elif msgo['src'] == 'ToxAgent':

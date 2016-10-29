@@ -1,3 +1,5 @@
+import logging
+
 from PyQt5.QtCore import *
 
 import socket
@@ -9,9 +11,12 @@ class QIRC(QThread):
     disconnected = pyqtSignal()
     newMessage = pyqtSignal(str)
     newGroupMessage = pyqtSignal(str, str, str)
+    needJoin = pyqtSignal()
 
     def __init__(self, parent=None):
+        irc.client.log.setLevel(logging.DEBUG)
         super(QIRC, self).__init__(parent)
+        self.last_ping = 0.0
         return
 
     def run(self):
@@ -21,14 +26,13 @@ class QIRC(QThread):
         self._peer_user = 'kitech'
         self._channel = '#roundtablex1'
         self._fixchans = ['#archlinux-cn-offtopic', '#linuxba', '#tox-cn123']
-        # self._fixchans = ['#tox-cn123']
+        self._fixchans = ['#tox-cn123']
         self._host = 'weber.freenode.net'
         self._port = 8000
 
+
         self._client = irc.client.Reactor(on_connect=self.onConnected, on_disconnect=self.onDisconnected)
         self._server = self._client.server()
-        qDebug('hehrere')
-        print(self._server)
         r = self._server.connect(self._host, self._port, self._user)
         qDebug(str(self._server.is_connected()))
 
@@ -39,14 +43,24 @@ class QIRC(QThread):
             if self._server.handlers.get(evt) is None:
                 self._server.add_global_handler(evt, self.onIRCEvent)
 
-        jret = self._server.join(self._channel)
-        qDebug(str(jret))
-        for ch in self._fixchans:
-            self._server.join(ch)
+        self.needJoin.connect(self.rejoin, Qt.QueuedConnection)
+        self.needJoin.emit()
 
         while True:
             self._client.process_once(timeout=0.05)
         # self._client.process_forever()
+        return
+
+    def reconnect(self):
+        r = self._server.connect(self._host, self._port, self._user)
+        return r
+
+    def rejoin(self):
+        qDebug('hehrerere')
+        jret = self._server.join(self._channel)
+        qDebug(str(jret))
+        for ch in self._fixchans:
+            self._server.join(ch)
         return
 
     def onConnected(self, sock: socket.socket):
@@ -54,6 +68,7 @@ class QIRC(QThread):
         return
 
     def onDisconnected(self, sock: socket.socket):
+        qDebug('hehreree')
         self.disconnected.emit()
         return
 
@@ -77,6 +92,8 @@ class QIRC(QThread):
 
     def onIRCError(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         qDebug('{}, {}. {}'.format(str(conn), str(evt), str(type(evt))).encode())
+        self.reconnect()
+        self.needJoin.emit()
         return
 
     def onIRCMode(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
@@ -85,6 +102,15 @@ class QIRC(QThread):
 
     def onIRCEvent(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         qDebug('{}, {}. {}'.format(str(conn), str(evt), str(type(evt))).encode())
+        if evt.type == 'ping':
+            import time
+            last_ping = time.time()
+            qDebug('last: {}, now: {}, delta: {}, conn: {}'
+                   .format(self.last_ping, last_ping,
+                           last_ping-self.last_ping, self._server.is_connected()))
+            self.last_ping = last_ping
+        elif evt.type == 'error':
+            qDebug('maybe disconnected')
         return
 
     def groupAdd(self, channel):
@@ -122,7 +148,7 @@ class QIRC(QThread):
                 return False
         else:
             qDebug('not connected. retry...')
-            r = self._server.connect(self._host, self._port, self._user)
+            self.reconnect()
             if self._server.is_connected():
                 return self.sendGroupMessage(msg, channel)
             else:

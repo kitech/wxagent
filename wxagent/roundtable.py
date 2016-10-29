@@ -84,6 +84,7 @@ class RoundTable(BaseAgent):
     def processOperatorIRC(self, msgo):
         rules = ['ToxAgent', 'WechatAgent', 'XmppAgent']
         rules = ['ToxAgent', 'WechatAgent']
+        rules = ['ToxAgent']
         remsg = 're: ' + msgo['params'][0]
         args = self.makeBusMessage('reply', None, remsg)
         # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']

@@ -42,7 +42,11 @@ class ToxAgent(BaseAgent):
         if func == 'friendExists':
             ret = self.toxkit.friendExists(argv[1])
         elif func == 'sendMessage':
-            ret = self.toxkit.sendMessage(argv[1], argv[2])
+            try:
+                ret = self.toxkit.sendMessage(argv[1], argv[2])
+            except Exception as ex:
+                qDebug(str(ex).encode())
+                qDebug(str(argv).encode())
         elif func == 'groupchatSendMessage':
             ret = self.toxkit.groupchatSendMessage(argv[1], argv[2])
         elif func == 'groupchatAdd':
@@ -54,7 +58,11 @@ class ToxAgent(BaseAgent):
         elif func == 'groupchatGetTitle':
             ret = self.toxkit.groupchatGetTitle(argv[1])
         elif func == 'groupchatInviteFriend':
-            ret = self.toxkit.groupchatInviteFriend(argv[1], argv[2])
+            try:
+                ret = self.toxkit.groupchatInviteFriend(argv[1], argv[2])
+            except Exception as ex:
+                qDebug(str(ex).encode())
+                qDebug(str(argv).encode())
         elif func == 'groupPeerNumberIsOurs':
             ret = self.toxkit.groupchatPeerNumberIsOurs(argv[1], argv[2])
         elif func == 'groupPeerName':

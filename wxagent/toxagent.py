@@ -64,9 +64,15 @@ class ToxAgent(BaseAgent):
                 qDebug(str(ex).encode())
                 qDebug(str(argv).encode())
         elif func == 'groupPeerNumberIsOurs':
-            ret = self.toxkit.groupchatPeerNumberIsOurs(argv[1], argv[2])
+            ret = self.toxkit.groupPeerNumberIsOurs(argv[1], argv[2])
         elif func == 'groupPeerName':
             ret = self.toxkit.groupPeerName(argv[1], argv[2])
+        elif func == 'groupPeerPubkey':
+            ret = self.toxkit.groupPeerPubkey(argv[1], argv[2])
+        elif func == 'selfGetAddress':
+            ret = self.toxkit.selfGetAddress()
+        elif func == 'bootDht':
+            ret = self.toxkit.bootDht()
         else:
             qDebug('not supported now: {}'.format(func))
 
@@ -270,7 +276,7 @@ class ToxAgent(BaseAgent):
 
     def onToxnetGroupNamelistChanged(self, group_number, peer_number, change_type):
         qDebug(str(change_type))
-        chop = {0: 'add', 1: 'del', 2: 'name'}[change_type]
+        chop = {0: 'add', 1: 'delete', 2: 'name'}[change_type]
         info = {0: 'why 0?', 1: 'myself %sed' % chop,
                 2: 'toxpeer %sed' % chop, 3: 'who is there? wtf?'}
 

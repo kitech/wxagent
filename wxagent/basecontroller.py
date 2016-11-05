@@ -513,10 +513,11 @@ class BaseController(BaseController0):
 
     def getQRCode(self):
         retv = self.peerRelay.getqrpic(123, 'a1', 456)
-        qrpic64 = retv.encode('utf8')   # to bytes
-        qrpic = QByteArray.fromBase64(qrpic64)
-
-        return qrpic
+        if retv is not None:
+            qrpic64 = retv.encode('utf8')   # to bytes
+            qrpic = QByteArray.fromBase64(qrpic64)
+            return qrpic
+        return None
 
     def genQRCodeSaveFileName(self):
         now = QDateTime.currentDateTime()

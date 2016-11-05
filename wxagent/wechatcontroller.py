@@ -568,6 +568,8 @@ class WechatController(BaseController):
         self.txses = WXSession()
 
         retv = self.remoteCall('getinitdata', 123, 'a1', 456)
+        if retv is None: return
+
         data64 = retv.encode()
         data = QByteArray.fromBase64(data64)
         self.txses.processInitData(data)

@@ -16,7 +16,7 @@ class IRCAgent(BaseAgent):
         self._irc.disconnected.connect(self.onIRCDisconnected, Qt.QueuedConnection)
         self._irc.newMessage.connect(self.onIRCNewMessage, Qt.QueuedConnection)
         self._irc.newGroupMessage.connect(self.onIRCNewGroupMessage, Qt.QueuedConnection)
-        self._irc.start()
+        self._irc.startup()
         return
 
     def Logout(self):

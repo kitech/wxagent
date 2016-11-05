@@ -127,6 +127,7 @@ class ToxRelay(IMRelay):
             self.connected.emit()
         else:
             self.disconnected.emit()
+            self.toxkit.bootDht()
 
         friendId = self.peer_user
         fexists = self.toxkit.friendExists(friendId)
@@ -203,15 +204,17 @@ class ToxRelay(IMRelay):
         return
 
     def onToxnetGroupNamelistChanged(self, group_number, peer_number, change_type):
-        qDebug(str(change_type))
-        chop = {0: 'add', 1: 'del', 2: 'name'}[change_type]
+        qDebug(str([group_number, peer_number, change_type]).encode())
+        chop = {0: 'add', 1: 'delete', 2: 'name'}[change_type]
         info = {0: 'why 0?', 1: 'myself %sed' % chop,
                 2: 'toxpeer %sed' % chop, 3: 'who is there? wtf?'}
 
         # 判断组员数
         number_peers = self.toxkit.groupNumberPeers(group_number)
         pinfo = info[number_peers] if number_peers < 3 else info[3]
-        qDebug('np: %d, %s' % (number_peers, pinfo))
+        ours = self.toxkit.groupPeerNumberIsOurs(group_number, peer_number)
+        me = self.groupPeerIsMe(group_number, peer_number)
+        qDebug('np: %d, %s, %s, %s' % (number_peers, pinfo, str(ours), str(me)))
 
         # 据说要这么写更好，少用return控制流程
         if number_peers >= 2 and change_type == Tox.CHAT_CHANGE_PEER_NAME:
@@ -222,4 +225,13 @@ class ToxRelay(IMRelay):
         if change_type != 2: return  # 好像只有CHANGE_PEER_NAME才能保证对方进入群组了。
         # change_type为0,1,2，分别表示？？？
 
+        return
+
+    def groupPeerIsMe(self, group_number, peer_number):
+        peer_pubkey = self.toxkit.groupPeerPubkey(group_number, peer_number)
+        my_addr = self.toxkit.selfGetAddress()
+        qDebug('{}, {}, {}'.format(peer_pubkey, my_addr, peer_pubkey == my_addr))
+        return my_addr.find(peer_pubkey) == 0
+
+    def onlyMyself(self, group_number):
         return

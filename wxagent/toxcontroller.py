@@ -67,6 +67,18 @@ class ToxCallProxy(QObject):
         qDebug('hereeee')
         return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number, peer_number)
 
+    def groupPeerPubkey(self, group_number, peer_number):
+        qDebug('hereeee')
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName(), group_number, peer_number)
+
+    def selfGetAddress(self):
+        qDebug('hereeee')
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName())
+
+    def bootDht(self):
+        qDebug('hereeee')
+        return self.ctrl.remoteCall(self.ctrl.rtab.funcName())
+
 
 class ToxController(BaseController):
     def __init__(self, rtab, parent=None):

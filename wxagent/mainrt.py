@@ -1,6 +1,10 @@
 import sys
+import signal
+import asyncio
+
 from PyQt5.QtCore import *
 from .qtutil import pyctrl
+from quamash import QEventLoop, QThreadExecutor
 
 from .wxcommon import *
 
@@ -88,6 +92,14 @@ class StartupManager(QObject):
 g_w2t = None
 
 
+def sigint_handler():
+    qDebug('clean up...')
+    app = QCoreApplication.instance()
+    app.exit(0)
+    # sys.exit(0)
+    return
+
+
 def on_app_about_close():
     qDebug('hereee')
     global g_w2t
@@ -100,6 +112,9 @@ def main():
     if qVersion() < '5.5.0': raise 'not supported qt version < 5.5.0'
     app = QCoreApplication(sys.argv)
     pyctrl()
+    loop = QEventLoop(app)
+    loop.add_signal_handler(signal.SIGINT, sigint_handler)
+    asyncio.set_event_loop(loop)
 
     rto = StartupManager()
     rto.start()
@@ -108,8 +123,8 @@ def main():
     g_w2t = rto
     app.aboutToQuit.connect(on_app_about_close)
 
-    qDebug('qtloop...{}'.format(rto))
-    sys.exit(app.exec_())
+    qDebug('qt&loop...{}'.format(rto))
+    with loop: loop.run_forever()  # sys.exit(app.exec_())
     return
 
 

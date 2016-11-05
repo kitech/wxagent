@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 from PyQt5.QtCore import *
 
@@ -6,7 +7,7 @@ import socket
 import irc.client
 
 
-class QIRC(QThread):
+class QIRC(QObject):
     connected = pyqtSignal()
     disconnected = pyqtSignal()
     newMessage = pyqtSignal(str)
@@ -19,7 +20,7 @@ class QIRC(QThread):
         self.last_ping = 0.0
         return
 
-    def run(self):
+    def startup(self):
         self._user = 'devnull2'
         self._user = '\_'
         self._user = 'yobot'
@@ -46,9 +47,17 @@ class QIRC(QThread):
         self.needJoin.connect(self.rejoin, Qt.QueuedConnection)
         self.needJoin.emit()
 
-        while True:
+        self.loop_timer = QTimer()
+        self.loop_timer.timeout.connect(self.iterate, Qt.QueuedConnection)
+        self.loop_timer.start(200)
+
+        while False:
             self._client.process_once(timeout=0.05)
         # self._client.process_forever()
+        return
+
+    def iterate(self):
+        self._client.process_once(timeout=0)
         return
 
     def reconnect(self):
@@ -135,7 +144,7 @@ class QIRC(QThread):
 
     def sendGroupMessage(self, msg, channel):
         if self._server.is_connected():
-            if self.invalidName(channel):
+            if self.validName(channel):
                 self.groupAdd(channel)
                 self.groupInvite(self._peer_user, channel)
                 qDebug(str(channel).encode())
@@ -155,7 +164,7 @@ class QIRC(QThread):
                 return False
         return True
 
-    def invalidName(self, name):
+    def validName(self, name):
         if name[0] != '#': return False
         import re
         # check cjk characters

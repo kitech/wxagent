@@ -151,7 +151,7 @@ class ToxSlot(Tox):
 
 # 支持qt signal slots
 # 支持永久存储与不存储
-class QToxKit(QThread):
+class QToxKit(QObject):
     connectChanged = pyqtSignal(bool)
     connected = pyqtSignal()
     disconnected = pyqtSignal()
@@ -191,7 +191,7 @@ class QToxKit(QThread):
         self.bootstrapTimeout = 30000  #
         self.bootstrapTimer = None
 
-        self.start()
+        self.run()
 
         # Fix race condition
         # confirm self.tox is not None after this class's __init__
@@ -203,16 +203,19 @@ class QToxKit(QThread):
 
     def run(self):
         self.makeTox()
-        
+
         self.bootstrapStartTime = QDateTime.currentDateTime()
         self.bootDht()
 
+        self.loop_timer = QTimer()
+        self.loop_timer.timeout.connect(self.itimeout, Qt.QueuedConnection)
+        self.loop_timer.start(100)
         # self.exec_()
-        while self.stopped is not True:
-            self.itimeout()
-            QThread.msleep(self.tox.iteration_interval() * 1)  # *9???
+        # while self.stopped is not True:
+        #    self.itimeout()
+        #    QThread.msleep(self.tox.iteration_interval() * 1)  # *9???
 
-        qDebug('toxkit thread exit.')
+        # qDebug('toxkit thread exit.')
         return
 
     def makeTox(self):
@@ -278,17 +281,14 @@ class QToxKit(QThread):
         rlyret = self.tox.add_tcp_relay(myvpsnode[0], myvpsnode[1], myvpsnode[2])
         qDebug('bootstrap from: %s %d %s' % (myvpsnode[0], myvpsnode[1], myvpsnode[2]))
 
-        # localrun = True
         qDebug('selected srvs:' + str(rndsrvs))
         for rnd in rndsrvs:
             if localrun is True: continue
             srv = dhtsrvs[rnd]
-            #qDebug('bootstrap from:' + str(rndsrvs) +  str(srv))
             qDebug('bootstrap from: %s %d %s' % (srv.addr, srv.port, srv.pubkey))
             bsret = self.tox.bootstrap(srv.addr, srv.port, srv.pubkey)
             rlyret = self.tox.add_tcp_relay(srv.addr, srv.port, srv.pubkey)
 
-        
         return
 
     def bootDHTLocal(self):
@@ -301,14 +301,14 @@ class QToxKit(QThread):
         qDebug('bootstrap from: %s %d %s' % (mylonode[0], mylonode[1], mylonode[2]))
 
         return
-    
+
     def itimeout(self):
         civ = self.tox.iteration_interval()
 
         self.tox.iterate()
         conned = self.tox.self_get_connection_status()
         #qDebug('hehre' + str(conned))
-        
+
         if conned != self.is_connected:
             qDebug('connect status changed: %d -> %d' % (self.is_connected, conned))
             if conned is True: self.bootstrapFinishTime = QDateTime.currentDateTime()
@@ -317,12 +317,12 @@ class QToxKit(QThread):
             self.onSelfConnectStatus(conned)
             if conned is True: self.connected.emit()
             if conned is False: self.disconnected.emit()
-           
+
         return
 
     # TODO
     def bootstrapTimeout(self):
-        
+
         return
 
     def isConnected(self):
@@ -334,7 +334,7 @@ class QToxKit(QThread):
     def selfGetConnectionStatus(self):
         status = self.tox.self_get_connection_status()
         return status
-    
+
     def onSelfConnectStatus(self, status):
         qDebug('my status: %s' % str(status))
         fnum = self.tox.self_get_friend_list_size()
@@ -348,7 +348,10 @@ class QToxKit(QThread):
     def selfSetStatusMessage(self, status_message):
         rc = self.tox.self_set_status_message(status_message)
         return rc
-    
+
+    def selfGetAddress(self):
+        return self.tox.self_get_address()
+
     def fwdFriendRequest(self, pubkey, data):
         qDebug(str(pubkey))
         qDebug(str(data))
@@ -364,7 +367,7 @@ class QToxKit(QThread):
         self.sets.saveData(newdata)
 
         return
-    
+
     def onFriendConnectStatus(self, fno, status):
         qDebug('hehre: fnum=%s, status=%s' % (str(fno), str(status)))
         friend_pubkey = self.tox.friend_get_public_key(fno)
@@ -417,10 +420,10 @@ class QToxKit(QThread):
 
     def onFriendMessage(self, fno, msg_type, msg):
         # qDebug('here')
-        u8msg = msg.encode('utf8') # str ==> bytes
-        #print(u8msg)
+        u8msg = msg.encode('utf8')  # str ==> bytes
+        # print(u8msg)
         u8msg = str(u8msg, encoding='utf8')
-        #print(u8msg) # ok, python utf8 string
+        # print(u8msg) # ok, python utf8 string
         # qDebug(u8msg.encode('utf-8')) # should ok, python utf8 bytes
 
         fid = self.tox.friend_get_public_key(fno)
@@ -598,12 +601,16 @@ class QToxKit(QThread):
             self.toxav = ToxAV(self.tox)
         return self.toxav
 
-    def groupchatPeerNumberIsOurs(self, group_number, peer_number):
+    def groupPeerNumberIsOurs(self, group_number, peer_number):
         rc = self.tox.group_peernumber_is_ours(group_number, peer_number)
         return rc == 1
 
     def groupPeerName(self, group_number, peer_number):
         rc = self.tox.group_peername(group_number, peer_number)
+        return rc
+
+    def groupPeerPubkey(self, group_number, peer_number):
+        rc = self.tox.group_peer_pubkey(group_number, peer_number)
         return rc
 
     # @param group_pubkey data's hex encoded string

@@ -1,3 +1,5 @@
+import asyncio
+import quamash
 import json
 import re
 import requests
@@ -16,6 +18,7 @@ class CmdController(BaseController):
         self.ufc = 0
         self.msgos = {}
         self.fetchers = {}
+        self.trunner = quamash.QThreadExecutor()
         return
 
     def initSession(self):
@@ -29,20 +32,23 @@ class CmdController(BaseController):
             return
 
         urls = self.extract_urls(msgo['context']['content'])
-        print(urls)
+        qDebug(str(urls))
 
         self.ufc = self.ufc + 1
         self.msgos[self.ufc] = msgo
-        self.fetchers[self.ufc] = UrlFetcher(self.ufc, urls)
-        self.fetchers[self.ufc].fetched.connect(self.onUrlFetched, Qt.QueuedConnection)
-        self.fetchers[self.ufc].start()
-
+        fetcher = UrlFetcher(self.ufc, urls)
+        self.fetchers[self.ufc] = fetcher
+        loop = asyncio.get_event_loop()
+        r = loop.run_in_executor(self.trunner, fetcher.run)
+        r.add_done_callback(self.onUrlFetched)
+        qDebug('running???')
         return
 
     def replyGroupMessage(self, msgo):
         return
 
-    def onUrlFetched(self, seq):
+    def onUrlFetched(self, future):
+        seq = future.result()
         fetcher = self.fetchers[seq]
         qDebug(str(fetcher))
 
@@ -82,33 +88,30 @@ class CmdController(BaseController):
         return urls
 
 
-class UrlFetcher(QThread):
-    fetched = pyqtSignal(int)
+class UrlFetcher():
 
     def __init__(self, seq, urls):
-        super(UrlFetcher, self).__init__()
         self.seq = seq
         self.urls = urls
         self.resps = {}
         return
 
+    # @asyncio.coroutine
     def run(self):
         from requests.packages.urllib3.util.retry import Retry
         from requests.adapters import HTTPAdapter
         headers = {'User-Agent': 'yobot/1.0'}
-        retries = Retry.from_int(1)
+        retries = Retry.from_int(0)
         s = requests.Session()
         s.mount('http://', HTTPAdapter(max_retries=retries))
         s.mount('https://', HTTPAdapter(max_retries=retries))
         qDebug(str(self.urls).encode())
         for url in self.urls:
             try:
-                resp = s.get(url, headers=headers)
-                print(resp.status_code, resp.encoding)
+                resp = s.get(url, headers=headers, timeout=1.2)
+                qDebug('{}, {}'.format(resp.status_code, resp.encoding).encode())
                 self.resps[url] = resp
             except Exception as ex:
                 qDebug(str(ex).encode())
                 self.resps[url] = None
-        self.fetched.emit(self.seq)
-        return
-
+        return self.seq

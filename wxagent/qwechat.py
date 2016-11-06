@@ -3,10 +3,9 @@
 import os, sys
 import json, re
 import time
-
+import asyncio
+import quamash
 import requests
-import gevent.pool
-from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import QNetworkReply
@@ -22,7 +21,7 @@ from .txbase import TXBase, AgentCookieJar
 # DBusQtMainLoop(set_as_default = True)
 
 
-class ReqThread(QThread):
+class ReqThread(QObject):
     reqFinished = pyqtSignal('int')
 
     def __init__(self, parent=None):
@@ -31,77 +30,40 @@ class ReqThread(QThread):
         self._req_map = dict()
         self._res_map = dict()
         self._reqid = 0
-        self._qlock = QMutex()
-        self._wlock = QMutex()
-        self._cond = QWaitCondition()
         self._sess = requests.Session()
-        self._pool = gevent.pool.Pool(size=8)
-        self._ths = dict()  # rid => thread
-        self._pexe = ThreadPoolExecutor(max_workers=8)
+        self._texer = quamash.QThreadExecutor(max_workers=1)
         return
 
-    def request(self, req: requests.Request) -> int:
-        self._qlock.lock()
+    def request(self, req: requests.Request, timeout=35) -> int:
         reqid = self._reqid = self._reqid + 1
         self._req_map[reqid] = req
         self._req_queue.append(reqid)
-        self._qlock.unlock()
-        self._cond.wakeOne()
+        loop = asyncio.get_event_loop()
+        fut = loop.run_in_executor(self._texer, self.runfunc, reqid, req, timeout)
+        fut.add_done_callback(self.doreqcb)
         return reqid
 
-    def run(self) -> None:
-        stop = False
-        while not stop:
-            if len(self._req_queue) > 0:
-                self.doreq()
-                continue
-            self._wlock.lock()
-            self._cond.wait(self._wlock)
-            self.doreq()
-            self._wlock.unlock()
-        return
-
-    def doreq(self) -> None:
-        self._qlock.lock()
-        reqid = self._req_queue.pop()
-        if reqid is None:
-            self._qlock.unlock()
-            return
-
-        req = self._req_map[reqid]
+    def runfunc(self, reqid, req, timeout) -> list:
         req.headers['Referer'] = REFERER
         if type(req.data) == str:
             req.data = req.data.encode()
         preq = self._sess.prepare_request(req)
 
-        def runfun() -> list:
-            res = None
-            try:
-                # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
-                res = self._sess.send(preq, timeout=35)
-                # self.doreqcb(res if 'res' in locals() else None, req, reqid)
-            except requests.exceptions.ReadTimeout:
-                # TODO
-                qDebug('timeout: ' + req.url)
-                pass
-            except Exception as ex:
-                qDebug(str(ex).encode())
+        res = None
+        try:
+            # Use body.encode('utf-8') if you want to send it encoded in UTF-8.
+            res = self._sess.send(preq, timeout=timeout)
+            # self.doreqcb(res if 'res' in locals() else None, req, reqid)
+        except requests.exceptions.ReadTimeout:
+            # TODO
+            qDebug('timeout: ' + req.url)
+            pass
+        except Exception as ex:
+            qDebug(str(ex).encode())
 
-            return [reqid, req, res]
+        return [reqid, req, res]
 
-        # how use gevent to run the task?
-        # glet = self._pool.apply_async(runfun, req[0:2], req[2])
-        # self._ths[rid] = glet
-        # self._pool.start(glet)
-        ##########
-        jobh = self._pexe.submit(runfun)
-        self._ths[reqid] = jobh
-        jobh.add_done_callback(self.doreqcb)
-
-        self._qlock.unlock()
-        return
-
-    def doreqcb(self, jobh: Future):
+    def doreqcb(self, jobh: asyncio.Future):
         fures = jobh.result()
         res = fures[2]
         req = fures[1]
@@ -109,7 +71,6 @@ class ReqThread(QThread):
         # qDebug(str(res.status_code) + ', ' + str(res.headers))
         self._res_map[reqid] = [req, res]
         self._req_map.pop(reqid)
-        jobj = self._ths.pop(reqid)
         self.reqFinished.emit(reqid)
         return
 
@@ -128,7 +89,6 @@ class QWechat(TXBase):
         self._agent = None  # BaseAgent
         self._reqth = ReqThread()
         self._reqth.reqFinished.connect(self.onReply2, Qt.QueuedConnection)
-        self._reqth.start()
         self.acj = AgentCookieJar()
 
         self.wxses = None
@@ -218,7 +178,7 @@ class QWechat(TXBase):
         qDebug('requesting: ' + url)
         #####
         req = requests.Request('get', url)
-        self._reqth.request(req)
+        self._reqth.request(req, timeout=5)
 
         return
 
@@ -280,9 +240,9 @@ class QWechat(TXBase):
 
         ######
         elif url.startswith('https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?'):
-            qDebug("app scaned qrpic:" + str(hcc))
+            qDebug("app scaned qrpic:{}".format(str(hcc)[0:64]).encode())
 
-            if status_code is None and error_no in [99, 8]:  # QNetworkReply.UnknownNetworkError
+            if status_code is None and error_no in [99, 8, 4]:  # QNetworkReply.UnknownNetworkError
                 if self.canReconnect(): self.tryReconnect(self.pollLogin)
                 return
             else:
@@ -962,6 +922,13 @@ class QWechat(TXBase):
 
         sigmsg.setArguments([123])
 
+        args = {
+            'evt': 'loginsuccess',
+            'params': [123],
+        }
+        self.SendMessageX(args)
+        if True: return
+
         sysbus = QDBusConnection.systemBus()
         bret = sysbus.send(sigmsg)
         qDebug(str(bret))
@@ -973,6 +940,13 @@ class QWechat(TXBase):
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "logined")
         sigmsg.setArguments([123])
 
+        args = {
+            'evt': 'logined',
+            'params': [123],
+        }
+        self.SendMessageX(args)
+        if True: return
+
         sysbus = QDBusConnection.systemBus()
         bret = sysbus.send(sigmsg)
         qDebug(str(bret))
@@ -982,6 +956,13 @@ class QWechat(TXBase):
         # sigmsg = QDBusMessage.createSignal("/", SERVICE_NAME, "logined")
         sigmsg = QDBusMessage.createSignal("/io/qtc/wxagent/signals", 'io.qtc.wxagent.signals', "logouted")
         sigmsg.setArguments([123])
+
+        args = {
+            'evt': 'logouted',
+            'params': [123],
+        }
+        self.SendMessageX(args)
+        if True: return
 
         sysbus = QDBusConnection.systemBus()
         bret = sysbus.send(sigmsg)
@@ -998,6 +979,15 @@ class QWechat(TXBase):
         qDebug(str(len(hcc)) + ',' + str(len(hcc64_str)))
         sigmsg.setArguments([len(hcc), hcc64_str, len(hcc)])
         # sigmsg.setArguments([123, 'abcnewmessagessssssssss'])
+
+        args = {
+            'op': 'message',
+            'params': [len(hcc), hcc64_str, len(hcc)],
+        }
+        channel = 'unknown'
+        args = self.setCtxChannel(args, channel)
+        self.SendMessageX(args)
+        if True: return
 
         sysbus = QDBusConnection.systemBus()
         bret = sysbus.send(sigmsg)

@@ -69,6 +69,8 @@ class RoundTable(BaseAgent):
     def processOperator(self, msgo):
         if msgo['src'] == 'IRCAgent':
             self.processOperatorIRC(msgo)
+        elif msgo['src'] == 'WechatAgent':
+            self.processOperatorWechat(msgo)
         elif msgo['src'] == 'XmppAgent':
             self.processOperatorXmpp(msgo)
         elif msgo['src'] == 'ToxAgent':
@@ -87,9 +89,21 @@ class RoundTable(BaseAgent):
         rules = ['ToxAgent']
         remsg = 're: ' + msgo['params'][0]
         args = self.makeBusMessage('reply', None, remsg)
-        # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
         args['context'] = msgo['context']
-        # self.SendMessageX(args)
+
+        for rule in rules:
+            args['dest'] = [rule]
+            if self.ctrls.get(rule) is not None:
+                self.ctrls[rule].replyMessage(args)
+
+        return
+
+    def processOperatorWechat(self, msgo):
+        rules = ['ToxAgent', 'XmppAgent', 'IRCAgent']
+        rules = ['ToxAgent']
+        remsg = 're: ' + msgo['params'][1]
+        args = self.makeBusMessage('reply', None, remsg)
+        args['context'] = msgo['context']
 
         for rule in rules:
             args['dest'] = [rule]
@@ -102,9 +116,7 @@ class RoundTable(BaseAgent):
         rules = ['ToxAgent', 'WechatAgent', 'IRCAgent']
         remsg = 're: ' + msgo['params'][1]
         args = self.makeBusMessage('reply', None, remsg)
-        # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
         args['context'] = msgo['context']
-        # self.SendMessageX(args)
 
         for rule in rules:
             args['dest'] = [rule]
@@ -120,9 +132,7 @@ class RoundTable(BaseAgent):
         qDebug(str(msgo['params']).encode())
         remsg = 're: ' + msgo['params'][2]
         args = self.makeBusMessage('reply', None, remsg)
-        # args['dest'] = ['ToxAgent', 'WXAgent', 'XmppAgent']
         args['context'] = msgo['context']
-        # self.SendMessageX(args)
 
         for rule in rules:
             args['dest'] = [rule]
@@ -133,6 +143,14 @@ class RoundTable(BaseAgent):
 
     def processOperatorRoundTable(self, msgo):
         if msgo['op'] == 'showpiclink':
+            remsg = msgo['params'][0]
+            args = self.makeBusMessage('reply', None, remsg)
+            args['context'] = msgo['context']
+            self.ctrls['ToxAgent'].replyMessage(args)
+            # self.ctrls['XmppAgent'].replyMessage(args)
+            return
+
+        if msgo['op'] == 'notinfo':
             remsg = msgo['params'][0]
             args = self.makeBusMessage('reply', None, remsg)
             args['context'] = msgo['context']

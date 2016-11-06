@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 
 from PyQt5.QtCore import *
 
@@ -17,7 +18,7 @@ class QIRC(QObject):
     def __init__(self, parent=None):
         irc.client.log.setLevel(logging.DEBUG)
         super(QIRC, self).__init__(parent)
-        self.last_ping = 0.0
+        self.last_ping = time.time()
         return
 
     def startup(self):
@@ -36,6 +37,8 @@ class QIRC(QObject):
         self._server = self._client.server()
         r = self._server.connect(self._host, self._port, self._user)
         qDebug(str(self._server.is_connected()))
+        self._server.set_keepalive(123.0)
+        self._server.set_rate_limit(3)
 
         self._server.add_global_handler('pubmsg', self.onPublicMessage)
         self._server.add_global_handler('privmsg', self.onPrivateMessage)
@@ -63,6 +66,16 @@ class QIRC(QObject):
     def reconnect(self):
         r = self._server.connect(self._host, self._port, self._user)
         return r
+
+    # use last_ping_time
+    def checkTimeout(self):
+        now = time.time()
+        if self.last_ping > 1.0:
+            delta = now - self.last_ping
+            if delta > (260.0 + 12):
+                qDebug('maybe connection timeout: {}'.format(delta))
+                return True
+        return False
 
     def rejoin(self):
         qDebug('hehrerere')
@@ -111,8 +124,7 @@ class QIRC(QObject):
 
     def onIRCEvent(self, conn: irc.client.ServerConnection, evt: irc.client.Event):
         qDebug('{}, {}. {}'.format(str(conn), str(evt), str(type(evt))).encode())
-        if evt.type == 'ping':
-            import time
+        if evt.type == 'ping' or evt.type == 'pong':
             last_ping = time.time()
             qDebug('last: {}, now: {}, delta: {}, conn: {}'
                    .format(self.last_ping, last_ping,
@@ -143,6 +155,7 @@ class QIRC(QObject):
         return
 
     def sendGroupMessage(self, msg, channel):
+        to = self.checkTimeout()
         if self._server.is_connected():
             if self.validName(channel):
                 self.groupAdd(channel)

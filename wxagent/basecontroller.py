@@ -4,6 +4,7 @@ import os, sys
 import json, re
 import enum
 import time
+import asyncio
 
 from PyQt5.QtCore import *
 from PyQt5.QtNetwork import *
@@ -259,17 +260,6 @@ class BaseController(BaseController0):
         # islogined
         # 等待，总之是wxagent支持的命令，
 
-        self.uicmdHandler(msg)
-        self.botcmdHandler(msg)
-        return
-
-    # @param msg str
-    def uicmdHandler(self, msg):
-        # maybe impled in subclass 
-        return
-
-    def botcmdHandler(self, msg):
-        # maybe impled in subclass 
         return
 
     def onRelayGroupMessage(self, group_number, message):
@@ -314,9 +304,13 @@ class BaseController(BaseController0):
 
         return
 
-    def sendQRToRelayPeer(self):
-        ### 无论是否登陆，启动的都发送一次qrcode文件
-        qrpic = self.getQRCode()
+    def sendQRToRelayPeer(self, qrpic64str=None):
+        # 无论是否登陆，启动的都发送一次qrcode文件
+        if qrpic64str is None:
+            qrpic64str = self.getQRCode()
+        if qrpic64str is not None:
+            qrpic = QByteArray.fromBase64(qrpic64str)
+        else: qrpic = None
         if qrpic is None:
             qDebug('maybe wechat agent not run...')
         elif len(qrpic) == 0:
@@ -343,61 +337,35 @@ class BaseController(BaseController0):
                 self.need_send_qrfile = True
         return
 
-    @pyqtSlot(QDBusMessage)
-    def onDBusBeginLogin(self, message):
-        qDebug(str(message.arguments()))
-        # clear smth.
-        return
-
     def onDBusBeginLogin2(self):
+        qDebug('hehrhe')
         return
 
-    @pyqtSlot(QDBusMessage)
-    def onDBusGotQRCode(self, message):
-        args = message.arguments()
-        # qDebug(str(message.arguments()))
-        qrpic64str = args[1]
-        qrpic = QByteArray.fromBase64(qrpic64str.encode())
-        return self.onDBusGotQRCode2(qrpic)
-
-    def onDBusGotQRCode2(self, qrpic: QByteArray):
-        self.qrpic = qrpic
-        fname = self.genQRCodeSaveFileName()
-        self.saveContent(fname, qrpic)
-        self.qrfile = fname
-
-        tkc = False
-        # tkc = self.peerRelay.isPeerConnected(self.peerRelay.peer_user)
-        tkc = True
-        if tkc is True:
-            # url = filestore.upload_file(self.qrpic)
-            url1 = QiniuFileStore.uploadData(self.qrpic)
-            url2 = VnFileStore.uploadData(self.qrpic)
-            url = url1 + "\n" + url2
-            # self.peerRelay.sendMessage('qrpic url:' + url, self.peerRelay.peer_user)
-            args = self.rtab.makeBusMessage('showpiclink', None, 'qrcode url:' + url)
-            self.rtab.SendMessageX(args)
-        else:
-            self.need_send_qrfile = True
-
+    def onDBusGotQRCode2(self, qrpic64str):
+        self.sendQRToRelayPeer(qrpic64str)
         return
 
-    @pyqtSlot(QDBusMessage)
-    def onDBusLoginSuccess(self, message):
-        qDebug(str(message.arguments()))
-        self.startWXBot()
+    def onDBusLoginSuccess(self):
+        loop = asyncio.get_event_loop()
+        loop.call_soon(self.startWXBot)
 
-        # TODO send success message to UI peer
+        args = self.rtab.makeBusMessage('notinfo', None, 'login success')
+        self.rtab.SendMessageX(args)
+        # send success message to UI peer
         return
 
-    @pyqtSlot(QDBusMessage)
-    def onDBusLogined(self, message):
-        qDebug(str(message.arguments()))
+    def onDBusLogined(self):
+        qDebug('hehreere')
+        args = self.rtab.makeBusMessage('notinfo', None, 'log in')
+        self.rtab.SendMessageX(args)
+        # send success message to UI peer
         return
 
-    @pyqtSlot(QDBusMessage)
-    def onDBusLogouted(self, message):
-        qDebug(str(message.arguments()))
+    def onDBusLogouted(self):
+        qDebug('hehreere')
+        args = self.rtab.makeBusMessage('notinfo', None, 'log out')
+        self.rtab.SendMessageX(args)
+        # send success message to UI peer
         return
 
     # def onDBusNewMessage(self, message)
@@ -514,9 +482,8 @@ class BaseController(BaseController0):
     def getQRCode(self):
         retv = self.peerRelay.getqrpic(123, 'a1', 456)
         if retv is not None:
-            qrpic64 = retv.encode('utf8')   # to bytes
-            qrpic = QByteArray.fromBase64(qrpic64)
-            return qrpic
+            qrpic64 = retv.encode()   # to bytes
+            return qrpic64
         return None
 
     def genQRCodeSaveFileName(self):

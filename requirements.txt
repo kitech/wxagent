@@ -3,15 +3,14 @@ pytox>=0.1.0
 sleekxmpp
 irc
 requests
-gevent
 pyquery
+quamash
 
 qiniu
 PyExecJS
 pycurl
 python-magic>=0.4.8
 html2text
-pytox
 
 # below is optional dependencies
 dnspython

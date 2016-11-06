@@ -31,6 +31,17 @@ class CmdController(BaseController):
            msgo.get('context').get('content') is None:
             return
 
+        self.fetcherHandler(msgo)
+
+        # others
+        # self.uicmdHandler(msg)
+        # self.botcmdHandler(msg)
+        return
+
+    def replyGroupMessage(self, msgo):
+        return
+
+    def fetcherHandler(self, msgo):
         urls = self.extract_urls(msgo['context']['content'])
         qDebug(str(urls))
 
@@ -42,9 +53,6 @@ class CmdController(BaseController):
         r = loop.run_in_executor(self.trunner, fetcher.run)
         r.add_done_callback(self.onUrlFetched)
         qDebug('running???')
-        return
-
-    def replyGroupMessage(self, msgo):
         return
 
     def onUrlFetched(self, future):
@@ -86,6 +94,29 @@ class CmdController(BaseController):
         urls = re.findall(exp, text)
         # print(urls)
         return urls
+
+    def botcmdHandler(self, msg):
+        # 汇总消息好友发送过来的消息当作命令处理
+        # getqrcode
+        # islogined
+        # 等待，总之是wxagent支持的命令，
+
+        # listener event
+        qDebug("emit event...")
+        for listener in self.lsnrs:
+            if listener.role == listener.ROLE_CTRL:
+                listener.onMessage(msg)
+
+        return
+
+    # @param msg str
+    def uicmdHandler(self, msg):
+        # maybe impled in subclass 
+        return
+
+    def botcmdHandler(self, msg):
+        # maybe impled in subclass 
+        return
 
 
 class UrlFetcher():

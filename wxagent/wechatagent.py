@@ -1,4 +1,4 @@
-
+import json
 
 from PyQt5.QtCore import *
 from PyQt5.QtDBus import *
@@ -37,8 +37,16 @@ class WechatAgent(BaseAgent):
             qDebug(str(len(ret)))
         elif func == 'islogined':
             ret = self.wechat.logined
+        elif func == 'getinitdata':
+            data64 = self.wechat.wxinitRawData.toBase64()
+            ret = data64.data().decode()
+        elif func == 'getcontact':
+            data64 = self.wechat.wxFriendRawData.toBase64()
+            ret = data64.data().decode()
+        elif func == 'getgroups':
+            ret = json.JSONEncoder().encode(self.wechat.wxGroupUserNames)
         else:
-            qDebug('not supported now: {}'.format(func))
+            qDebug('not supported now: {}'.format(func).encode())
 
         return ret
 

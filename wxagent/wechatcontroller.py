@@ -18,7 +18,6 @@ from .wxcommon import *
 from .wxmessage import *
 from .wxsession import *
 from .unimessage import *
-from .botcmd import *
 from .filestore import QiniuFileStore, VnFileStore
 
 from .basecontroller import BaseController, Chatroom
@@ -56,7 +55,7 @@ class WechatController(BaseController):
         self.relay_src_pname = 'WXU'
         self.peerRelay = WechatCallProxy(self)
 
-        self.initDBus()
+        # self.initDBus()
         # self.initRelay()
         # self.initListener()
         self.startWXBot()
@@ -76,28 +75,19 @@ class WechatController(BaseController):
         elif evt == 'onToxnetMessage': self.relay.onToxnetMessage(*params)
         elif evt == 'got_qrcode': self.onDBusGotQRCode2(QByteArray(params[0].encode()))
         elif evt == 'begin_login': self.onDBusBeginLogin2()
-        else: pass
+        elif evt == 'loginsuccess': self.onDBusLoginSuccess()
+        elif evt == 'logined': self.onDBusLogined()
+        elif evt == 'logouted': self.onDBusLogouted()
+        else: qDebug('unknown event: {}'.format(evt).encode())
         return
 
     def fillContext(self, msgo):
-        msgtxt = str(msgo)
+        msgtxt = str(msgo)[0:128]
+        qDebug(str(msgo.keys()).encode())
         qDebug(msgtxt.encode())
         return msgo
 
-    def botcmdHandler(self, msg):
-        # 汇总消息好友发送过来的消息当作命令处理
-        # getqrcode
-        # islogined
-        # 等待，总之是wxagent支持的命令，
-
-        # listener event
-        qDebug("emit event...")
-        for listener in self.lsnrs:
-            if listener.role == listener.ROLE_CTRL:
-                listener.onMessage(msg)
-
-        return
-
+    # 检测是否登陆，如未登陆尝试请求qrpic
     def startWXBot(self):
         logined = False
         if not self.checkWXLogin():
@@ -106,11 +96,10 @@ class WechatController(BaseController):
             logined = True
             qDebug('wxagent already logined.')
 
-        self.sendQRToRelayPeer()
+        if not logined: self.sendQRToRelayPeer()
         if logined is True: self.createWXSession()
         return
 
-    @pyqtSlot(QDBusMessage)
     def onDBusNewMessage(self, message):
         # qDebug(str(message.arguments()))
         args = message.arguments()
@@ -457,6 +446,19 @@ class WechatController(BaseController):
         return groupchat
 
     def fillChatroom(self, msgo, mkey=None, title=None, group_numer=None):
+        args = msgo['params']
+        msglen, msghcc, *others = msgo['params']
+
+        hcc64_str = args[1]
+        hcc64 = hcc64_str.encode()
+        hcc = QByteArray.fromBase64(hcc64)
+
+        wxmsgvec = self.txses.processMessage(hcc)
+        msgs = wxmsgvec.getAddMsgList()
+        for msg in msgs:
+            fromUser = self.txses.getUserByName(msg.FromUserName)
+            qDebug(fromUser.NickName.encode())
+
         mkey = str(msgo['context']['channel'])
         qDebug(str(mkey).encode())
         title = "T: " + str(msgo['context']['channel'])
@@ -568,20 +570,27 @@ class WechatController(BaseController):
         self.txses = WXSession()
 
         retv = self.remoteCall('getinitdata', 123, 'a1', 456)
-        if retv is None: return
-
+        if retv is None:
+            qDebug('getinitdata failed')
+            return
         data64 = retv.encode()
         data = QByteArray.fromBase64(data64)
         self.txses.processInitData(data)
         self.saveContent('initdata.json', data)
 
         retv = self.remoteCall('getcontact', 123, 'a1', 456)
+        if retv is None:
+            qDebug('getcontact failed')
+            return
         data64 = retv.encode()
         data = QByteArray.fromBase64(data64)
         self.txses.processContactData(data)
         self.saveContent('contact.json', data)
 
         retv = self.remoteCall('getgroups', 123, 'a1', 456)
+        if retv is None:
+            qDebug('getgroups failed')
+            return
         GroupNames = json.JSONDecoder().decode(retv)
 
         self.txses.addGroupNames(GroupNames)
@@ -594,8 +603,8 @@ class WechatController(BaseController):
     def checkWXLogin(self):
         # retv = self.remoteCall('islogined', 'a0', 123, 'a1')
         retv = self.peerRelay.islogined('a0', 123, 'a1')
-        if retv is False:
-            return retv
+        if retv is None or retv is False:
+            return False
 
         return True
 

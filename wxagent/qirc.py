@@ -60,12 +60,28 @@ class QIRC(QObject):
         return
 
     def iterate(self):
-        self._client.process_once(timeout=0)
+        try:
+            self._client.process_once(timeout=0)
+        except irc.client.ServerNotConnectedError as ex:
+            asyncio.get_event_loop().call_soon(self.reconnect)
         return
 
     def reconnect(self):
         r = self._server.connect(self._host, self._port, self._user)
         return r
+
+    def tryReconnect(self):
+        to = self.checkTimeout()
+        reconn = False
+        if to is True:
+            reconn = True
+        if self._server.is_connected() is False:
+            qDebug('not connected. retry...')
+            reconn = True
+
+        if reconn is True:
+            self.reconnect()
+        return
 
     # use last_ping_time
     def checkTimeout(self):
@@ -147,6 +163,7 @@ class QIRC(QObject):
         return
 
     def sendMessage(self, msg):
+        self.tryReconnect()
         if self._server.is_connected():
             ret = self._server.privmsg(self._peer_user, msg)
             qDebug(str(ret).encode())
@@ -155,7 +172,7 @@ class QIRC(QObject):
         return
 
     def sendGroupMessage(self, msg, channel):
-        to = self.checkTimeout()
+        self.tryReconnect()
         if self._server.is_connected():
             if self.validName(channel):
                 self.groupAdd(channel)
@@ -169,12 +186,7 @@ class QIRC(QObject):
                 qDebug('Invalid channel name: {}'.format(channel).encode())
                 return False
         else:
-            qDebug('not connected. retry...')
-            self.reconnect()
-            if self._server.is_connected():
-                return self.sendGroupMessage(msg, channel)
-            else:
-                return False
+            qDebug('wtf')
         return True
 
     def validName(self, name):

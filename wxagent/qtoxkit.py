@@ -571,10 +571,14 @@ class QToxKit(QObject):
         # MAX_GROUP_MESSAGE_DATA_LEN
         mlen = 1371 - 10  # TODO 这应该是bytes，现在是以字符串方式处理，对于宽字符串可能能转为bytes后长度就超过了。
 
-        msg_inbytes = msg.encode()
-        for msgn in self._splitmessage(msg_inbytes, mlen):
-            msgn_instr = msgn.decode()
-            rc = self.tox.group_message_send(group_number, msgn_instr)
+        rc = None
+        try:
+            msg_inbytes = msg.encode()
+            for msgn in self._splitmessage(msg_inbytes, mlen):
+                msgn_instr = msgn.decode()
+                rc = self.tox.group_message_send(group_number, msgn_instr)
+        except Exception as ex:
+            pass
         return rc
 
     def groupchatJoin(self, friend_number, group_type, group_pubkey):
@@ -610,7 +614,11 @@ class QToxKit(QObject):
         return rc
 
     def groupPeerPubkey(self, group_number, peer_number):
-        rc = self.tox.group_peer_pubkey(group_number, peer_number)
+        rc = None
+        try:
+            rc = self.tox.group_peer_pubkey(group_number, peer_number)
+        except Exception as ex:
+            qDebug(str(ex).encode())
         return rc
 
     # @param group_pubkey data's hex encoded string

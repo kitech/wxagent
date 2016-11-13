@@ -78,6 +78,9 @@ class ToxRelay(IMRelay):
         return str(group_number)
 
     def groupInvite(self, group_number, peer):
+        if group_number is None:
+            qDebug('invalid group_number')
+            return
         group_number = int(group_number)
         rc = self.toxkit.groupchatInviteFriend(group_number, peer)
         return rc
@@ -231,6 +234,7 @@ class ToxRelay(IMRelay):
         peer_pubkey = self.toxkit.groupPeerPubkey(group_number, peer_number)
         my_addr = self.toxkit.selfGetAddress()
         qDebug('{}, {}, {}'.format(peer_pubkey, my_addr, peer_pubkey == my_addr))
+        if my_addr is None: return False
         return my_addr.find(peer_pubkey) == 0
 
     def onlyMyself(self, group_number):

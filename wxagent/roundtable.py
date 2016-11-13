@@ -163,6 +163,10 @@ class RoundTable(BaseAgent):
             qDebug(str(msgo).encode())
             if msgo['context']['content'] == '':
                 return
+            channel = msgo['context']['channel']
+            if channel in ['#linuxba']:
+                qDebug('filtered show title feature for channel:{}'.format(channel).encode())
+                return
             msgo['src'] = msgo['context']['src']
             if msgo['src'] == 'IRCAgent':
                 self.processOperatorIRC(msgo)
